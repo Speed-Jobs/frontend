@@ -4,18 +4,26 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
+import JobPostingCard from '@/components/JobPostingCard'
+import jobPostingsData from '@/data/jobPostings.json'
 
 export default function Home() {
   const [selectedJobCategory, setSelectedJobCategory] = useState('all')
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
 
   const companies = [
-    { name: 'SAMSUNG' },
-    { name: 'LG' },
-    { name: 'HYUNDAI' },
-    { name: 'NAVER' },
-    { name: 'kakao' },
-    { name: '당근' },
+    { name: '삼성SDS' },
+    { name: 'LGCNS' },
+    { name: '현대 오토에버' },
+    { name: '한화 시스템' },
+    { name: 'KT' },
+    { name: '네이버' },
+    { name: '카카오' },
+    { name: '라인' },
+    { name: '쿠팡' },
+    { name: '배민' },
+    { name: '토스' },
+    { name: 'KPMG' },
   ]
 
   const jobCategories = ['모든 직군', '개발', '기획', '디자인', '마케팅', '데이터', 'AI/ML', '인프라', '보안']
@@ -48,156 +56,12 @@ export default function Home() {
     },
   ]
 
-  const allJobPostings = [
-    {
-      id: 1,
-      title: 'AI Engineer',
-      deadline: 'D-7',
-      category: 'Machine Learning',
-      employmentType: '신입',
-      company: '토스',
-      jobCategory: 'AI/ML',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 2,
-      title: 'Backend Developer',
-      deadline: 'D-3',
-      category: 'Spring Boot',
-      employmentType: '경력',
-      company: '네이버',
-      jobCategory: '개발',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 3,
-      title: 'Frontend Developer',
-      deadline: 'D-5',
-      category: 'React / TypeScript',
-      employmentType: '신입',
-      company: '카카오',
-      jobCategory: '개발',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 4,
-      title: 'Data Engineer',
-      deadline: 'D-10',
-      category: 'Python / Spark',
-      employmentType: '경력',
-      company: '삼성',
-      jobCategory: '데이터',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 5,
-      title: 'Product Manager',
-      deadline: 'D-2',
-      category: 'Product Strategy',
-      employmentType: '경력',
-      company: 'LG',
-      jobCategory: '기획',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 6,
-      title: 'UI/UX Designer',
-      deadline: 'D-8',
-      category: 'Figma / Prototyping',
-      employmentType: '경력',
-      company: '당근',
-      jobCategory: '디자인',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 7,
-      title: 'DevOps Engineer',
-      deadline: 'D-4',
-      category: 'Kubernetes / AWS',
-      employmentType: '경력',
-      company: '현대',
-      jobCategory: '인프라',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 8,
-      title: 'Security Engineer',
-      deadline: 'D-6',
-      category: 'Security / Compliance',
-      employmentType: '경력',
-      company: '토스',
-      jobCategory: '보안',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 9,
-      title: 'Marketing Manager',
-      deadline: 'D-9',
-      category: 'Digital Marketing',
-      employmentType: '경력',
-      company: '카카오',
-      jobCategory: '마케팅',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 10,
-      title: 'ML Engineer',
-      deadline: 'D-1',
-      category: 'Deep Learning / PyTorch',
-      employmentType: '신입',
-      company: '네이버',
-      jobCategory: 'AI/ML',
-      employmentTypeValue: '인턴',
-    },
-    {
-      id: 11,
-      title: 'Full Stack Developer',
-      deadline: 'D-5',
-      category: 'Node.js / React',
-      employmentType: '경력',
-      company: '삼성',
-      jobCategory: '개발',
-      employmentTypeValue: '계약직',
-    },
-    {
-      id: 12,
-      title: 'Data Scientist',
-      deadline: 'D-7',
-      category: 'Python / R',
-      employmentType: '경력',
-      company: 'LG',
-      jobCategory: '데이터',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 13,
-      title: 'Cloud Engineer',
-      deadline: 'D-3',
-      category: 'AWS / Terraform',
-      employmentType: '경력',
-      company: '당근',
-      jobCategory: '인프라',
-      employmentTypeValue: '정규직',
-    },
-    {
-      id: 14,
-      title: 'AI Researcher',
-      deadline: 'D-12',
-      category: 'NLP / Computer Vision',
-      employmentType: '신입',
-      company: '현대',
-      jobCategory: 'AI/ML',
-      employmentTypeValue: '정규직',
-    },
-  ]
-
   // 필터링된 공고 목록
-  const filteredJobPostings = allJobPostings.filter((job) => {
+  const filteredJobPostings = jobPostingsData.filter((job) => {
     const jobCategoryMatch =
-      selectedJobCategory === 'all' || job.jobCategory === selectedJobCategory
+      selectedJobCategory === 'all' || job.meta_data?.job_category === selectedJobCategory
     const employmentTypeMatch =
-      selectedEmploymentType === 'all' ||
-      job.employmentTypeValue === selectedEmploymentType
+      selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
     return jobCategoryMatch && employmentTypeMatch
   })
 
@@ -210,22 +74,22 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen bg-white">
       <Header />
       
       {/* Hero Section */}
       <section className="px-8 py-20 text-center relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute top-0 left-0 w-full h-full opacity-5">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
+          <div className="absolute top-20 left-10 w-72 h-72 bg-sk-red rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-sk-red/50 rounded-full blur-3xl"></div>
         </div>
         
         <div className="relative z-10">
           <h1 className="text-6xl font-bold text-gray-900 mb-6 tracking-tight">
             경쟁사 채용공고를
             <br />
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-sk-red">
               한눈에 파악하세요
             </span>
           </h1>
@@ -233,36 +97,46 @@ export default function Home() {
             주요 IT 기업들의 채용 동량부터 스킬셋 트렌드까지 실시간으로 모니터링하고 분석합니다
           </p>
           
-          {/* Company Logos */}
-          <div className="flex justify-center items-center gap-8 mb-16 flex-wrap">
-            {companies.map((company, index) => (
-              <div
-                key={index}
-                className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-110"
-              >
-                <div className="relative mb-3">
-                  {/* Sparkle icon */}
-                  <svg
-                    className="w-6 h-6 text-purple-500 absolute -top-2 -right-2 animate-pulse"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  {/* Logo container with shadow */}
-                  <div className="w-20 h-20 bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 flex items-center justify-center p-3 border border-gray-100">
-                    <CompanyLogo name={company.name} className="w-full h-full" />
+          {/* Company Logos - Infinite Scroll Animation */}
+          <div className="relative mb-16 overflow-hidden w-full">
+            <div className="flex animate-scroll gap-12 items-center whitespace-nowrap">
+              {/* 첫 번째 세트 */}
+              {companies.map((company, index) => (
+                <div
+                  key={`first-${index}`}
+                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-110 flex-shrink-0 min-w-[120px]"
+                >
+                  <div className="relative mb-3">
+                    {/* Logo container with shadow */}
+                    <div className="w-20 h-20 bg-white rounded-xl shadow-lg hover:shadow-xl hover:border-sk-red transition-all duration-300 flex items-center justify-center p-3 border border-gray-200 opacity-75">
+                      <CompanyLogo name={company.name} className="w-full h-full" />
+                    </div>
                   </div>
+                  <span className="text-sm text-gray-700 font-medium opacity-70 whitespace-nowrap">{company.name}</span>
                 </div>
-                <span className="text-sm text-gray-700 font-medium">{company.name}</span>
-              </div>
-            ))}
+              ))}
+              {/* 두 번째 세트 (무한 반복을 위한 복사본) */}
+              {companies.map((company, index) => (
+                <div
+                  key={`second-${index}`}
+                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-110 flex-shrink-0 min-w-[120px]"
+                >
+                  <div className="relative mb-3">
+                    {/* Logo container with shadow */}
+                    <div className="w-20 h-20 bg-white rounded-xl shadow-lg hover:shadow-xl hover:border-sk-red transition-all duration-300 flex items-center justify-center p-3 border border-gray-200 opacity-75">
+                      <CompanyLogo name={company.name} className="w-full h-full" />
+                    </div>
+                  </div>
+                  <span className="text-sm text-gray-700 font-medium opacity-70 whitespace-nowrap">{company.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* CTA Button */}
           <Link
             href="/dashboard"
-            className="inline-block px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            className="inline-block px-10 py-4 bg-sk-red hover:bg-sk-red-dark text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-sk-red"
           >
             대시보드 보러가기 →
           </Link>
@@ -270,12 +144,12 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="px-8 py-20 bg-white">
+      <section className="px-8 py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               강력한 기능으로
-              <span className="block mt-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="block mt-2 text-sk-red">
                 채용 인사이트를 제공합니다
               </span>
             </h2>
@@ -289,17 +163,17 @@ export default function Home() {
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 group hover:-translate-y-1"
+                className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:border-sk-red transition-all duration-300 border border-gray-200 group hover:-translate-y-1"
               >
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-sk-red rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                     {index + 1}
                   </div>
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold text-gray-900 mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-base text-blue-600 font-semibold mb-4">
+                    <p className="text-base text-sk-red font-semibold mb-4">
                       {feature.subtitle}
                     </p>
                   </div>
@@ -312,7 +186,7 @@ export default function Home() {
       </section>
 
       {/* Competitor Job Postings Section */}
-      <section className="px-8 py-20 bg-gradient-to-b from-gray-50 to-white">
+      <section className="px-8 py-20 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="mb-10">
             <h2 className="text-4xl font-bold text-gray-900 mb-2">
@@ -328,7 +202,7 @@ export default function Home() {
             <select
               value={selectedJobCategory === 'all' ? '모든 직군' : selectedJobCategory}
               onChange={handleJobCategoryChange}
-              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer shadow-sm"
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
             >
               {jobCategories.map((category) => (
                 <option key={category} value={category === '모든 직군' ? 'all' : category}>
@@ -339,7 +213,7 @@ export default function Home() {
             <select
               value={selectedEmploymentType === 'all' ? '모든 고용형태' : selectedEmploymentType}
               onChange={handleEmploymentTypeChange}
-              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-blue-500 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer shadow-sm"
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
             >
               {employmentTypes.map((type) => (
                 <option key={type} value={type === '모든 고용형태' ? 'all' : type}>
@@ -351,7 +225,7 @@ export default function Home() {
 
           <div className="flex items-center justify-between mb-6">
             <p className="text-base text-gray-700 font-medium">
-              <span className="text-blue-600 font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
+              <span className="text-sk-red font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
             </p>
           </div>
 
@@ -359,30 +233,9 @@ export default function Home() {
           <div className="space-y-4">
             {filteredJobPostings.length > 0 ? (
               filteredJobPostings.map((job) => (
-                <div
-                  key={job.id}
-                  className="flex items-center justify-between p-6 bg-white border-2 border-gray-100 rounded-xl hover:border-blue-200 hover:shadow-lg transition-all duration-300 group"
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold shadow-md group-hover:scale-110 transition-transform duration-300">
-                      {job.jobCategory.charAt(0)}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-gray-900 text-lg mb-1">
-                        {job.title}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {job.category} / {job.employmentType}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200">
-                      {job.deadline}
-                    </span>
-                  </div>
-                  <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5">
-                    {job.company}
-                  </button>
-                </div>
+                <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
+                  <JobPostingCard job={job} />
+                </Link>
               ))
             ) : (
               <div className="text-center py-12">

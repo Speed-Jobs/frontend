@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Header from '@/components/Header'
+import JobPostingCard from '@/components/JobPostingCard'
+import jobPostingsData from '@/data/jobPostings.json'
 import {
   BarChart,
   Bar,
@@ -17,6 +19,28 @@ import {
 
 export default function Dashboard() {
   const [timeframe, setTimeframe] = useState('Daily')
+  const [selectedJobCategory, setSelectedJobCategory] = useState('all')
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
+
+  const jobCategories = ['모든 직군', '개발', '기획', '디자인', '마케팅', '데이터', 'AI/ML', '인프라', '보안']
+  const employmentTypes = ['모든 고용형태', '정규직', '계약직', '인턴', '프리랜서', '파트타임']
+
+  // 필터링된 공고 목록
+  const filteredJobPostings = jobPostingsData.filter((job) => {
+    const jobCategoryMatch =
+      selectedJobCategory === 'all' || job.meta_data?.job_category === selectedJobCategory
+    const employmentTypeMatch =
+      selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
+    return jobCategoryMatch && employmentTypeMatch
+  })
+
+  const handleJobCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedJobCategory(e.target.value === '모든 직군' ? 'all' : e.target.value)
+  }
+
+  const handleEmploymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedEmploymentType(e.target.value === '모든 고용형태' ? 'all' : e.target.value)
+  }
 
   const trendData = [
     { name: 'backend', value: 120 },
@@ -40,26 +64,6 @@ export default function Dashboard() {
     { name: 'K8s', value: 28 },
   ]
 
-  const jobPostings = [
-    {
-      title: 'AI Engineer',
-      deadline: 'D-7',
-      category: 'Machine Learning / 산업',
-      company: '토스',
-    },
-    {
-      title: 'AI Engineer',
-      deadline: 'D-7',
-      category: 'Machine Learning / 산업',
-      company: '토스',
-    },
-    {
-      title: 'AI Engineer',
-      deadline: 'D-7',
-      category: 'Machine Learning / 산업',
-      company: '토스',
-    },
-  ]
 
   const newsItems = [
     {
@@ -102,36 +106,44 @@ export default function Dashboard() {
             경쟁사 공고
           </h2>
           <div className="flex gap-4 mb-6">
-            <select className="px-4 py-2 border border-gray-300 rounded-lg text-sm">
-              <option>모든 직군</option>
+            <select
+              value={selectedJobCategory === 'all' ? '모든 직군' : selectedJobCategory}
+              onChange={handleJobCategoryChange}
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+            >
+              {jobCategories.map((category) => (
+                <option key={category} value={category === '모든 직군' ? 'all' : category}>
+                  {category}
+                </option>
+              ))}
             </select>
-            <select className="px-4 py-2 border border-gray-300 rounded-lg text-sm">
-              <option>모든 고용형태</option>
+            <select
+              value={selectedEmploymentType === 'all' ? '모든 고용형태' : selectedEmploymentType}
+              onChange={handleEmploymentTypeChange}
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+            >
+              {employmentTypes.map((type) => (
+                <option key={type} value={type === '모든 고용형태' ? 'all' : type}>
+                  {type}
+                </option>
+              ))}
             </select>
           </div>
-          <p className="text-sm text-gray-600 mb-6">
-            14개의 공고를 확인할 수 있어요.
-          </p>
-          <div className="space-y-3">
-            {jobPostings.map((job, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h4 className="font-bold text-gray-900">{job.title}</h4>
-                    <p className="text-sm text-gray-600">{job.category}</p>
-                  </div>
-                  <span className="px-2 py-1 bg-white text-xs text-gray-600 rounded">
-                    {job.deadline}
-                  </span>
-                </div>
-                <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-900">
-                  {job.company}
-                </button>
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-base text-gray-700 font-medium">
+              <span className="text-sk-red font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
+            </p>
+          </div>
+          <div className="space-y-4">
+            {filteredJobPostings.length > 0 ? (
+              filteredJobPostings.map((job) => (
+                <JobPostingCard key={job.id} job={job} showDetail={true} />
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">선택한 조건에 맞는 공고가 없습니다.</p>
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -145,10 +157,10 @@ export default function Dashboard() {
               <button
                 key={tab}
                 onClick={() => setTimeframe(tab)}
-                className={`px-4 py-2 rounded text-sm ${
+                className={`px-4 py-2 rounded text-sm transition-all ${
                   timeframe === tab
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-sk-red text-white border border-sk-red'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
                 }`}
               >
                 {tab}
@@ -161,20 +173,20 @@ export default function Dashboard() {
               { title: 'Job Trends', value: '150', change: '+15%' },
               { title: 'Tech Trends', value: '180', change: '+20%' },
             ].map((item, index) => (
-              <div key={index} className="bg-white p-6 border border-gray-200 rounded-lg">
+              <div key={index} className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   {item.title}
                 </h3>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {item.value}
                 </p>
-                <p className="text-sm text-green-600 mb-4">
+                <p className="text-sm text-sk-red mb-4">
                   Last 14 Days {item.change}
                 </p>
                 <ResponsiveContainer width="100%" height={120}>
                   <BarChart data={trendData}>
-                    <Bar dataKey="value" fill="#4B5563" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <Bar dataKey="value" fill="#E60012" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -188,7 +200,7 @@ export default function Dashboard() {
             직군별 통계
           </h2>
           <div className="grid grid-cols-2 gap-8">
-            <div className="bg-white p-6 border border-gray-200 rounded-lg">
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -200,24 +212,24 @@ export default function Dashboard() {
                       percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''
                     }
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill="#E60012"
                     dataKey="value"
                   >
                     {jobStatsData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={['#E60012', '#FF1A2E', '#CC0010', '#FF4D5C'][index % 4]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#1f2937' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-white p-6 border border-gray-200 rounded-lg">
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={techData} layout="vertical">
-                  <XAxis type="number" domain={[0, 60]} />
-                  <YAxis dataKey="name" type="category" width={80} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#4B5563" />
+                  <XAxis type="number" domain={[0, 60]} tick={{ fill: '#6b7280' }} />
+                  <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#6b7280' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#1f2937' }} />
+                  <Bar dataKey="value" fill="#E60012" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -233,7 +245,7 @@ export default function Dashboard() {
             {newsItems.map((news, index) => (
               <div
                 key={index}
-                className="bg-white p-6 border border-gray-200 rounded-lg flex items-start gap-4"
+                className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm flex items-start gap-4"
               >
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-2">{news.source}</p>
@@ -256,40 +268,40 @@ export default function Dashboard() {
             스킬별 통계
           </h2>
           <div className="grid grid-cols-3 gap-8">
-            <div className="col-span-2 bg-white p-8 border border-gray-200 rounded-lg">
+            <div className="col-span-2 bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
               <div className="relative h-64 flex items-center justify-center">
                 {/* Central large skill */}
-                <div className="absolute w-32 h-20 bg-gray-800 text-white rounded-full flex items-center justify-center text-base font-semibold z-10">
+                <div className="absolute w-32 h-20 bg-sk-red text-white rounded-full flex items-center justify-center text-base font-semibold z-10">
                   spring
                 </div>
                 {/* Surrounding small skills */}
-                <div className="absolute top-8 left-20 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute top-8 left-20 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   aws
                 </div>
-                <div className="absolute top-16 right-16 w-20 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute top-16 right-16 w-20 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   typescript
                 </div>
-                <div className="absolute bottom-20 right-20 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute bottom-20 right-20 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   python
                 </div>
-                <div className="absolute bottom-16 left-16 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute bottom-16 left-16 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   react
                 </div>
-                <div className="absolute top-12 left-8 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute top-12 left-8 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   redis
                 </div>
-                <div className="absolute bottom-12 left-24 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute bottom-12 left-24 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   docker
                 </div>
-                <div className="absolute top-24 right-8 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute top-24 right-8 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   kafka
                 </div>
-                <div className="absolute bottom-24 right-12 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium">
+                <div className="absolute bottom-24 right-12 w-16 h-10 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium border border-gray-300">
                   mysql
                 </div>
               </div>
             </div>
-            <div className="bg-white p-6 border border-gray-200 rounded-lg">
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
                 SPRING
               </h3>
@@ -303,10 +315,10 @@ export default function Dashboard() {
                   <p className="text-xl font-bold text-gray-900">26.8%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-green-600">+3.5%</p>
+                  <p className="text-sm text-sk-red">+3.5%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-green-600">+8.9%</p>
+                  <p className="text-sm text-sk-red">+8.9%</p>
                 </div>
                 <div className="pt-4">
                   <p className="text-xs text-gray-500 mb-2">Related skills</p>
@@ -314,7 +326,7 @@ export default function Dashboard() {
                     {['kotlin', 'java', 'another'].map((skill, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded"
+                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded border border-gray-300"
                       >
                         {skill}
                       </span>

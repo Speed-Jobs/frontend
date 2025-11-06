@@ -8,18 +8,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        purple: {
-          50: '#f3e8ff',
-          100: '#e9d5ff',
-          500: '#9333ea',
-          600: '#7c3aed',
-        },
-        blue: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+        sk: {
+          black: '#000000',
+          'black-light': '#1a1a1a',
+          'black-dark': '#0a0a0a',
+          red: '#E60012',
+          'red-dark': '#CC0010',
+          'red-light': '#FF1A2E',
+          'gray-dark': '#2a2a2a',
+          'gray-light': '#404040',
         },
       },
       animation: {

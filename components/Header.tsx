@@ -14,10 +14,10 @@ export default function Header() {
   ]
 
   return (
-    <header className="w-full px-8 py-6 flex justify-between items-center bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+    <header className="w-full px-8 py-6 flex justify-between items-center bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <Link
         href="/"
-        className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+        className="text-2xl font-bold text-gray-900 hover:text-sk-red transition-all duration-300"
       >
         Speed Jobs
       </Link>
@@ -28,7 +28,7 @@ export default function Header() {
             href={item.href}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
               pathname === item.href
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                ? 'bg-sk-red text-white border border-sk-red'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >

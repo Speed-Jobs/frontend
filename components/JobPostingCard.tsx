@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import CompanyLogo from '@/components/CompanyLogo'
 
 interface JobPosting {
   id: number
@@ -41,14 +42,14 @@ export default function JobPostingCard({ job, showDetail = false }: JobPostingCa
   }
 
   const deadline = getDaysUntilExpiry(job.expired_date)
-  const jobCategory = job.meta_data?.job_category || '개발'
-  const categoryInitial = jobCategory.charAt(0)
+  const companyName = job.company.replace('(주)', '').trim()
 
   const cardContent = (
-    <div className="flex items-center justify-between p-6 bg-white border-2 border-gray-200 rounded-xl hover:border-sk-red hover:shadow-lg transition-all duration-300 group">
+    <div className="flex items-center justify-between p-6 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-lg transition-all duration-300 group">
       <div className="flex items-center gap-6 flex-1">
-        <div className="w-12 h-12 bg-sk-red rounded-lg flex items-center justify-center text-white font-bold shadow-md group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-          {categoryInitial}
+        {/* 회사 로고 */}
+        <div className="w-16 h-16 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden">
+          <CompanyLogo name={companyName} className="w-full h-full p-2" />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-bold text-gray-900 text-lg mb-1 truncate">
@@ -67,7 +68,7 @@ export default function JobPostingCard({ job, showDetail = false }: JobPostingCa
         </span>
       </div>
       <button className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex-shrink-0 ml-4 border border-gray-300">
-        {job.company.replace('(주)', '').trim()}
+        {companyName}
       </button>
     </div>
   )

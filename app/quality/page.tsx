@@ -226,7 +226,7 @@ export default function QualityPage() {
             onClick={() => setCurrentStep(1)}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               currentStep === 1
-                ? 'bg-gray-100 text-gray-900 border-b-2 border-sk-red'
+                ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -236,7 +236,7 @@ export default function QualityPage() {
             onClick={() => setCurrentStep(2)}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               currentStep === 2
-                ? 'bg-gray-100 text-gray-900 border-b-2 border-sk-red'
+                ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             disabled={!canProceedToNextStep() || currentStep < 2}
@@ -247,7 +247,7 @@ export default function QualityPage() {
             onClick={() => setCurrentStep(3)}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               currentStep === 3
-                ? 'bg-gray-100 text-gray-900 border-b-2 border-sk-red'
+                ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             disabled={!canProceedToNextStep() || currentStep < 3}
@@ -281,11 +281,11 @@ export default function QualityPage() {
                         <button
                           key={option}
                           onClick={() => toggleFilter(experienceFilter, setExperienceFilter, option)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            experienceFilter.includes(option)
-                              ? 'bg-sk-red text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          experienceFilter.includes(option)
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                         >
                           {option}
                         </button>
@@ -309,11 +309,11 @@ export default function QualityPage() {
                         <button
                           key={option}
                           onClick={() => toggleFilter(employmentTypeFilter, setEmploymentTypeFilter, option)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            employmentTypeFilter.includes(option)
-                              ? 'bg-sk-red text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          employmentTypeFilter.includes(option)
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                         >
                           {option}
                         </button>
@@ -329,7 +329,7 @@ export default function QualityPage() {
                       value={jobRoleInput}
                       onChange={(e) => setJobRoleInput(e.target.value)}
                       placeholder="기획, 개발, 마케팅"
-                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-sk-red"
+                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900"
                     />
                   </div>
 
@@ -338,7 +338,7 @@ export default function QualityPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       우리 회사 공고 이미지 업로드
                     </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-sk-red transition-colors">
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition-colors">
                       <input
                         type="file"
                         id="our-job-image"
@@ -390,8 +390,8 @@ export default function QualityPage() {
                         }}
                         className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                           selectedOurJob?.id === job.id
-                            ? 'border-sk-red bg-red-50'
-                            : 'border-gray-200 hover:border-sk-red hover:shadow-md'
+                            ? 'border-gray-900 bg-gray-50'
+                            : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
                         }`}
                       >
                         <h4 className="font-bold text-gray-900 mb-1">{job.title}</h4>
@@ -426,7 +426,7 @@ export default function QualityPage() {
                     <select
                       value={selectedCompany}
                       onChange={(e) => setSelectedCompany(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
                     >
                       <option value="전체">전체</option>
                       {companies.map((company) => (
@@ -441,7 +441,7 @@ export default function QualityPage() {
                     <select
                       value={selectedJobRole}
                       onChange={(e) => setSelectedJobRole(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
                     >
                       <option value="전체">전체</option>
                       {jobRoles.map((role) => (
@@ -473,8 +473,8 @@ export default function QualityPage() {
                           }}
                           className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                             selectedCompetitorJob?.id === job.id
-                              ? 'border-sk-red bg-red-50'
-                              : 'border-gray-200 hover:border-sk-red hover:shadow-md'
+                              ? 'border-gray-900 bg-gray-50'
+                              : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
                           }`}
                         >
                           <div className="flex items-center justify-between p-4 bg-white rounded-lg">
@@ -549,7 +549,7 @@ export default function QualityPage() {
                 disabled={!canProceedToNextStep()}
                 className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   canProceedToNextStep()
-                    ? 'bg-sk-red hover:bg-sk-red-dark text-white shadow-lg hover:shadow-xl'
+                    ? 'bg-gray-900 hover:bg-gray-800 text-white shadow-lg hover:shadow-xl'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -565,9 +565,9 @@ export default function QualityPage() {
             {/* 선택된 공고 정보 */}
             <div className="grid grid-cols-2 gap-6">
               {/* 우리 회사 공고 */}
-              <div className="bg-white border-2 border-sk-red rounded-xl p-6">
+              <div className="bg-white border-2 border-gray-900 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-sk-red rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
                     <span className="text-white font-bold">우리</span>
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">우리 회사 공고</h3>
@@ -629,7 +629,7 @@ export default function QualityPage() {
               {/* 비교 그리드 */}
               <div className="grid grid-cols-2 gap-6">
                 {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-sk-red rounded-lg p-4">
+                <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-semibold text-gray-900">우리 회사 공고</span>
                     <div className="text-right">
@@ -779,7 +779,7 @@ export default function QualityPage() {
               {/* 비교 그리드 */}
               <div className="grid grid-cols-2 gap-6">
                 {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-sk-red rounded-lg p-4">
+                <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-semibold text-gray-900">우리 회사 공고</span>
                     <div className="text-right">
@@ -964,7 +964,7 @@ export default function QualityPage() {
               {/* 비교 그리드 */}
               <div className="grid grid-cols-2 gap-6">
                 {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-sk-red rounded-lg p-4">
+                <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-semibold text-gray-900">우리 회사 공고</span>
                     <div className="text-right">
@@ -1087,7 +1087,7 @@ export default function QualityPage() {
                 </button>
                 <button
                   onClick={handleNextStep}
-                  className="px-6 py-3 bg-sk-red hover:bg-sk-red-dark text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                  className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                 >
                   AI 추천 공고 →
                 </button>
@@ -1132,19 +1132,19 @@ export default function QualityPage() {
                     </div>
 
                     {/* 조직 소개 */}
-                    <div className="pl-4 border-l-4 border-sk-red">
+                    <div className="pl-4 border-l-4 border-gray-900">
                       <h4 className="font-semibold text-gray-900 mb-3">조직 소개</h4>
                       <ul className="space-y-2 text-gray-700">
                         <li className="flex items-start gap-2">
-                          <span className="text-sk-red mt-1">•</span>
+                          <span className="text-gray-900 mt-1">•</span>
                           <span>SAP ERP, S/4HANA 등 엔터프라이즈 솔루션을 활용한 비즈니스 혁신</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="text-sk-red mt-1">•</span>
+                          <span className="text-gray-900 mt-1">•</span>
                           <span>자유롭고 효율적인 업무 환경, 지속적인 학습과 성장을 추구하는 문화</span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="text-sk-red mt-1">•</span>
+                          <span className="text-gray-900 mt-1">•</span>
                           <span>AI First 전략을 통한 디지털 혁신</span>
                         </li>
                       </ul>
@@ -1175,7 +1175,7 @@ export default function QualityPage() {
                       <ul className="space-y-2 text-gray-700">
                         {selectedOurJob.description.split('\n\n')[0]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-sk-red mt-1">•</span>
+                            <span className="text-gray-900 mt-1">•</span>
                             <span>{item.replace(/^-\s*/, '')}</span>
                           </li>
                         ))}
@@ -1212,7 +1212,7 @@ export default function QualityPage() {
                       <ul className="space-y-2 text-gray-700">
                         {selectedOurJob.description.split('\n\n')[1]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-sk-red mt-1">•</span>
+                            <span className="text-gray-900 mt-1">•</span>
                             <span>{item.replace(/^-\s*/, '')}</span>
                           </li>
                         ))}
@@ -1240,7 +1240,7 @@ export default function QualityPage() {
                       <ul className="space-y-2 text-gray-700">
                         {selectedOurJob.description.split('\n\n')[2]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-sk-red mt-1">•</span>
+                            <span className="text-gray-900 mt-1">•</span>
                             <span>{item.replace(/^-\s*/, '')}</span>
                           </li>
                         ))}
@@ -1276,7 +1276,7 @@ export default function QualityPage() {
                   </button>
                   <button
                     onClick={handleDownloadPDF}
-                    className="px-6 py-3 bg-sk-red hover:bg-sk-red-dark text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1290,7 +1290,7 @@ export default function QualityPage() {
                 <p className="text-gray-600 text-lg mb-6">먼저 Step 1에서 우리 회사 공고를 선택해주세요.</p>
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="px-6 py-3 bg-sk-red hover:bg-sk-red-dark text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                  className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
                 >
                   공고 선택하러 가기
                 </button>

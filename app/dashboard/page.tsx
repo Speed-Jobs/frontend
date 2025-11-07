@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
+  CartesianGrid,
 } from 'recharts'
 
 export default function Dashboard() {
@@ -24,20 +25,175 @@ export default function Dashboard() {
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
+  const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
+  const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
+  const [trendCategory, setTrendCategory] = useState<'Company' | 'Job' | 'Tech'>('Company')
 
-  const jobCategories = ['모든 직군', '개발', '기획', '디자인', '마케팅', '데이터', 'AI/ML', '인프라', '보안']
+  // 로고가 있는 회사 목록 (CompanyLogo의 companyNameMap 기반 + 실제 데이터의 회사명)
+  const companiesWithLogo = [
+    '삼성SDS', 'SAMSUNG', '삼성전자', '삼성', 'LGCNS', 'LG', 'LG전자',
+    '현대 오토에버', 'HYUNDAI', '현대자동차', '현대',
+    '한화 시스템', '한화',
+    'KT',
+    '네이버', 'NAVER',
+    '카카오', 'kakao',
+    '라인', 'LINE',
+    '쿠팡', 'Coupang',
+    '배민', 'Baemin',
+    '토스', 'Toss',
+    'KPMG',
+    '당근마켓', '당근', 'Daangn'
+  ]
+
+  // 직군별 통계의 직무 목록
+  const jobRoles = [
+    '모든 직무',
+    'Software Development',
+    'Factory AX Engineering',
+    'Solution Development',
+    'Cloud/Infra Engineering',
+    'Architect',
+    'Project Management',
+    'Quality Management',
+    'AI',
+    '정보보호',
+    'Sales',
+    'Domain Expert',
+    'Consulting',
+    'Biz. Supporting'
+  ]
+
   const employmentTypes = ['모든 고용형태', '정규직', '계약직', '인턴', '프리랜서', '파트타임']
 
-  // 필터링된 공고 목록
+  // 필터링된 공고 목록 (로고가 있는 회사만 + 직무 필터)
   const filteredJobPostings = useMemo(() => {
     return jobPostingsData.filter((job) => {
-      const jobCategoryMatch =
-        selectedJobCategory === 'all' || job.meta_data?.job_category === selectedJobCategory
+      // 로고가 있는 회사만 필터링 (더 유연한 매칭)
+      const companyName = job.company.replace('(주)', '').trim().toLowerCase()
+      const normalizedCompanyName = companyName.replace(/\s+/g, '')
+      const hasLogo = companiesWithLogo.some(company => {
+        const normalizedLogoCompany = company.toLowerCase().replace(/\s+/g, '')
+        return companyName.includes(normalizedLogoCompany) || 
+               normalizedLogoCompany.includes(companyName) ||
+               normalizedCompanyName.includes(normalizedLogoCompany) ||
+               normalizedLogoCompany.includes(normalizedCompanyName) ||
+               // 부분 매칭 (예: "삼성전자"와 "삼성" 매칭)
+               companyName.startsWith(normalizedLogoCompany) ||
+               normalizedLogoCompany.startsWith(companyName)
+      })
+      if (!hasLogo) return false
+
+      // 직무 필터링 (job_category 또는 title에서 매칭)
+      const jobRoleMatch = selectedJobCategory === 'all' || 
+        job.meta_data?.job_category?.includes(selectedJobCategory) ||
+        job.title.includes(selectedJobCategory) ||
+        // Software Development 매칭
+        (selectedJobCategory === 'Software Development' && (
+          job.title.includes('개발') || 
+          job.title.includes('Developer') ||
+          job.title.includes('Engineer') ||
+          job.meta_data?.job_category === '개발'
+        )) ||
+        // Factory AX Engineering 매칭
+        (selectedJobCategory === 'Factory AX Engineering' && (
+          job.title.includes('Factory') ||
+          job.title.includes('AX') ||
+          job.title.includes('제조') ||
+          job.title.includes('공장') ||
+          job.title.includes('Simulation') ||
+          job.title.includes('기구설계') ||
+          job.title.includes('전장')
+        )) ||
+        // Solution Development 매칭
+        (selectedJobCategory === 'Solution Development' && (
+          job.title.includes('Solution') ||
+          job.title.includes('ERP') ||
+          job.title.includes('시스템') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Cloud/Infra Engineering 매칭
+        (selectedJobCategory === 'Cloud/Infra Engineering' && (
+          job.title.includes('Cloud') ||
+          job.title.includes('클라우드') ||
+          job.title.includes('Infra') ||
+          job.title.includes('인프라') ||
+          job.title.includes('DevOps') ||
+          job.meta_data?.job_category === '인프라'
+        )) ||
+        // Architect 매칭
+        (selectedJobCategory === 'Architect' && (
+          job.title.includes('Architect') ||
+          job.title.includes('아키텍트') ||
+          job.title.includes('설계')
+        )) ||
+        // Project Management 매칭
+        (selectedJobCategory === 'Project Management' && (
+          job.title.includes('PM') ||
+          job.title.includes('Project') ||
+          job.title.includes('프로젝트') ||
+          job.title.includes('관리') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Quality Management 매칭
+        (selectedJobCategory === 'Quality Management' && (
+          job.title.includes('Quality') ||
+          job.title.includes('품질') ||
+          job.title.includes('QA') ||
+          job.title.includes('테스트')
+        )) ||
+        // AI 매칭
+        (selectedJobCategory === 'AI' && (
+          job.title.includes('AI') ||
+          job.title.includes('ML') ||
+          job.title.includes('Machine Learning') ||
+          job.title.includes('머신러닝') ||
+          job.title.includes('딥러닝') ||
+          job.meta_data?.job_category === 'AI/ML'
+        )) ||
+        // 정보보호 매칭
+        (selectedJobCategory === '정보보호' && (
+          job.title.includes('보안') ||
+          job.title.includes('Security') ||
+          job.title.includes('정보보호') ||
+          job.meta_data?.job_category === '보안'
+        )) ||
+        // Sales 매칭
+        (selectedJobCategory === 'Sales' && (
+          job.title.includes('Sales') ||
+          job.title.includes('영업') ||
+          job.title.includes('세일즈') ||
+          job.meta_data?.job_category === '마케팅'
+        )) ||
+        // Domain Expert 매칭
+        (selectedJobCategory === 'Domain Expert' && (
+          job.title.includes('Expert') ||
+          job.title.includes('전문가') ||
+          job.title.includes('Consultant') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Consulting 매칭
+        (selectedJobCategory === 'Consulting' && (
+          job.title.includes('Consulting') ||
+          job.title.includes('컨설팅') ||
+          job.title.includes('Advisory')
+        )) ||
+        // Biz. Supporting 매칭
+        (selectedJobCategory === 'Biz. Supporting' && (
+          job.title.includes('Strategy') ||
+          job.title.includes('전략') ||
+          job.title.includes('Planning') ||
+          job.title.includes('기획') ||
+          job.title.includes('HR') ||
+          job.title.includes('인사') ||
+          job.meta_data?.job_category === '기획'
+        ))
+
       const employmentTypeMatch =
         selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
-      return jobCategoryMatch && employmentTypeMatch
+      
+      return jobRoleMatch && employmentTypeMatch
     })
-  }, [selectedJobCategory, selectedEmploymentType])
+  }, [selectedJobCategory, selectedEmploymentType, companiesWithLogo])
 
   // 페이지당 5개씩 표시
   const itemsPerPage = 5
@@ -49,7 +205,7 @@ export default function Dashboard() {
 
   // 필터 변경 시 첫 페이지로 리셋
   const handleJobCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedJobCategory(e.target.value === '모든 직군' ? 'all' : e.target.value)
+    setSelectedJobCategory(e.target.value === '모든 직무' ? 'all' : e.target.value)
     setCurrentPage(0)
   }
 
@@ -67,27 +223,150 @@ export default function Dashboard() {
   }
 
 
-  const trendData = [
-    { name: 'backend', value: 120 },
-    { name: 'frontend', value: 90 },
-    { name: 'ai', value: 60 },
-    { name: 'data', value: 40 },
-  ]
+  // 트렌드 데이터 구조
+  const trendDataByCategory = {
+    Company: {
+      Daily: [
+        { name: 'SK AX', value: 45 },
+        { name: '삼성전자', value: 38 },
+        { name: 'LG CNS', value: 32 },
+        { name: '네이버', value: 28 },
+        { name: '카카오', value: 25 },
+      ],
+      Weekly: [
+        { name: 'SK AX', value: 320 },
+        { name: '삼성전자', value: 280 },
+        { name: 'LG CNS', value: 240 },
+        { name: '네이버', value: 210 },
+        { name: '카카오', value: 190 },
+      ],
+      Monthly: [
+        { name: 'SK AX', value: 1350 },
+        { name: '삼성전자', value: 1200 },
+        { name: 'LG CNS', value: 1050 },
+        { name: '네이버', value: 950 },
+        { name: '카카오', value: 850 },
+      ],
+    },
+    Job: {
+      Daily: [
+        { name: 'Software Development', value: 42 },
+        { name: 'Factory AX Engineering', value: 28 },
+        { name: 'Solution Development', value: 35 },
+        { name: 'Cloud/Infra Engineering', value: 22 },
+        { name: 'Architect', value: 18 },
+        { name: 'Project Management', value: 15 },
+        { name: 'Quality Management', value: 12 },
+        { name: 'AI', value: 30 },
+        { name: '정보보호', value: 10 },
+        { name: 'Sales', value: 38 },
+        { name: 'Domain Expert', value: 25 },
+        { name: 'Consulting', value: 32 },
+        { name: 'Biz. Supporting', value: 20 },
+      ],
+      Weekly: [
+        { name: 'Software Development', value: 290 },
+        { name: 'Factory AX Engineering', value: 195 },
+        { name: 'Solution Development', value: 245 },
+        { name: 'Cloud/Infra Engineering', value: 155 },
+        { name: 'Architect', value: 125 },
+        { name: 'Project Management', value: 105 },
+        { name: 'Quality Management', value: 85 },
+        { name: 'AI', value: 210 },
+        { name: '정보보호', value: 70 },
+        { name: 'Sales', value: 265 },
+        { name: 'Domain Expert', value: 175 },
+        { name: 'Consulting', value: 225 },
+        { name: 'Biz. Supporting', value: 140 },
+      ],
+      Monthly: [
+        { name: 'Software Development', value: 1250 },
+        { name: 'Factory AX Engineering', value: 840 },
+        { name: 'Solution Development', value: 1050 },
+        { name: 'Cloud/Infra Engineering', value: 670 },
+        { name: 'Architect', value: 540 },
+        { name: 'Project Management', value: 450 },
+        { name: 'Quality Management', value: 365 },
+        { name: 'AI', value: 900 },
+        { name: '정보보호', value: 300 },
+        { name: 'Sales', value: 1140 },
+        { name: 'Domain Expert', value: 750 },
+        { name: 'Consulting', value: 970 },
+        { name: 'Biz. Supporting', value: 600 },
+      ],
+    },
+    Tech: {
+      Daily: [
+        { name: 'Spring', value: 55 },
+        { name: 'React', value: 48 },
+        { name: 'Python', value: 42 },
+        { name: 'AWS', value: 38 },
+        { name: 'Docker', value: 32 },
+      ],
+      Weekly: [
+        { name: 'Spring', value: 385 },
+        { name: 'React', value: 336 },
+        { name: 'Python', value: 294 },
+        { name: 'AWS', value: 266 },
+        { name: 'Docker', value: 224 },
+      ],
+      Monthly: [
+        { name: 'Spring', value: 1650 },
+        { name: 'React', value: 1440 },
+        { name: 'Python', value: 1260 },
+        { name: 'AWS', value: 1140 },
+        { name: 'Docker', value: 960 },
+      ],
+    },
+  }
 
-  const jobStatsData = [
-    { name: 'Backend', value: 40, color: '#4B5563' },
-    { name: 'Frontend', value: 30, color: '#6B7280' },
-    { name: 'AI', value: 20, color: '#9CA3AF' },
-    { name: 'Data', value: 10, color: '#D1D5DB' },
-  ]
+  // 현재 선택된 트렌드 데이터
+  const currentTrendData = trendDataByCategory[trendCategory][timeframe as keyof typeof trendDataByCategory.Company]
 
-  const techData = [
-    { name: 'Spring', value: 55 },
-    { name: 'Node.js', value: 50 },
-    { name: 'Django', value: 45 },
-    { name: 'FastAPI', value: 35 },
-    { name: 'K8s', value: 28 },
-  ]
+  // 직군별 통계 데이터 구조
+  const jobRoleData = {
+    Tech: [
+      { name: 'Software Development', value: 35, industries: ['Front-end Development', 'Back-end Development', 'Mobile Development'] },
+      { name: 'Factory AX Engineering', value: 18, industries: ['Simulation', '기구설계', '전장/제어'] },
+      { name: 'Solution Development', value: 22, industries: ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'] },
+      { name: 'Cloud/Infra Engineering', value: 15, industries: ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'] },
+      { name: 'Architect', value: 12, industries: ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'] },
+      { name: 'Project Management', value: 10, industries: ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'] },
+      { name: 'Quality Management', value: 8, industries: ['PMO', 'Quality Engineering', 'Offshoring Service Professional'] },
+      { name: 'AI', value: 20, industries: ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'] },
+      { name: '정보보호', value: 6, industries: ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'] },
+    ],
+    Biz: [
+      { name: 'Sales', value: 40, industries: ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'] },
+      { name: 'Domain Expert', value: 25, industries: ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'] },
+      { name: 'Consulting', value: 35, industries: ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'] },
+    ],
+    BizSupporting: [
+      { name: 'Biz. Supporting', value: 100, industries: ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'] },
+    ],
+  }
+
+  // 현재 선택된 전문가 카테고리의 직무 데이터
+  const currentJobRoles = jobRoleData[selectedExpertCategory]
+  
+  // 원그래프 색상 팔레트
+  const pieColors = ['#4B5563', '#6B7280', '#9CA3AF', '#D1D5DB', '#E5E7EB', '#F3F4F6', '#374151', '#1F2937', '#111827']
+
+  // Industry별 샘플 데이터 (고정값)
+  const industrySampleData = useMemo(() => {
+    const data: Record<string, Record<string, number>> = {}
+    Object.keys(jobRoleData).forEach(category => {
+      data[category] = {}
+      jobRoleData[category as keyof typeof jobRoleData].forEach(role => {
+        role.industries.forEach(industry => {
+          // 고정된 랜덤 시드 사용
+          const seed = `${category}-${role.name}-${industry}`.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+          data[category][`${role.name}-${industry}`] = (seed % 50) + 10
+        })
+      })
+    })
+    return data
+  }, [])
 
 
   const newsItems = [
@@ -285,20 +564,20 @@ export default function Dashboard() {
           </h2>
           <div className="flex gap-4 mb-6">
             <select
-              value={selectedJobCategory === 'all' ? '모든 직군' : selectedJobCategory}
+              value={selectedJobCategory === 'all' ? '모든 직무' : selectedJobCategory}
               onChange={handleJobCategoryChange}
-              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
             >
-              {jobCategories.map((category) => (
-                <option key={category} value={category === '모든 직군' ? 'all' : category}>
-                  {category}
+              {jobRoles.map((role) => (
+                <option key={role} value={role === '모든 직무' ? 'all' : role}>
+                  {role}
                 </option>
               ))}
             </select>
             <select
               value={selectedEmploymentType === 'all' ? '모든 고용형태' : selectedEmploymentType}
               onChange={handleEmploymentTypeChange}
-              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-sk-red focus:outline-none focus:border-sk-red transition-colors cursor-pointer shadow-sm"
+              className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
             >
               {employmentTypes.map((type) => (
                 <option key={type} value={type === '모든 고용형태' ? 'all' : type}>
@@ -309,12 +588,12 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between mb-6">
             <p className="text-base text-gray-700 font-medium">
-              <span className="text-sk-red font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
+              <span className="text-gray-900 font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
             </p>
             {filteredJobPostings.length > itemsPerPage && (
               <Link
                 href="/jobs"
-                className="px-6 py-2 bg-sk-red hover:bg-sk-red-dark text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
               >
                 더보기 →
               </Link>
@@ -339,7 +618,7 @@ export default function Dashboard() {
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       currentPage === 0
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-sk-red shadow-sm'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-400 shadow-sm'
                     }`}
                   >
                     <svg
@@ -369,7 +648,7 @@ export default function Dashboard() {
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       currentPage >= totalPages - 1
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-sk-red shadow-sm'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-400 shadow-sm'
                     }`}
                   >
                     <svg
@@ -401,6 +680,42 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             트렌드 비교
           </h2>
+          
+          {/* 카테고리 탭 (회사별, 직업별, 기술별) */}
+          <div className="flex gap-3 mb-4">
+            <button
+              onClick={() => setTrendCategory('Company')}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                trendCategory === 'Company'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              회사별
+            </button>
+            <button
+              onClick={() => setTrendCategory('Job')}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                trendCategory === 'Job'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              직업별
+            </button>
+            <button
+              onClick={() => setTrendCategory('Tech')}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                trendCategory === 'Tech'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              기술별
+            </button>
+          </div>
+
+          {/* 기간 탭 (일간, 주간, 월간) */}
           <div className="flex gap-2 mb-6">
             {['Daily', 'Weekly', 'Monthly'].map((tab) => (
               <button
@@ -408,38 +723,50 @@ export default function Dashboard() {
                 onClick={() => setTimeframe(tab)}
                 className={`px-4 py-2 rounded text-sm transition-all ${
                   timeframe === tab
-                    ? 'bg-sk-red text-white border border-sk-red'
+                    ? 'bg-gray-900 text-white border border-gray-900'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
                 }`}
               >
-                {tab}
+                {tab === 'Daily' ? '일간' : tab === 'Weekly' ? '주간' : '월간'}
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-6">
-            {[
-              { title: 'Company Trends', value: '120', change: '+10%' },
-              { title: 'Job Trends', value: '150', change: '+15%' },
-              { title: 'Tech Trends', value: '180', change: '+20%' },
-            ].map((item, index) => (
-              <div key={index} className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-2xl font-bold text-gray-900 mb-1">
-                  {item.value}
-                </p>
-                <p className="text-sm text-sk-red mb-4">
-                  Last 14 Days {item.change}
-                </p>
-                <ResponsiveContainer width="100%" height={120}>
-                  <BarChart data={trendData}>
-                    <Bar dataKey="value" fill="#6b7280" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ))}
+
+          {/* 트렌드 차트 */}
+          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {trendCategory === 'Company' ? '회사별' : trendCategory === 'Job' ? '직업별' : '기술별'} 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
+            </h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={currentTrendData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  type="number" 
+                  domain={[0, 'dataMax + 50']}
+                  tick={{ fill: '#6b7280', fontSize: 12 }} 
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={150} 
+                  tick={{ fill: '#6b7280', fontSize: 12 }} 
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '8px', 
+                    color: '#1f2937' 
+                  }}
+                  formatter={(value: number) => [`${value}건`, '']}
+                />
+                <Bar 
+                  dataKey="value" 
+                  fill="#6b7280" 
+                  radius={[0, 4, 4, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
 
@@ -448,40 +775,172 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             직군별 통계
           </h2>
-          <div className="grid grid-cols-2 gap-8">
+          
+          {/* 전문가 카테고리 탭 */}
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('Tech')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                selectedExpertCategory === 'Tech'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tech 전문가
+            </button>
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('Biz')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                selectedExpertCategory === 'Biz'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Biz 전문가
+            </button>
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('BizSupporting')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
+                selectedExpertCategory === 'BizSupporting'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Biz.Supporting 전문가
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* 직무 원그래프 */}
             <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">직무</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={jobStatsData}
+                    data={currentJobRoles}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ percent }) =>
-                      percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''
+                    label={({ name, percent }) =>
+                      percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
                     }
                     outerRadius={100}
+                    innerRadius={40}
                     fill="#6b7280"
                     dataKey="value"
+                    onClick={(data: any) => {
+                      setSelectedJobRole(data.name)
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
-                    {jobStatsData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#6b7280', '#9ca3af', '#4b5563', '#d1d5db'][index % 4]} />
+                    {currentJobRoles.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={pieColors[index % pieColors.length]}
+                        stroke={selectedJobRole === entry.name ? '#111827' : '#fff'}
+                        strokeWidth={selectedJobRole === entry.name ? 3 : 1}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#1f2937' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937' 
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `${value}건`,
+                      name
+                    ]}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value) => <span style={{ fontSize: '12px' }}>{value}</span>}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={techData} layout="vertical">
-                  <XAxis type="number" domain={[0, 60]} tick={{ fill: '#6b7280' }} />
-                  <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#6b7280' }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#1f2937' }} />
-                  <Bar dataKey="value" fill="#6b7280" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+
+            {/* Industry 테이블 (직무 선택 시 아래에 표시) */}
+            {selectedJobRole && (
+              <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {selectedJobRole} - Industry
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Industry
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Percentage
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Chart
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(() => {
+                        const selectedRole = currentJobRoles.find(role => role.name === selectedJobRole)
+                        if (!selectedRole) return null
+                        
+                        const industryCounts = selectedRole.industries.map(industry => {
+                          const key = `${selectedJobRole}-${industry}`
+                          return industrySampleData[selectedExpertCategory]?.[key] || 10
+                        })
+                        const total = industryCounts.reduce((sum, count) => sum + count, 0)
+                        
+                        return selectedRole.industries.map((industry, index) => {
+                          const count = industryCounts[index]
+                          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
+                          
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {industry}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {count}건
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {percentage}%
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-gray-700 h-2 rounded-full transition-all duration-300"
+                                    style={{ 
+                                      width: `${percentage}%`
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -520,8 +979,8 @@ export default function Dashboard() {
             <div className="col-span-2 bg-gradient-to-br from-gray-50 via-white to-gray-50 p-12 border border-gray-200 rounded-2xl shadow-lg relative overflow-hidden">
               {/* 배경 장식 */}
               <div className="absolute inset-0 opacity-5">
-                <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-sk-red rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-sk-red rounded-full blur-3xl"></div>
+                <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gray-900 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gray-900 rounded-full blur-3xl"></div>
               </div>
               
               <div className="relative h-[600px] flex items-center justify-center">
@@ -542,7 +1001,7 @@ export default function Dashboard() {
                         index % 3 === 0 ? 'animate-float-1' : index % 3 === 1 ? 'animate-float-2' : 'animate-float-3'
                       } ${
                         isMain
-                          ? 'bg-sk-red text-white shadow-2xl hover:shadow-sk-red/50 hover:scale-110 border-2 border-sk-red/30'
+                          ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
                           : isSelected
                           ? 'bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700'
                           : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
@@ -575,7 +1034,7 @@ export default function Dashboard() {
                   <p className="text-xl font-bold text-gray-900">{selectedSkillData.percentage}%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-sk-red">+{selectedSkillData.change}%</p>
+                  <p className="text-sm text-gray-700">+{selectedSkillData.change}%</p>
                 </div>
                 <div className="pt-4">
                   <p className="text-xs text-gray-500 mb-2">Related skills</p>
@@ -594,8 +1053,104 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+
+        {/* 타이밍 분석 Section */}
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">타이밍 분석</h2>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      직무
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      우리 회사 시작일
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      경쟁사 평균 시작일
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      시장 대비
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      분석
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      백엔드 개발자
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.10.15
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.10.20
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        빠름 (5일)
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      시장보다 5일 빠르게 공고를 시작하여 선제적 채용 전략을 보여줍니다.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      프론트엔드 개발자
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.11.01
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.10.28
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        보통 (4일)
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      경쟁사 대비 4일 늦게 시작했으나, 시장 트렌드를 고려한 적절한 타이밍입니다.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      데이터 엔지니어
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.10.25
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      2023.10.30
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        빠름 (5일)
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      시장보다 빠르게 공고를 시작하여 우수 인재 확보에 유리한 위치에 있습니다.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                <strong>분석 요약:</strong> 우리 회사는 대부분의 직무에서 시장보다 빠르거나 적절한 타이밍에 공고를 발행하고 있어,
+                경쟁력 있는 채용 전략을 유지하고 있습니다. 특히 백엔드 및 데이터 엔지니어 직무에서 선제적 공고 발행으로
+                우수 인재 확보에 유리한 포지션을 차지하고 있습니다.
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
-  )
+  ) 
 }
 

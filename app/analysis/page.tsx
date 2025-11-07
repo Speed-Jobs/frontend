@@ -186,9 +186,9 @@ export default function AnalysisPage() {
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#E60012"
+                    stroke="#C91A2A"
                     strokeWidth={2}
-                    dot={{ fill: '#E60012', r: 4 }}
+                    dot={{ fill: '#C91A2A', r: 4 }}
                   />
                 </LineChart>
               </ResponsiveContainer>

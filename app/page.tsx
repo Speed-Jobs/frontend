@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
@@ -10,6 +10,7 @@ import jobPostingsData from '@/data/jobPostings.json'
 export default function Home() {
   const [selectedJobCategory, setSelectedJobCategory] = useState('all')
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
+  const [currentPage, setCurrentPage] = useState(0)
 
   const companies = [
     { name: '삼성SDS' },
@@ -57,20 +58,41 @@ export default function Home() {
   ]
 
   // 필터링된 공고 목록
-  const filteredJobPostings = jobPostingsData.filter((job) => {
-    const jobCategoryMatch =
-      selectedJobCategory === 'all' || job.meta_data?.job_category === selectedJobCategory
-    const employmentTypeMatch =
-      selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
-    return jobCategoryMatch && employmentTypeMatch
-  })
+  const filteredJobPostings = useMemo(() => {
+    return jobPostingsData.filter((job) => {
+      const jobCategoryMatch =
+        selectedJobCategory === 'all' || job.meta_data?.job_category === selectedJobCategory
+      const employmentTypeMatch =
+        selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
+      return jobCategoryMatch && employmentTypeMatch
+    })
+  }, [selectedJobCategory, selectedEmploymentType])
 
+  // 페이지당 5개씩 표시
+  const itemsPerPage = 5
+  const totalPages = Math.ceil(filteredJobPostings.length / itemsPerPage)
+  const displayedJobs = filteredJobPostings.slice(
+    currentPage * itemsPerPage,
+    (currentPage + 1) * itemsPerPage
+  )
+
+  // 필터 변경 시 첫 페이지로 리셋
   const handleJobCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedJobCategory(e.target.value === '모든 직군' ? 'all' : e.target.value)
+    setCurrentPage(0)
   }
 
   const handleEmploymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedEmploymentType(e.target.value === '모든 고용형태' ? 'all' : e.target.value)
+    setCurrentPage(0)
+  }
+
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(0, prev - 1))
+  }
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1))
   }
 
   return (
@@ -227,24 +249,94 @@ export default function Home() {
             <p className="text-base text-gray-700 font-medium">
               <span className="text-sk-red font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
             </p>
+            {filteredJobPostings.length > itemsPerPage && (
+              <Link
+                href="/jobs"
+                className="px-6 py-2 bg-sk-red hover:bg-sk-red-dark text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                더보기 →
+              </Link>
+            )}
           </div>
 
           {/* Job Posting List */}
-          <div className="space-y-4">
-            {filteredJobPostings.length > 0 ? (
-              filteredJobPostings.map((job) => (
-                <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
-                  <JobPostingCard job={job} />
-                </Link>
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  선택한 조건에 맞는 공고가 없습니다.
-                </p>
+          {filteredJobPostings.length > 0 ? (
+            <div className="relative">
+              {/* 슬라이드 컨테이너 */}
+              <div className="space-y-4 overflow-hidden">
+                {displayedJobs.map((job) => (
+                  <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
+                    <JobPostingCard job={job} />
+                  </Link>
+                ))}
               </div>
-            )}
-          </div>
+
+              {/* 좌우 네비게이션 버튼 */}
+              {filteredJobPostings.length > itemsPerPage && (
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 0}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      currentPage === 0
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-sk-red shadow-sm'
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      {currentPage + 1} / {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleNextPage}
+                    disabled={currentPage >= totalPages - 1}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                      currentPage >= totalPages - 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-sk-red shadow-sm'
+                    }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">
+                선택한 조건에 맞는 공고가 없습니다.
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </div>

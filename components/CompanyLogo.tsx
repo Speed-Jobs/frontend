@@ -11,14 +11,26 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
   const [imgError, setImgError] = useState(false)
   const [useFallback, setUseFallback] = useState(false)
 
+  // 회사명 정규화 (공백 제거, (주) 제거 등)
+  const normalizedName = name.replace(/\(주\)/g, '').replace(/\s+/g, ' ').trim()
+
   // 회사명을 파일명으로 매핑
   const companyNameMap: Record<string, string> = {
+    'SK AX': 'sk-ax',
+    'SK주식회사 C&C': 'sk-ax',
+    'SK 주식회사 C&C': 'sk-ax',
+    'SK C&C': 'sk-ax',
+    'SK주식회사C&C': 'sk-ax',
     '삼성SDS': 'samsung-sds',
     'SAMSUNG': 'samsung-sds',
+    '삼성전자': 'samsung-electronics',
+    '삼성': 'samsung-electronics',
     'LGCNS': 'lg-cns',
     'LG': 'lg-cns',
+    'LG전자': 'lg-electronics',
     '현대 오토에버': 'hyundai-autoever',
     'HYUNDAI': 'hyundai-autoever',
+    '현대자동차': 'hyundai-motor',
     '한화 시스템': 'hanwha-system',
     'KT': 'kt',
     '네이버': 'naver',
@@ -32,6 +44,8 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
     '토스': 'toss',
     'KPMG': 'kpmg',
     '당근': 'daangn',
+    '당근마켓': 'daangn',
+    'Daangn': 'daangn',
   }
 
   // 폴백 URL (로컬 이미지가 없을 때 사용)
@@ -44,10 +58,10 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
     '당근': 'https://www.daangn.com/favicon-192x192.png',
   }
 
-  // 로컬 이미지 경로 생성
-  const logoFileName = companyNameMap[name] || name.toLowerCase().replace(/\s+/g, '-')
+  // 로컬 이미지 경로 생성 (정규화된 이름으로 먼저 시도, 그 다음 원본 이름)
+  const logoFileName = companyNameMap[normalizedName] || companyNameMap[name] || normalizedName.toLowerCase().replace(/\s+/g, '-')
   const localImagePath = `/logos/${logoFileName}.png`
-  const fallbackUrl = fallbackUrls[name] || ''
+  const fallbackUrl = fallbackUrls[normalizedName] || fallbackUrls[name] || ''
 
   const handleError = () => {
     if (!useFallback && fallbackUrl) {

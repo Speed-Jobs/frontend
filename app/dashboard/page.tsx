@@ -27,7 +27,6 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
-  const [trendCategory, setTrendCategory] = useState<'Company' | 'Job' | 'Tech'>('Company')
 
   // 로고가 있는 회사 목록 (CompanyLogo의 companyNameMap 기반 + 실제 데이터의 회사명)
   const companiesWithLogo = [
@@ -320,8 +319,11 @@ export default function Dashboard() {
     },
   }
 
-  // 현재 선택된 트렌드 데이터
-  const currentTrendData = trendDataByCategory[trendCategory][timeframe as keyof typeof trendDataByCategory.Company]
+  // 현재 선택된 기간의 트렌드 데이터 (모든 카테고리)
+  const currentTimeframe = timeframe as keyof typeof trendDataByCategory.Company
+  const companyTrendData = trendDataByCategory.Company[currentTimeframe]
+  const jobTrendData = trendDataByCategory.Job[currentTimeframe]
+  const techTrendData = trendDataByCategory.Tech[currentTimeframe]
 
   // 직군별 통계 데이터 구조
   const jobRoleData = {
@@ -681,50 +683,16 @@ export default function Dashboard() {
             트렌드 비교
           </h2>
           
-          {/* 카테고리 탭 (회사별, 직업별, 기술별) */}
-          <div className="flex gap-3 mb-4">
-            <button
-              onClick={() => setTrendCategory('Company')}
-              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
-                trendCategory === 'Company'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              회사별
-            </button>
-            <button
-              onClick={() => setTrendCategory('Job')}
-              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
-                trendCategory === 'Job'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              직업별
-            </button>
-            <button
-              onClick={() => setTrendCategory('Tech')}
-              className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
-                trendCategory === 'Tech'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              기술별
-            </button>
-          </div>
-
           {/* 기간 탭 (일간, 주간, 월간) */}
           <div className="flex gap-2 mb-6">
             {['Daily', 'Weekly', 'Monthly'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setTimeframe(tab)}
-                className={`px-4 py-2 rounded text-sm transition-all ${
+                className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
                   timeframe === tab
-                    ? 'bg-gray-900 text-white border border-gray-900'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 {tab === 'Daily' ? '일간' : tab === 'Weekly' ? '주간' : '월간'}
@@ -732,41 +700,121 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* 트렌드 차트 */}
-          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {trendCategory === 'Company' ? '회사별' : trendCategory === 'Job' ? '직업별' : '기술별'} 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
-            </h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={currentTrendData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  type="number" 
-                  domain={[0, 'dataMax + 50']}
-                  tick={{ fill: '#6b7280', fontSize: 12 }} 
-                />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  width={150} 
-                  tick={{ fill: '#6b7280', fontSize: 12 }} 
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '8px', 
-                    color: '#1f2937' 
-                  }}
-                  formatter={(value: number) => [`${value}건`, '']}
-                />
-                <Bar 
-                  dataKey="value" 
-                  fill="#6b7280" 
-                  radius={[0, 4, 4, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* 트렌드 차트 그리드 (회사별, 직업별, 기술별) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 회사별 트렌드 */}
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                회사별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={companyTrendData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    type="number" 
+                    domain={[0, 'dataMax + 50']}
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={100} 
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value: number) => [`${value}건`, '']}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#6b7280" 
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 직업별 트렌드 */}
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                직업별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={jobTrendData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    type="number" 
+                    domain={[0, 'dataMax + 50']}
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={100} 
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value: number) => [`${value}건`, '']}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#6b7280" 
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 기술별 트렌드 */}
+            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                기술별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
+              </h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={techTrendData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    type="number" 
+                    domain={[0, 'dataMax + 50']}
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={100} 
+                    tick={{ fill: '#6b7280', fontSize: 10 }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value: number) => [`${value}건`, '']}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#6b7280" 
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </section>
 

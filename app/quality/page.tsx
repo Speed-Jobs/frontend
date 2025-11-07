@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Header from '@/components/Header'
+import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
 import skaxJobPostingsData from '@/data/skaxJobPostings.json'
 
@@ -218,7 +219,7 @@ export default function QualityPage() {
     <div className="min-h-screen bg-white overflow-x-hidden">
       <Header />
       <div className="px-8 py-8 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">공고 품질 평가</h1>
+        {/* <h1 className="text-3xl font-bold text-gray-900 mb-8">공고 품질 평가</h1> */}
 
         {/* Step 탭 */}
         <div className="flex gap-2 mb-8 border-b border-gray-200">
@@ -567,8 +568,8 @@ export default function QualityPage() {
               {/* 우리 회사 공고 */}
               <div className="bg-white border-2 border-gray-900 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold">우리</span>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                    <CompanyLogo name="SK AX" className="w-full h-full" />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">우리 회사 공고</h3>
                 </div>
@@ -587,8 +588,14 @@ export default function QualityPage() {
               {/* 경쟁사 공고 */}
               <div className="bg-white border-2 border-blue-500 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold">경쟁</span>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                    {selectedCompetitorJob ? (
+                      <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">경쟁</span>
+                      </div>
+                    )}
                   </div>
                   <h3 className="text-lg font-bold text-gray-900">경쟁사 공고</h3>
                 </div>
@@ -631,7 +638,12 @@ export default function QualityPage() {
                 {/* 우리 회사 공고 평가 */}
                 <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
+                      </div>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-green-600">82</span>
                       <span className="text-lg text-gray-500">/100</span>
@@ -698,7 +710,18 @@ export default function QualityPage() {
                 {/* 경쟁사 공고 평가 */}
                 <div className="border-2 border-blue-500 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-green-600">85</span>
                       <span className="text-lg text-gray-500">/100</span>
@@ -781,7 +804,12 @@ export default function QualityPage() {
                 {/* 우리 회사 공고 평가 */}
                 <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
+                      </div>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-green-600">76</span>
                       <span className="text-lg text-gray-500">/100</span>
@@ -865,7 +893,18 @@ export default function QualityPage() {
                 {/* 경쟁사 공고 평가 */}
                 <div className="border-2 border-blue-500 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-green-600">80</span>
                       <span className="text-lg text-gray-500">/100</span>
@@ -966,7 +1005,12 @@ export default function QualityPage() {
                 {/* 우리 회사 공고 평가 */}
                 <div className="border-2 border-gray-900 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
+                      </div>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-orange-500">68</span>
                       <span className="text-lg text-gray-500">/100</span>
@@ -1014,7 +1058,18 @@ export default function QualityPage() {
                 {/* 경쟁사 공고 평가 */}
                 <div className="border-2 border-blue-500 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    </div>
                     <div className="text-right">
                       <span className="text-2xl font-bold text-orange-500">72</span>
                       <span className="text-lg text-gray-500">/100</span>

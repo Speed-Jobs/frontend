@@ -42,23 +42,23 @@ export default function MatchingPage() {
   // 회사 목록 (중복 제거)
   const companies = Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
 
-  // 직무 목록 (실제 데이터에서 추출)
-  const jobRoles: string[] = Array.from(
-    new Set(
-      jobPostingsData
-        .map((job) => {
-          const title = job.title.toLowerCase()
-          if (title.includes('백엔드') || title.includes('backend')) return '백엔드 개발자'
-          if (title.includes('프론트엔드') || title.includes('frontend')) return '프론트엔드 개발자'
-          if (title.includes('ai') || title.includes('ml') || title.includes('머신러닝')) return 'AI Engineer'
-          if (title.includes('data') || title.includes('데이터')) return 'Data Engineer'
-          if (title.includes('devops') || title.includes('인프라')) return 'DevOps Engineer'
-          if (title.includes('full stack') || title.includes('풀스택')) return 'Full Stack Developer'
-          return null
-        })
-        .filter((role) => role !== null) as string[]
-    )
-  )
+  // 직군별 통계의 직무 목록 (대시보드와 동일)
+  const jobRoles = [
+    '전체',
+    'Software Development',
+    'Factory AX Engineering',
+    'Solution Development',
+    'Cloud/Infra Engineering',
+    'Architect',
+    'Project Management',
+    'Quality Management',
+    'AI',
+    '정보보호',
+    'Sales',
+    'Domain Expert',
+    'Consulting',
+    'Biz. Supporting'
+  ]
 
   // 공고 검색 함수
   const handleSearch = () => {
@@ -71,20 +71,112 @@ export default function MatchingPage() {
         normalizedJobCompany.includes(normalizedSelectedCompany) ||
         normalizedSelectedCompany.includes(normalizedJobCompany)
 
-      // 직무 매칭 (제목과 직무 카테고리 모두 확인)
-      const normalizedJobTitle = job.title.toLowerCase()
-      const normalizedJobCategory = (job.meta_data?.job_category || '').toLowerCase()
-      const normalizedSelectedRole = selectedJobRole.toLowerCase()
-      const roleMatch =
-        selectedJobRole === '전체' ||
-        normalizedJobTitle.includes(normalizedSelectedRole) ||
-        normalizedJobCategory.includes(normalizedSelectedRole) ||
-        (normalizedSelectedRole.includes('백엔드') && (normalizedJobTitle.includes('백엔드') || normalizedJobTitle.includes('backend'))) ||
-        (normalizedSelectedRole.includes('프론트엔드') && (normalizedJobTitle.includes('프론트엔드') || normalizedJobTitle.includes('frontend'))) ||
-        (normalizedSelectedRole.includes('ai') && (normalizedJobTitle.includes('ai') || normalizedJobTitle.includes('ml'))) ||
-        (normalizedSelectedRole.includes('data') && normalizedJobTitle.includes('data'))
+      // 직무 매칭 (대시보드와 동일한 로직)
+      const jobRoleMatch = selectedJobRole === '전체' || 
+        job.meta_data?.job_category?.includes(selectedJobRole) ||
+        job.title.includes(selectedJobRole) ||
+        // Software Development 매칭
+        (selectedJobRole === 'Software Development' && (
+          job.title.includes('개발') || 
+          job.title.includes('Developer') ||
+          job.title.includes('Engineer') ||
+          job.meta_data?.job_category === '개발'
+        )) ||
+        // Factory AX Engineering 매칭
+        (selectedJobRole === 'Factory AX Engineering' && (
+          job.title.includes('Factory') ||
+          job.title.includes('AX') ||
+          job.title.includes('제조') ||
+          job.title.includes('공장') ||
+          job.title.includes('Simulation') ||
+          job.title.includes('기구설계') ||
+          job.title.includes('전장')
+        )) ||
+        // Solution Development 매칭
+        (selectedJobRole === 'Solution Development' && (
+          job.title.includes('Solution') ||
+          job.title.includes('ERP') ||
+          job.title.includes('시스템') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Cloud/Infra Engineering 매칭
+        (selectedJobRole === 'Cloud/Infra Engineering' && (
+          job.title.includes('Cloud') ||
+          job.title.includes('클라우드') ||
+          job.title.includes('Infra') ||
+          job.title.includes('인프라') ||
+          job.title.includes('DevOps') ||
+          job.meta_data?.job_category === '인프라'
+        )) ||
+        // Architect 매칭
+        (selectedJobRole === 'Architect' && (
+          job.title.includes('Architect') ||
+          job.title.includes('아키텍트') ||
+          job.title.includes('설계')
+        )) ||
+        // Project Management 매칭
+        (selectedJobRole === 'Project Management' && (
+          job.title.includes('PM') ||
+          job.title.includes('Project') ||
+          job.title.includes('프로젝트') ||
+          job.title.includes('관리') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Quality Management 매칭
+        (selectedJobRole === 'Quality Management' && (
+          job.title.includes('Quality') ||
+          job.title.includes('품질') ||
+          job.title.includes('QA') ||
+          job.title.includes('테스트')
+        )) ||
+        // AI 매칭
+        (selectedJobRole === 'AI' && (
+          job.title.includes('AI') ||
+          job.title.includes('ML') ||
+          job.title.includes('Machine Learning') ||
+          job.title.includes('머신러닝') ||
+          job.title.includes('딥러닝') ||
+          job.meta_data?.job_category === 'AI/ML'
+        )) ||
+        // 정보보호 매칭
+        (selectedJobRole === '정보보호' && (
+          job.title.includes('보안') ||
+          job.title.includes('Security') ||
+          job.title.includes('정보보호') ||
+          job.meta_data?.job_category === '보안'
+        )) ||
+        // Sales 매칭
+        (selectedJobRole === 'Sales' && (
+          job.title.includes('Sales') ||
+          job.title.includes('영업') ||
+          job.title.includes('세일즈') ||
+          job.meta_data?.job_category === '마케팅'
+        )) ||
+        // Domain Expert 매칭
+        (selectedJobRole === 'Domain Expert' && (
+          job.title.includes('Expert') ||
+          job.title.includes('전문가') ||
+          job.title.includes('Consultant') ||
+          job.meta_data?.job_category === '기획'
+        )) ||
+        // Consulting 매칭
+        (selectedJobRole === 'Consulting' && (
+          job.title.includes('Consulting') ||
+          job.title.includes('컨설팅') ||
+          job.title.includes('Advisory')
+        )) ||
+        // Biz. Supporting 매칭
+        (selectedJobRole === 'Biz. Supporting' && (
+          job.title.includes('Strategy') ||
+          job.title.includes('전략') ||
+          job.title.includes('Planning') ||
+          job.title.includes('기획') ||
+          job.title.includes('HR') ||
+          job.title.includes('인사') ||
+          job.meta_data?.job_category === '기획'
+        ))
 
-      return companyMatch && roleMatch
+      return companyMatch && jobRoleMatch
     })
     setSearchResults(filtered)
     setShowJobDetail(false)
@@ -214,7 +306,7 @@ export default function MatchingPage() {
             </div>
             <button
               onClick={handleSearch}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 border border-blue-600 flex items-center gap-2"
+              className="px-8 py-3 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 border border-gray-900 flex items-center gap-2"
             >
               <svg
                 className="w-5 h-5"

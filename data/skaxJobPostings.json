@@ -2,7 +2,7 @@
   {
     "id": 1001,
     "title": "[SK AX] 채용연계형 SKALA 모집(Cloud, AI)",
-    "company": "SK주식회사 C&C",
+    "company": "SK AX",
     "location": "서울 강남구",
     "employment_type": "정규직",
     "experience": "신입",
@@ -20,7 +20,7 @@
   {
     "id": 1002,
     "title": "[SK AX] 핀테크 백엔드 개발자",
-    "company": "SK주식회사 C&C",
+    "company": "SK AX",
     "location": "서울 강남구",
     "employment_type": "정규직",
     "experience": "경력",
@@ -38,7 +38,7 @@
   {
     "id": 1003,
     "title": "[SK AX] 백엔드 플랫폼 엔지니어",
-    "company": "SK주식회사 C&C",
+    "company": "SK AX",
     "location": "서울 강남구",
     "employment_type": "정규직",
     "experience": "경력",
@@ -56,7 +56,7 @@
   {
     "id": 1004,
     "title": "[SK AX] 서버 개발자 (Kotlin/Spring)",
-    "company": "SK주식회사 C&C",
+    "company": "SK AX",
     "location": "서울 강남구",
     "employment_type": "정규직",
     "experience": "경력",

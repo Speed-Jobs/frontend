@@ -1,32 +1,48 @@
-# 회사 로고 이미지 폴더
+# 회사 로고 이미지
 
-이 폴더에 다음 회사들의 로고 이미지를 PNG 형식으로 넣어주세요:
+이 폴더에는 각 회사의 로고 이미지를 저장합니다.
 
-## 파일명 규칙 (소문자, 하이픈 사용)
+## 파일명 규칙
 
-1. **삼성SDS** → `samsung-sds.png`
-2. **LGCNS** → `lg-cns.png`
-3. **현대 오토에버** → `hyundai-autoever.png`
-4. **한화 시스템** → `hanwha-system.png`
-5. **KT** → `kt.png`
-6. **네이버** → `naver.png`
-7. **카카오** → `kakao.png`
-8. **라인** → `line.png`
-9. **쿠팡** → `coupang.png`
-10. **배민** → `baemin.png`
-11. **토스** → `toss.png`
-12. **KPMG** → `kpmg.png`
+- 파일명은 소문자와 하이픈(-)을 사용합니다.
+- 예: `sk-ax.png`, `samsung-sds.png`, `lg-cns.png`
 
-## 이미지 권장 사항
+## 현재 지원하는 회사
 
-- **형식**: PNG (투명 배경 권장)
-- **크기**: 최소 200x200px 이상
-- **파일명**: 위의 파일명 규칙을 정확히 따라주세요
+다음 회사들의 로고 파일을 추가하세요:
+
+### 필수 (우리 회사)
+- `sk-ax.png` - SK AX 로고
+
+### 필수 (데이터에 사용되는 회사)
+- `samsung-electronics.png` - 삼성전자
+- `lg-electronics.png` - LG전자
+- `hyundai-motor.png` - 현대자동차
+- `daangn.png` - 당근마켓
+
+### 기타 회사들
+- `samsung-sds.png` - 삼성SDS
+- `lg-cns.png` - LGCNS
+- `hyundai-autoever.png` - 현대 오토에버
+- `hanwha-system.png` - 한화 시스템
+- `kt.png` - KT
+- `naver.png` - 네이버
+- `kakao.png` - 카카오
+- `line.png` - 라인
+- `coupang.png` - 쿠팡
+- `baemin.png` - 배민
+- `toss.png` - 토스
+- `kpmg.png` - KPMG
+- `daangn.png` - 당근마켓
+
+## 이미지 형식
+
+- 형식: PNG (권장) 또는 SVG
+- 크기: 최소 200x200px 이상 권장
+- 배경: 투명 배경 권장
 
 ## 사용 방법
 
-1. 각 회사 로고 이미지를 다운로드합니다
-2. 위의 파일명 규칙에 맞게 파일명을 변경합니다
-3. 이 폴더(`public/logos/`)에 이미지를 넣습니다
-4. 개발 서버를 재시작하거나 새로고침하면 자동으로 반영됩니다
-
+1. 로고 이미지 파일을 이 폴더에 추가합니다.
+2. 파일명은 위의 규칙에 따라 지정합니다.
+3. `CompanyLogo` 컴포넌트가 자동으로 로고를 표시합니다.

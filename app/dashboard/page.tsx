@@ -4,7 +4,9 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import JobPostingCard from '@/components/JobPostingCard'
+import NotificationToast from '@/components/NotificationToast'
 import jobPostingsData from '@/data/jobPostings.json'
+import { useJobNotifications } from '@/hooks/useJobNotifications'
 import {
   BarChart,
   Bar,
@@ -27,6 +29,21 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
+
+  // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
+  const allJobPostings = useMemo(() => [...jobPostingsData], [])
+  const {
+    newJobs,
+    hasNewJobs,
+    clearNewJobs,
+  } = useJobNotifications({
+    jobPostings: allJobPostings,
+    autoCheck: true,
+    checkInterval: 5 * 60 * 1000, // 5분마다 체크
+    onNewJobsFound: (newJobs) => {
+      console.log(`새로운 공고 ${newJobs.length}개 발견!`)
+    },
+  })
 
   // 로고가 있는 회사 목록 (CompanyLogo의 companyNameMap 기반 + 실제 데이터의 회사명)
   const companiesWithLogo = [
@@ -642,6 +659,10 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
+      {/* 새로운 공고 알림 토스트 */}
+      {hasNewJobs && (
+        <NotificationToast newJobs={newJobs} onClose={clearNewJobs} />
+      )}
 
       <div className="px-8 py-8 max-w-7xl mx-auto space-y-8">
         {/* Competitor Job Postings Section */}

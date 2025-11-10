@@ -45,23 +45,23 @@ export default function QualityPage() {
   // 회사 목록 (중복 제거)
   const companies = Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
 
-  // 직무 목록
-  const jobRoles: string[] = Array.from(
-    new Set(
-      jobPostingsData
-        .map((job) => {
-          const title = job.title.toLowerCase()
-          if (title.includes('백엔드') || title.includes('backend')) return '백엔드 개발자'
-          if (title.includes('프론트엔드') || title.includes('frontend')) return '프론트엔드 개발자'
-          if (title.includes('ai') || title.includes('ml') || title.includes('머신러닝')) return 'AI Engineer'
-          if (title.includes('data') || title.includes('데이터')) return 'Data Engineer'
-          if (title.includes('devops') || title.includes('인프라')) return 'DevOps Engineer'
-          if (title.includes('full stack') || title.includes('풀스택')) return 'Full Stack Developer'
-          return null
-        })
-        .filter((role) => role !== null) as string[]
-    )
-  )
+  // 직무 목록 (13개 직무 기준)
+  const jobRoles: string[] = [
+    '전체',
+    'Software Development',
+    'Factory AX Engineering',
+    'Solution Development',
+    'Cloud/Infra Engineering',
+    'Architect',
+    'Project Management',
+    'Quality Management',
+    'AI',
+    '정보보호',
+    'Sales',
+    'Domain Expert',
+    'Consulting',
+    'Biz. Supporting',
+  ]
 
   // 우리 회사 공고 필터링
   const filteredOurJobs = useMemo(() => {
@@ -234,24 +234,44 @@ export default function QualityPage() {
             공고 선택하기
           </button>
           <button
-            onClick={() => setCurrentStep(2)}
+            onClick={() => {
+              if (!canProceedToNextStep()) {
+                alert('먼저 공고를 선택해주세요!')
+                return
+              }
+              if (currentStep < 2) {
+                return
+              }
+              setCurrentStep(2)
+            }}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               currentStep === 2
                 ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
+                : !canProceedToNextStep() || currentStep < 2
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-gray-600 hover:text-gray-900 cursor-pointer'
             }`}
-            disabled={!canProceedToNextStep() || currentStep < 2}
           >
             공고 품질 및 평가 결과
           </button>
           <button
-            onClick={() => setCurrentStep(3)}
+            onClick={() => {
+              if (!canProceedToNextStep()) {
+                alert('먼저 공고를 선택해주세요!')
+                return
+              }
+              if (currentStep < 3) {
+                return
+              }
+              setCurrentStep(3)
+            }}
             className={`px-6 py-3 text-sm font-medium transition-colors ${
               currentStep === 3
                 ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
+                : !canProceedToNextStep() || currentStep < 3
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-gray-600 hover:text-gray-900 cursor-pointer'
             }`}
-            disabled={!canProceedToNextStep() || currentStep < 3}
           >
             AI 추천 공고
           </button>

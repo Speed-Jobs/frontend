@@ -15,7 +15,7 @@ import {
 } from 'recharts'
 
 export default function AnalysisPage() {
-  const [selectedJobRole, setSelectedJobRole] = useState('백엔드')
+  const [selectedJobRole, setSelectedJobRole] = useState('Software Development')
 
   // 공고 발행 통계 데이터 (이미지에 맞게 수정)
   const companyStats = [
@@ -47,7 +47,7 @@ export default function AnalysisPage() {
     { quarter: '2024 Q4', value: 1100 },
   ]
 
-  // 직무별 기술 데이터 (이미지에 맞게 수정)
+  // 직무별 기술 데이터 (13개 직무 기준)
   const jobRoleTechs: Record<string, { 
     used: Array<{ name: string; count: number; percentage: number }>; 
     unused: string[];
@@ -57,42 +57,127 @@ export default function AnalysisPage() {
       used: [],
       unused: [],
     },
-    백엔드: {
+    'Software Development': {
       used: [
-        { name: 'spring', count: 41, percentage: 40.0 },
-        { name: 'kotlin', count: 40, percentage: 21.6 },
-        { name: 'mysql', count: 33, percentage: 20.0 },
-        { name: 'aws', count: 12, percentage: 14.2 },
-        { name: 'redis', count: 10, percentage: 10.6 },
-        { name: 'kafka', count: 7, percentage: 10.6 },
+        { name: 'Java', count: 120, percentage: 45 },
+        { name: 'Spring', count: 95, percentage: 35 },
+        { name: 'React', count: 80, percentage: 30 },
+        { name: 'Node.js', count: 65, percentage: 24 },
       ],
-      unused: ['go', 'rust', 'airflow', 'kubernetes'],
-      representative: 'backend_engineer (총 50건, 2023.10.24)',
+      unused: ['Python', 'Django', 'Vue.js'],
+      representative: 'Software Development (총 50건, 2023.10.24)',
     },
-    프론트엔드: {
+    'Factory AX Engineering': {
       used: [
-        { name: 'react', count: 41, percentage: 33.3 },
-        { name: 'typescript', count: 32, percentage: 40.0 },
-        { name: 'nodejs', count: 36, percentage: 29.0 },
-        { name: 'docker', count: 40, percentage: 25.0 },
-        { name: 'kubernetes', count: 20, percentage: 20.0 },
+        { name: 'PLC', count: 85, percentage: 55 },
+        { name: 'SCADA', count: 70, percentage: 45 },
+        { name: 'MES', count: 60, percentage: 39 },
       ],
-      unused: ['angular', 'vue', 'nextjs'],
+      unused: ['웹 개발', '모바일'],
+      representative: 'Factory AX Engineering (총 50건, 2023.10.24)',
     },
-    데이터: {
+    'Solution Development': {
       used: [
-        { name: 'java', count: 40, percentage: 40.0 },
-        { name: 'spring', count: 30, percentage: 30.0 },
-        { name: 'python', count: 20, percentage: 20.0 },
-        { name: 'tensorflow', count: 10, percentage: 10.0 },
-        { name: 'pytorch', count: 20, percentage: 10.0 },
+        { name: 'SAP', count: 110, percentage: 50 },
+        { name: 'ERP', count: 95, percentage: 43 },
+        { name: 'Oracle', count: 75, percentage: 34 },
       ],
-      unused: ['scala', 'spark'],
-      representative: 'data_engineer (총 50건, 2023.10.24)',
+      unused: ['클라우드', '마이크로서비스'],
+      representative: 'Solution Development (총 50건, 2023.10.24)',
+    },
+    'Cloud/Infra Engineering': {
+      used: [
+        { name: 'AWS', count: 100, percentage: 48 },
+        { name: 'Docker', count: 85, percentage: 41 },
+        { name: 'Kubernetes', count: 70, percentage: 34 },
+      ],
+      unused: ['온프레미스', '레거시'],
+      representative: 'Cloud/Infra Engineering (총 50건, 2023.10.24)',
+    },
+    'Architect': {
+      used: [
+        { name: 'System Design', count: 90, percentage: 52 },
+        { name: 'Microservices', count: 75, percentage: 43 },
+        { name: 'Cloud Architecture', count: 65, percentage: 38 },
+      ],
+      unused: ['모놀리식', '레거시'],
+      representative: 'Architect (총 50건, 2023.10.24)',
+    },
+    'Project Management': {
+      used: [
+        { name: 'Agile', count: 95, percentage: 55 },
+        { name: 'Scrum', count: 80, percentage: 46 },
+        { name: 'Jira', count: 70, percentage: 41 },
+      ],
+      unused: ['워터폴', '전통적'],
+      representative: 'Project Management (총 50건, 2023.10.24)',
+    },
+    'Quality Management': {
+      used: [
+        { name: 'Testing', count: 85, percentage: 50 },
+        { name: 'QA', count: 75, percentage: 44 },
+        { name: 'Automation', count: 60, percentage: 35 },
+      ],
+      unused: ['수동 테스트', '레거시'],
+      representative: 'Quality Management (총 50건, 2023.10.24)',
+    },
+    'AI': {
+      used: [
+        { name: 'Python', count: 120, percentage: 58 },
+        { name: 'TensorFlow', count: 95, percentage: 46 },
+        { name: 'PyTorch', count: 80, percentage: 39 },
+      ],
+      unused: ['전통적 개발', '레거시'],
+      representative: 'AI (총 50건, 2023.10.24)',
+    },
+    '정보보호': {
+      used: [
+        { name: 'Security', count: 90, percentage: 53 },
+        { name: 'Penetration Testing', count: 75, percentage: 44 },
+        { name: 'Compliance', count: 65, percentage: 38 },
+      ],
+      unused: ['일반 개발', '비보안'],
+      representative: '정보보호 (총 50건, 2023.10.24)',
+    },
+    'Sales': {
+      used: [
+        { name: 'CRM', count: 100, percentage: 55 },
+        { name: 'Salesforce', count: 85, percentage: 47 },
+        { name: 'Marketing', count: 70, percentage: 39 },
+      ],
+      unused: ['기술 개발', '엔지니어링'],
+      representative: 'Sales (총 50건, 2023.10.24)',
+    },
+    'Domain Expert': {
+      used: [
+        { name: 'Domain Knowledge', count: 95, percentage: 52 },
+        { name: 'Industry Expertise', count: 80, percentage: 44 },
+        { name: 'Business Analysis', count: 70, percentage: 38 },
+      ],
+      unused: ['기술 중심', '개발'],
+      representative: 'Domain Expert (총 50건, 2023.10.24)',
+    },
+    'Consulting': {
+      used: [
+        { name: 'Strategy', count: 90, percentage: 51 },
+        { name: 'ESG', count: 75, percentage: 43 },
+        { name: 'Transformation', count: 65, percentage: 37 },
+      ],
+      unused: ['운영', '일반 업무'],
+      representative: 'Consulting (총 50건, 2023.10.24)',
+    },
+    'Biz. Supporting': {
+      used: [
+        { name: 'Planning', count: 85, percentage: 50 },
+        { name: 'Management', count: 75, percentage: 44 },
+        { name: 'Governance', count: 65, percentage: 38 },
+      ],
+      unused: ['기술 개발', '엔지니어링'],
+      representative: 'Biz. Supporting (총 50건, 2023.10.24)',
     },
   }
 
-  const currentTechs = jobRoleTechs[selectedJobRole] || jobRoleTechs['백엔드']
+  const currentTechs = jobRoleTechs[selectedJobRole] || jobRoleTechs['Software Development']
 
   // PDF 다운로드 함수
   const handleDownloadPDF = async () => {
@@ -101,36 +186,103 @@ export default function AnalysisPage() {
       const jsPDF = (await import('jspdf')).default
 
       const element = document.getElementById('ai-report-content')
-      if (!element) return
+      if (!element) {
+        alert('리포트 컨텐츠를 찾을 수 없습니다.')
+        return
+      }
 
+      // 스타일 로드 대기
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // PDF 설정
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pdfWidth = 210 // A4 너비 (mm)
+      const pdfHeight = 297 // A4 높이 (mm)
+      const margin = 15 // 여백 (mm)
+      const contentWidth = pdfWidth - margin * 2
+      const contentHeight = pdfHeight - margin * 2
+
+      // 전체 컨텐츠를 한 번에 캡처
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         logging: false,
+        backgroundColor: '#ffffff',
       })
 
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgWidth = 210
-      const pageHeight = 297
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-      let position = 0
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        alert('캔버스 생성에 실패했습니다.')
+        return
+      }
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
+      const imgData = canvas.toDataURL('image/png', 1.0)
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      
+      if (!imgData || imgData === 'data:,') {
+        alert('이미지 데이터 생성에 실패했습니다.')
+        return
+      }
+      
+      // 이미지 너비를 PDF 콘텐츠 너비에 맞춤
+      const imgWidthInPdf = contentWidth
+      const imgHeightInPdf = (imgHeight * imgWidthInPdf) / imgWidth
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
+      // 페이지 나눔 처리
+      const totalPages = Math.ceil(imgHeightInPdf / contentHeight)
+      
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) {
+          pdf.addPage()
+        }
+        
+        // 현재 페이지에 표시할 이미지의 Y 위치 계산
+        const sourceY = (imgHeight / totalPages) * i
+        const sourceHeight = imgHeight / totalPages
+        const pageImgHeight = imgHeightInPdf / totalPages
+        
+        // 이미지의 해당 부분을 캔버스에 그리기
+        const pageCanvas = document.createElement('canvas')
+        pageCanvas.width = imgWidth
+        pageCanvas.height = sourceHeight
+        const pageCtx = pageCanvas.getContext('2d')
+        
+        if (pageCtx) {
+          const img = new Image()
+          img.src = imgData
+          
+          await new Promise<void>((resolve) => {
+            img.onload = () => {
+              try {
+                pageCtx.drawImage(
+                  img,
+                  0, sourceY, imgWidth, sourceHeight,
+                  0, 0, imgWidth, sourceHeight
+                )
+                const pageImgData = pageCanvas.toDataURL('image/png', 1.0)
+                if (pageImgData && pageImgData !== 'data:,') {
+                  pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidthInPdf, pageImgHeight)
+                }
+              } catch (e) {
+                console.error('이미지 그리기 오류:', e)
+              }
+              resolve()
+            }
+            img.onerror = () => {
+              console.error('이미지 로드 실패')
+              resolve()
+            }
+            // 타임아웃 설정
+            setTimeout(() => resolve(), 5000)
+          })
+        }
       }
 
       pdf.save('AI_분석_리포트.pdf')
     } catch (error) {
       console.error('PDF 생성 중 오류:', error)
-      alert('PDF 다운로드 중 오류가 발생했습니다.')
+      alert(`PDF 다운로드 중 오류가 발생했습니다: ${error}`)
     }
   }
 
@@ -138,7 +290,20 @@ export default function AnalysisPage() {
   const handleDownloadDocx = async () => {
     try {
       const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx')
-      const { saveAs } = await import('file-saver')
+      
+      // file-saver는 default export를 사용
+      const fileSaverModule = await import('file-saver')
+      const saveAs = (fileSaverModule as any).default || (fileSaverModule as any).saveAs
+
+      if (!Document || !Packer || !Paragraph || !TextRun || !HeadingLevel) {
+        alert('DOCX 라이브러리 로드에 실패했습니다.')
+        return
+      }
+
+      if (!saveAs || typeof saveAs !== 'function') {
+        // 대체 방법: 직접 다운로드 링크 생성
+        console.warn('saveAs를 사용할 수 없어 대체 방법을 사용합니다.')
+      }
 
       const doc = new Document({
         sections: [
@@ -176,7 +341,25 @@ export default function AnalysisPage() {
                 ],
               }),
               new Paragraph({
-                text: '2. 직무별 분석',
+                text: '2. 트렌드 분석',
+                heading: HeadingLevel.HEADING_2,
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: '공고 트렌드를 분석한 결과, 월별로 지속적인 증가 추세를 보이고 있습니다. 특히 2024년 초반부터 급격한 증가세를 보이며, 이는 IT 업계의 인력 수요가 크게 증가하고 있음을 시사합니다.',
+                  }),
+                ],
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: '분기별 트렌드에서도 동일한 패턴이 관찰되며, 각 분기마다 약 5-7%의 성장률을 보이고 있어 안정적인 성장세를 유지하고 있습니다.',
+                  }),
+                ],
+              }),
+              new Paragraph({
+                text: '3. 직무별 분석',
                 heading: HeadingLevel.HEADING_2,
               }),
               new Paragraph({
@@ -227,7 +410,7 @@ export default function AnalysisPage() {
                 ],
               }),
               new Paragraph({
-                text: '3. 비교 분석',
+                text: '4. 비교 분석',
                 heading: HeadingLevel.HEADING_2,
               }),
               new Paragraph({
@@ -271,10 +454,28 @@ export default function AnalysisPage() {
       })
 
       const blob = await Packer.toBlob(doc)
-      saveAs(blob, 'AI_분석_리포트.docx')
+      if (!blob) {
+        alert('DOCX 파일 생성에 실패했습니다.')
+        return
+      }
+      
+      // saveAs 함수가 있으면 사용, 없으면 대체 방법 사용
+      if (saveAs && typeof saveAs === 'function') {
+        saveAs(blob, 'AI_분석_리포트.docx')
+      } else {
+        // 대체 방법: 직접 다운로드 링크 생성
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'AI_분석_리포트.docx'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }
     } catch (error) {
       console.error('DOCX 생성 중 오류:', error)
-      alert('DOCX 다운로드 중 오류가 발생했습니다.')
+      alert(`DOCX 다운로드 중 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -309,7 +510,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* 1. 공고 발행 통계 */}
-          <div>
+          <div className="pdf-section" data-section-index="0" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">1. 공고 발행 통계</h3>
             <p className="text-gray-600 mb-6">회사별 공고 수</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -417,84 +618,91 @@ export default function AnalysisPage() {
         </div>
 
         {/* 2. 트렌드 분석 */}
-        <div>
+        <div className="pdf-section" data-section-index="1" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="text-2xl font-bold text-gray-900 mb-6">2. 트렌드 분석</h3>
-          <div className="grid grid-cols-2 gap-6">
-            {/* 공고 트렌드 (라인 차트) */}
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                공고 트렌드
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={postingTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                  <YAxis domain={[0, 700]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#C91A2A"
-                    strokeWidth={2}
-                    dot={{ fill: '#C91A2A', r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          <div 
+            style={{ 
+              pageBreakInside: 'avoid', 
+              breakInside: 'avoid'
+            }}
+          >
+            <div className="grid grid-cols-2 gap-6">
+              {/* 공고 트렌드 (라인 차트) */}
+              <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  공고 트렌드
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={postingTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis domain={[0, 700]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#C91A2A"
+                      strokeWidth={2}
+                      dot={{ fill: '#C91A2A', r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 분기별 트렌드 (바 차트) */}
+              <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  분기별 트렌드
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={quarterlyTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="quarter" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis domain={[0, 1200]} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#6b7280" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            {/* 분기별 트렌드 (바 차트) */}
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                분기별 트렌드
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={quarterlyTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="quarter" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                  <YAxis domain={[0, 1200]} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="value" fill="#6b7280" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* AI 리포트 텍스트 - 트렌드 분석 */}
-          <div className="mt-6 prose max-w-none">
-            <div className="space-y-3 text-base leading-relaxed text-gray-700">
-              <p>
-                공고 트렌드를 분석한 결과, 월별로 지속적인 증가 추세를 보이고 있습니다.
-                특히 2024년 초반부터 급격한 증가세를 보이며, 이는 IT 업계의 인력 수요가
-                크게 증가하고 있음을 시사합니다.
-              </p>
-              <p>
-                분기별 트렌드에서도 동일한 패턴이 관찰되며, 각 분기마다 약 5-7%의 성장률을
-                보이고 있어 안정적인 성장세를 유지하고 있습니다.
-              </p>
+            {/* AI 리포트 텍스트 - 트렌드 분석 */}
+            <div className="mt-6 prose max-w-none">
+              <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                <p>
+                  공고 트렌드를 분석한 결과, 월별로 지속적인 증가 추세를 보이고 있습니다.
+                  특히 2024년 초반부터 급격한 증가세를 보이며, 이는 IT 업계의 인력 수요가
+                  크게 증가하고 있음을 시사합니다.
+                </p>
+                <p>
+                  분기별 트렌드에서도 동일한 패턴이 관찰되며, 각 분기마다 약 5-7%의 성장률을
+                  보이고 있어 안정적인 성장세를 유지하고 있습니다.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* 3. 직무별 분석 */}
-        <div>
+        <div className="pdf-section" data-section-index="2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">3. 직무별 분석</h3>
           <p className="text-gray-600 mb-4">필요 기술을 분석했어요...</p>
 
           {/* 직무 필터 버튼 */}
-          <div className="flex gap-3 mb-6">
-            {['전체', '백엔드', '프론트엔드', '데이터'].map((role) => (
+          <div className="flex flex-wrap gap-3 mb-6">
+            {['전체', 'Software Development', 'Factory AX Engineering', 'Solution Development', 'Cloud/Infra Engineering', 'Architect', 'Project Management', 'Quality Management', 'AI', '정보보호', 'Sales', 'Domain Expert', 'Consulting', 'Biz. Supporting'].map((role) => (
               <button
                 key={role}
                 onClick={() => setSelectedJobRole(role)}
@@ -627,7 +835,7 @@ export default function AnalysisPage() {
         </div>
 
         {/* 4. 비교 분석 */}
-        <div>
+        <div className="pdf-section" data-section-index="3" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">4. 비교 분석</h3>
           <div className="prose max-w-none">
             <div className="space-y-3 text-base leading-relaxed text-gray-700">

@@ -3,22 +3,34 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const pathname = usePathname()
   const [logoError, setLogoError] = useState(false)
   const [logoSrc, setLogoSrc] = useState('/logos/service-logo.png')
+  const { isAuthenticated, user, logout } = useAuth()
   
   const navItems = [
     { href: '/dashboard', label: '대시보드' },
     { href: '/analysis', label: '분석리포트' },
     { href: '/matching', label: '자동매칭' },
     { href: '/quality', label: '공고품질 평가' },
+    { href: '/companies', label: '회사별 공고', icon: '📋' },
+  ]
+  
+  const userMenuItems = [
+    { href: '/mypage', label: '마이페이지', icon: '👤' },
   ]
 
   const handleLogoError = () => {
     // 로고가 없으면 에러 상태
     setLogoError(true)
+  }
+
+  // 로그인/회원가입 페이지에서는 헤더를 표시하지 않음
+  if (pathname === '/login' || pathname === '/signup') {
+    return null
   }
 
   return (
@@ -43,20 +55,55 @@ export default function Header() {
         )}
         <span className="text-2xl font-bold text-gray-900">Speed Jobs</span>
       </Link>
-      <nav className="flex gap-2">
-        {navItems.map((item) => (
+      <nav className="flex gap-2 items-center">
+        {isAuthenticated ? (
+          <>
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
+                  pathname === item.href
+                    ? 'bg-gray-900 text-white border border-gray-900'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                {item.icon && <span>{item.icon}</span>}
+                {item.label}
+              </Link>
+            ))}
+            <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
+              {userMenuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
+                    pathname === item.href
+                      ? 'bg-gray-900 text-white border border-gray-900'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.icon && <span>{item.icon}</span>}
+                  {item.label}
+                </Link>
+              ))}
+              <span className="text-sm text-gray-600">{user?.email}</span>
+              <button
+                onClick={logout}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-300"
+              >
+                로그아웃
+              </button>
+            </div>
+          </>
+        ) : (
           <Link
-            key={item.href}
-            href={item.href}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-              pathname === item.href
-                ? 'bg-gray-900 text-white border border-gray-900'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-            }`}
+            href="/login"
+            className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
           >
-            {item.label}
+            로그인
           </Link>
-        ))}
+        )}
       </nav>
     </header>
   )

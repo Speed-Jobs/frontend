@@ -413,6 +413,31 @@ export default function Dashboard() {
     { name: 'terraform', count: 92, percentage: 8.6, change: 2.5, relatedSkills: ['iac', 'aws', 'infrastructure'] },
   ].sort((a, b) => b.count - a.count) // 인기순 정렬
 
+  // Tailwind 클래스를 픽셀 값으로 변환
+  const getPixelWidth = (widthClass: string): number => {
+    const widthMap: Record<string, number> = {
+      'w-36': 144,
+      'w-32': 128,
+      'w-28': 112,
+      'w-24': 96,
+      'w-20': 80,
+      'w-18': 72,
+    }
+    return widthMap[widthClass] || 72
+  }
+
+  const getPixelHeight = (heightClass: string): number => {
+    const heightMap: Record<string, number> = {
+      'h-16': 64,
+      'h-14': 56,
+      'h-12': 48,
+      'h-10': 40,
+      'h-9': 36,
+      'h-8': 32,
+    }
+    return heightMap[heightClass] || 32
+  }
+
   // 스킬 크기 계산 (count 값에 비례하여 크기 조정)
   const getSkillSize = (count: number, index: number, maxCount: number) => {
     // count에 비례한 크기 계산 (0.3 ~ 1.0 범위)
@@ -426,44 +451,67 @@ export default function Dashboard() {
         height: 'h-16', 
         text: 'text-lg', 
         padding: 'px-8 py-3', 
-        radius: 80 
+        radius: 80,
+        pixelWidth: 144,
+        pixelHeight: 64
       }
     }
     
     // count에 따라 크기 결정
     if (count >= maxCount * 0.8) {
-      return { width: 'w-32', height: 'h-14', text: 'text-base', padding: 'px-7 py-3', radius: 70 }
+      return { width: 'w-32', height: 'h-14', text: 'text-base', padding: 'px-7 py-3', radius: 70, pixelWidth: 128, pixelHeight: 56 }
     } else if (count >= maxCount * 0.6) {
-      return { width: 'w-28', height: 'h-12', text: 'text-sm', padding: 'px-6 py-2', radius: 64 }
+      return { width: 'w-28', height: 'h-12', text: 'text-sm', padding: 'px-6 py-2', radius: 64, pixelWidth: 112, pixelHeight: 48 }
     } else if (count >= maxCount * 0.4) {
-      return { width: 'w-24', height: 'h-10', text: 'text-xs', padding: 'px-5 py-2', radius: 56 }
+      return { width: 'w-24', height: 'h-10', text: 'text-xs', padding: 'px-5 py-2', radius: 56, pixelWidth: 96, pixelHeight: 40 }
     } else if (count >= maxCount * 0.25) {
-      return { width: 'w-20', height: 'h-9', text: 'text-xs', padding: 'px-4 py-1.5', radius: 48 }
+      return { width: 'w-20', height: 'h-9', text: 'text-xs', padding: 'px-4 py-1.5', radius: 48, pixelWidth: 80, pixelHeight: 36 }
     } else {
-      return { width: 'w-18', height: 'h-8', text: 'text-xs', padding: 'px-3 py-1', radius: 40 }
+      return { width: 'w-18', height: 'h-8', text: 'text-xs', padding: 'px-3 py-1', radius: 40, pixelWidth: 72, pixelHeight: 32 }
     }
+  }
+
+  // 사각형 영역 기반 겹침 체크
+  const checkRectOverlap = (
+    x1: number, y1: number, w1: number, h1: number,
+    x2: number, y2: number, w2: number, h2: number,
+    padding: number = 10
+  ): boolean => {
+    // 각 사각형의 경계 (중심 기준)
+    const left1 = x1 - w1 / 2 - padding
+    const right1 = x1 + w1 / 2 + padding
+    const top1 = y1 - h1 / 2 - padding
+    const bottom1 = y1 + h1 / 2 + padding
+
+    const left2 = x2 - w2 / 2 - padding
+    const right2 = x2 + w2 / 2 + padding
+    const top2 = y2 - h2 / 2 - padding
+    const bottom2 = y2 + h2 / 2 + padding
+
+    // 겹침 체크
+    return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2)
   }
 
   // 겹침 방지를 위한 정확한 위치 계산
   const calculateSkillPositions = () => {
     const positions: Array<{ x: number; y: number }> = []
-    const sizes: Array<{ radius: number }> = []
+    const sizes: Array<{ pixelWidth: number; pixelHeight: number }> = []
     const maxCount = skillsData[0]?.count || 1
     
     // 모든 스킬의 크기 계산
     for (let i = 0; i < skillsData.length; i++) {
       const size = getSkillSize(skillsData[i].count, i, maxCount)
-      sizes.push({ radius: size.radius })
+      sizes.push({ pixelWidth: size.pixelWidth, pixelHeight: size.pixelHeight })
     }
     
     // 중앙 스킬 (index 0)
     positions[0] = { x: 0, y: 0 }
     
-    // 레이어별 기본 설정
+    // 레이어별 기본 설정 (경계 안전하게 유지하기 위해 반지름 축소)
     const layers = [
-      { baseRadius: 130, count: 5 },   // 첫 번째 레이어: 5개
-      { baseRadius: 200, count: 7 },   // 두 번째 레이어: 7개
-      { baseRadius: 260, count: 8 },   // 세 번째 레이어: 8개
+      { baseRadius: 120, count: 5 },   // 첫 번째 레이어: 5개
+      { baseRadius: 180, count: 7 },   // 두 번째 레이어: 7개
+      { baseRadius: 230, count: 8 },   // 세 번째 레이어: 8개
     ]
     
     // 각 스킬의 위치 계산
@@ -489,54 +537,91 @@ export default function Dashboard() {
       const currentSize = sizes[index]
       let radius = layer.baseRadius
       let attempts = 0
-      const maxAttempts = 50
+      const maxAttempts = 100 // 시도 횟수 증가
+      let foundPosition = false
       
       // 겹침 방지: 이전 스킬들과 충분한 거리 확보
-      while (attempts < maxAttempts) {
-        let hasOverlap = false
-        const x = Math.cos(baseAngle) * radius
-        const y = Math.sin(baseAngle) * radius
+      while (attempts < maxAttempts && !foundPosition) {
+        // 각도와 반지름을 다양하게 시도
+        const angleVariation = (attempts % 10) * 0.1
+        const radiusVariation = Math.floor(attempts / 10) * 5
+        const testAngle = baseAngle + angleVariation * angleStep
+        const testRadius = radius + radiusVariation
         
-        // 이전 스킬들과의 거리 확인
+        const x = Math.cos(testAngle) * testRadius
+        const y = Math.sin(testAngle) * testRadius
+        
+        // 이전 스킬들과의 겹침 체크
+        let hasOverlap = false
         for (let i = 0; i < index; i++) {
           const prevPos = positions[i]
           const prevSize = sizes[i]
           
-          const dx = x - prevPos.x
-          const dy = y - prevPos.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          
-          // 최소 필요한 거리 (두 스킬의 반지름 합 + 여유 공간 25px)
-          const minDistance = currentSize.radius + prevSize.radius + 25
-          
-          if (distance < minDistance) {
+          // 사각형 영역 기반 겹침 체크
+          if (checkRectOverlap(
+            x, y, currentSize.pixelWidth, currentSize.pixelHeight,
+            prevPos.x, prevPos.y, prevSize.pixelWidth, prevSize.pixelHeight,
+            15 // 여유 공간
+          )) {
             hasOverlap = true
-            // 거리가 부족하면 반지름 증가
-            radius = Math.max(radius, Math.sqrt(prevPos.x ** 2 + prevPos.y ** 2) + minDistance)
             break
           }
         }
         
         if (!hasOverlap) {
-          // 컨테이너 경계 확인 (최대 반지름 280px)
-          if (radius <= 280) {
+          // 컨테이너 경계 확인
+          const maxRadius = 240
+          const maxX = 290 - currentSize.pixelWidth / 2
+          const maxY = 290 - currentSize.pixelHeight / 2
+          
+          if (Math.abs(x) <= maxX && Math.abs(y) <= maxY && testRadius <= maxRadius) {
             positions[index] = { x: Math.round(x), y: Math.round(y) }
+            foundPosition = true
             break
-          } else {
-            // 경계를 벗어나면 각도 조정
-            baseAngle += angleStep * 0.1
-            radius = layer.baseRadius
           }
         }
         
         attempts++
       }
       
-      // 최대 시도 횟수 초과 시 강제 배치
-      if (attempts >= maxAttempts) {
-        const x = Math.cos(baseAngle) * radius
-        const y = Math.sin(baseAngle) * radius
-        positions[index] = { x: Math.round(x), y: Math.round(y) }
+      // 최대 시도 횟수 초과 시 강제 배치 (경계 내에만, 겹침 최소화)
+      if (!foundPosition) {
+        // 가능한 위치를 찾기 위해 더 넓은 범위 탐색
+        let bestPosition: { x: number; y: number } | null = null
+        let minOverlaps = Infinity
+        
+        for (let testRadius = layer.baseRadius; testRadius <= 240; testRadius += 10) {
+          for (let testAngle = 0; testAngle < Math.PI * 2; testAngle += Math.PI / 12) {
+            const testX = Math.cos(testAngle) * testRadius
+            const testY = Math.sin(testAngle) * testRadius
+            
+            const maxX = 290 - currentSize.pixelWidth / 2
+            const maxY = 290 - currentSize.pixelHeight / 2
+            
+            if (Math.abs(testX) <= maxX && Math.abs(testY) <= maxY) {
+              // 겹침 개수 계산
+              let overlapCount = 0
+              for (let i = 0; i < index; i++) {
+                const prevPos = positions[i]
+                const prevSize = sizes[i]
+                if (checkRectOverlap(
+                  testX, testY, currentSize.pixelWidth, currentSize.pixelHeight,
+                  prevPos.x, prevPos.y, prevSize.pixelWidth, prevSize.pixelHeight,
+                  10
+                )) {
+                  overlapCount++
+                }
+              }
+              
+              if (overlapCount < minOverlaps) {
+                minOverlaps = overlapCount
+                bestPosition = { x: Math.round(testX), y: Math.round(testY) }
+              }
+            }
+          }
+        }
+        
+        positions[index] = bestPosition || { x: 0, y: 0 }
       }
     }
     
@@ -1024,14 +1109,20 @@ export default function Dashboard() {
             스킬별 통계
           </h2>
           <div className="grid grid-cols-3 gap-8">
-            <div className="col-span-2 bg-gradient-to-br from-gray-50 via-white to-gray-50 p-12 border border-gray-200 rounded-2xl shadow-lg relative overflow-hidden">
+            <div className="col-span-2 bg-gradient-to-br from-gray-50 via-white to-gray-50 p-12 border border-gray-200 rounded-2xl shadow-lg relative overflow-hidden" style={{ overflow: 'hidden' }}>
               {/* 배경 장식 */}
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gray-900 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gray-900 rounded-full blur-3xl"></div>
               </div>
               
-              <div className="relative h-[600px] flex items-center justify-center">
+              {/* 헤더 */}
+              <div className="relative mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">스킬 클라우드</h3>
+                <p className="text-sm text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
+              </div>
+              
+              <div className="relative h-[580px] flex items-center justify-center overflow-hidden" style={{ overflow: 'hidden' }}>
                 {skillsData.map((skill, index) => {
                   const maxCount = skillsData[0]?.count || 1
                   const size = getSkillSize(skill.count, index, maxCount)
@@ -1055,7 +1146,7 @@ export default function Dashboard() {
                           : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
                       }`}
                       style={{
-                        left: `calc(50% + ${position.x}px)`,
+                        left: `calc(50% - 40px + ${position.x}px)`,
                         top: `calc(50% + ${position.y}px)`,
                         transform: `translate(-50%, -50%)`,
                         animationDelay: `${index * 0.1}s`,
@@ -1068,29 +1159,73 @@ export default function Dashboard() {
                 })}
               </div>
             </div>
-            <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 uppercase">
-                {selectedSkillData.name}
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Total count</p>
-                  <p className="text-2xl font-bold text-gray-900">{selectedSkillData.count}건</p>
+            <div className="bg-white p-8 border border-gray-200 rounded-2xl shadow-lg">
+              <div className="mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-gray-900 to-gray-700 rounded-2xl mb-4 shadow-lg">
+                  <span className="text-2xl font-bold text-white uppercase">
+                    {selectedSkillData.name.charAt(0)}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Percentage</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedSkillData.percentage}%</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1 capitalize">
+                  {selectedSkillData.name}
+                </h3>
+                <p className="text-sm text-gray-500">스킬 상세 정보</p>
+              </div>
+              
+              <div className="space-y-6">
+                {/* 통계 카드들 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-100">
+                    <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+                      총 공고 수
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {selectedSkillData.count}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">건</p>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-100">
+                    <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+                      비율
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {selectedSkillData.percentage}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">%</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-700">+{selectedSkillData.change}%</p>
+
+                {/* 변화율 */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-xl border border-green-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-1">전월 대비 변화</p>
+                      <p className="text-2xl font-bold text-green-700">
+                        +{selectedSkillData.change}%
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-                <div className="pt-4">
-                  <p className="text-xs text-gray-500 mb-2">Related skills</p>
+
+                {/* 관련 스킬 */}
+                <div className="pt-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <p className="text-sm font-semibold text-gray-700">관련 스킬</p>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {selectedSkillData.relatedSkills.map((skill, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded border border-gray-300"
+                        className="px-3 py-1.5 bg-gray-50 text-gray-700 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
                       >
                         {skill}
                       </span>

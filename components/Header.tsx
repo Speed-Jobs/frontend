@@ -7,7 +7,7 @@ import { useState } from 'react'
 export default function Header() {
   const pathname = usePathname()
   const [logoError, setLogoError] = useState(false)
-  const [logoSrc, setLogoSrc] = useState('/logo.svg')
+  const [logoSrc, setLogoSrc] = useState('/logos/service-logo.png')
   
   const navItems = [
     { href: '/dashboard', label: '대시보드' },
@@ -17,13 +17,8 @@ export default function Header() {
   ]
 
   const handleLogoError = () => {
-    if (logoSrc.includes('.svg')) {
-      // SVG가 없으면 PNG 시도
-      setLogoSrc('/logo.png')
-    } else {
-      // PNG도 없으면 에러 상태
-      setLogoError(true)
-    }
+    // 로고가 없으면 에러 상태
+    setLogoError(true)
   }
 
   return (

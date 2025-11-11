@@ -25,9 +25,10 @@ interface JobPosting {
 interface JobPostingCardProps {
   job: JobPosting
   showDetail?: boolean
+  onClick?: () => void
 }
 
-export default function JobPostingCard({ job, showDetail = false }: JobPostingCardProps) {
+export default function JobPostingCard({ job, showDetail = false, onClick }: JobPostingCardProps) {
   // 마감일까지 남은 일수 계산
   const getDaysUntilExpiry = (expiredDate: string | null): string => {
     if (!expiredDate) return '상시채용'
@@ -45,7 +46,10 @@ export default function JobPostingCard({ job, showDetail = false }: JobPostingCa
   const companyName = job.company.replace('(주)', '').trim()
 
   const cardContent = (
-    <div className="flex items-center justify-between p-6 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-lg transition-all duration-300 group">
+    <div 
+      onClick={onClick}
+      className={`flex items-center justify-between p-6 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-lg transition-all duration-300 group ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <div className="flex items-center gap-6 flex-1">
         {/* 회사 로고 */}
         <div className="w-16 h-16 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden">
@@ -72,6 +76,10 @@ export default function JobPostingCard({ job, showDetail = false }: JobPostingCa
       </button>
     </div>
   )
+
+  if (showDetail && onClick) {
+    return cardContent
+  }
 
   if (showDetail) {
     return (

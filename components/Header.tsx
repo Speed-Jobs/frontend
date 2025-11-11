@@ -14,7 +14,6 @@ export default function Header() {
   const navItems = [
     { href: '/dashboard', label: '대시보드' },
     { href: '/analysis', label: '분석리포트' },
-    { href: '/matching', label: '자동매칭' },
     { href: '/quality', label: '공고품질 평가' },
     { href: '/companies', label: '회사별 공고', icon: '📋' },
   ]

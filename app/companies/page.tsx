@@ -31,34 +31,20 @@ interface CompanyStats {
 
 export default function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'count' | 'name' | 'trend' | 'oldest' | 'newest'>('count')
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState<'all' | '30days' | '90days' | '6months' | '1year' | '2years'>('all')
   const [selectedJobRole, setSelectedJobRole] = useState('전체')
-  const [viewMode, setViewMode] = useState<'table' | 'chart'>('table')
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 20
+  const [selectedImage, setSelectedImage] = useState<{ src: string; title: string; date: string } | null>(null)
+  const [imageZoom, setImageZoom] = useState(1)
+  const [imageGalleryPage, setImageGalleryPage] = useState(1)
+  const imagesPerPage = 2 // 갤러리에서 한 페이지에 표시할 이미지 수
 
   // 회사별 공고 통계 계산
   const companyStats = useMemo(() => {
     const companyMap = new Map<string, { count: number; jobs: any[]; oldestDate: Date; newestDate: Date }>()
     const now = new Date()
-    const periodFilters = {
-      '30days': 30,
-      '90days': 90,
-      '6months': 180,
-      '1year': 365,
-      '2years': 730,
-    }
 
     jobPostingsData.forEach((job) => {
       const postedDate = new Date(job.posted_date)
-      const daysDiff = Math.floor((now.getTime() - postedDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      // 기간 필터 적용
-      if (selectedPeriod !== 'all' && daysDiff > periodFilters[selectedPeriod]) {
-        return
-      }
 
       // 직무 필터 적용
       if (selectedJobRole !== '전체') {
@@ -245,29 +231,7 @@ export default function CompaniesPage() {
           jobs: data.jobs,
         }
       })
-      .filter((stat) => stat.company.toLowerCase().includes(searchQuery.toLowerCase()))
-  }, [searchQuery, selectedPeriod, selectedJobRole])
-
-  // 정렬 적용
-  const sortedStats = useMemo(() => {
-    const sorted = [...companyStats].sort((a, b) => {
-      switch (sortBy) {
-        case 'count':
-          return b.count - a.count
-        case 'name':
-          return a.company.localeCompare(b.company, 'ko')
-        case 'trend':
-          return b.trend - a.trend
-        case 'newest':
-          return b.newestDate.getTime() - a.newestDate.getTime()
-        case 'oldest':
-          return a.oldestDate.getTime() - b.oldestDate.getTime()
-        default:
-          return 0
-      }
-    })
-    return sorted
-  }, [companyStats, sortBy])
+  }, [selectedJobRole])
 
   // 선택된 회사의 공고 목록
   const selectedCompanyJobs = useMemo(() => {
@@ -281,118 +245,54 @@ export default function CompaniesPage() {
     })
   }, [selectedCompany, companyStats])
 
-  // 페이지네이션
-  const paginatedStats = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return sortedStats.slice(startIndex, startIndex + itemsPerPage)
-  }, [sortedStats, currentPage])
-
-  const totalPages = Math.ceil(sortedStats.length / itemsPerPage)
-
-  // 차트 데이터
-  const top10ChartData = sortedStats.slice(0, 10).map((stat) => ({
-    name: stat.company.length > 8 ? stat.company.substring(0, 8) + '...' : stat.company,
-    value: stat.count,
-    fullName: stat.company,
-  }))
-
-  const COLORS = ['#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb', '#f3f4f6']
+  // 검색 핸들러
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    
+    const filtered = companyStats.filter((stat) => 
+      stat.company.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    
+    if (filtered.length > 0) {
+      setSelectedCompany(filtered[0].company)
+      setImageGalleryPage(1)
+    } else {
+      alert('검색 결과가 없습니다.')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="px-8 py-8 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">회사별 누적 공고</h1>
-
-        {/* 요약 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">전체 회사 수</p>
-                <p className="text-2xl font-bold text-gray-900">{companyStats.length}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">전체 공고 수</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {companyStats.reduce((sum, stat) => sum + stat.count, 0).toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">평균 공고 수</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {companyStats.length > 0
-                    ? Math.round(companyStats.reduce((sum, stat) => sum + stat.count, 0) / companyStats.length)
-                    : 0}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">최고 공고 수</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {sortedStats.length > 0 ? sortedStats[0].count.toLocaleString() : 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {sortedStats.length > 0 ? sortedStats[0].company : '-'}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">옛날 공고 검색</h1>
+          <p className="text-gray-600">회사명과 직무를 검색하여 과거 공고 이미지를 확인하세요</p>
         </div>
 
-        {/* 필터 및 검색 섹션 */}
-        <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* 검색 */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">회사명 검색</label>
+        {/* 검색 섹션 */}
+        <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 회사명 검색 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">회사명</label>
               <div className="relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
-                    setCurrentPage(1)
                   }}
-                  placeholder="회사명을 입력하세요"
-                  className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch()
+                    }
+                  }}
+                  placeholder="예: 토스, 카카오, 네이버"
+                  className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
                 />
                 <svg
-                  className="w-5 h-5 text-gray-400 absolute left-3 top-2.5"
+                  className="w-6 h-6 text-gray-400 absolute left-4 top-3.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -402,38 +302,17 @@ export default function CompaniesPage() {
               </div>
             </div>
 
-            {/* 기간 필터 */}
+            {/* 직무 선택 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">기간</label>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => {
-                  setSelectedPeriod(e.target.value as any)
-                  setCurrentPage(1)
-                }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
-              >
-                <option value="all">전체 기간</option>
-                <option value="30days">최근 30일</option>
-                <option value="90days">최근 90일</option>
-                <option value="6months">최근 6개월</option>
-                <option value="1year">최근 1년</option>
-                <option value="2years">최근 2년</option>
-              </select>
-            </div>
-
-            {/* 직무 필터 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">직무</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-3">직무</label>
               <select
                 value={selectedJobRole}
                 onChange={(e) => {
                   setSelectedJobRole(e.target.value)
-                  setCurrentPage(1)
                 }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
               >
-                <option value="전체">전체</option>
+                <option value="전체">전체 직무</option>
                 <option value="Software Development">Software Development</option>
                 <option value="Factory AX Engineering">Factory AX Engineering</option>
                 <option value="Solution Development">Solution Development</option>
@@ -450,346 +329,394 @@ export default function CompaniesPage() {
               </select>
             </div>
 
-            {/* 정렬 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">정렬</label>
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value as any)
-                  setCurrentPage(1)
-                }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
+            {/* 검색 버튼 */}
+            <div className="flex items-end">
+              <button
+                onClick={handleSearch}
+                disabled={!searchQuery.trim()}
+                className="w-full px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base"
               >
-                <option value="count">공고 수 (많은 순)</option>
-                <option value="name">회사명 (가나다순)</option>
-                <option value="trend">증감률</option>
-                <option value="newest">최신 공고 순</option>
-                <option value="oldest">오래된 공고 순</option>
-              </select>
+                공고 검색
+              </button>
             </div>
           </div>
 
-          {/* 뷰 모드 토글 */}
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              테이블
-            </button>
-            <button
-              onClick={() => setViewMode('chart')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewMode === 'chart'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              차트
-            </button>
-          </div>
-        </div>
-
-        {/* 메인 콘텐츠 */}
-        {viewMode === 'table' ? (
-          <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">순위</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">회사</th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">공고 수</th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">비율</th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">최근 30일</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">공고 기간</th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">증감률</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedStats.map((stat, index) => {
-                    const rank = (currentPage - 1) * itemsPerPage + index + 1
-                    const maxCount = sortedStats[0]?.count || 1
-                    return (
-                      <tr key={stat.company} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`text-sm font-bold ${
-                                rank <= 3 ? 'text-gray-900' : 'text-gray-500'
-                              }`}
-                            >
-                              {rank}
-                            </span>
-                            {rank <= 3 && (
-                              <span className="text-yellow-500">
-                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                              <CompanyLogo name={stat.company} className="w-full h-full" />
-                            </div>
-                            <button
-                              onClick={() => setSelectedCompany(stat.company)}
-                              className="text-sm font-medium text-gray-900 hover:text-gray-600 hover:underline text-left"
-                            >
-                              {stat.company}
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-sm font-semibold text-gray-900">{stat.count.toLocaleString()}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-gray-900 h-2 rounded-full"
-                                style={{ width: `${(stat.count / maxCount) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-600 w-12 text-right">
-                              {stat.percentage.toFixed(1)}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="text-sm text-gray-700">{stat.recentJobs.toLocaleString()}</span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-xs text-gray-500">
-                              {stat.oldestDate.toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
-                            <span className="text-xs text-gray-400">~</span>
-                            <span className="text-xs text-gray-500">
-                              {stat.newestDate.toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {stat.trend > 0 ? (
-                              <>
-                                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span className="text-sm font-medium text-green-600">+{stat.trend.toFixed(1)}%</span>
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span className="text-sm font-medium text-red-600">{stat.trend.toFixed(1)}%</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 페이지네이션 */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  {currentPage} / {totalPages} 페이지
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    이전
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    다음
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 막대 차트 */}
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">상위 10개 회사 공고 수</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={top10ChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={100}
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number, payload: any) => [
-                      `${value}건`,
-                      payload.payload.fullName,
-                    ]}
-                  />
-                  <Bar dataKey="value" fill="#6b7280" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* 파이 차트 */}
-            <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">상위 5개 회사 비율</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={top10ChartData.slice(0, 5)}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {top10ChartData.slice(0, 5).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {/* 회사별 공고 목록 모달 */}
-        {selectedCompany && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          {/* 검색 결과 요약 */}
+          {selectedCompany && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white">
                     <CompanyLogo name={selectedCompany} className="w-full h-full" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
-                    <p className="text-sm text-gray-600">
-                      총 {selectedCompanyJobs.length}개의 공고
-                      {selectedCompanyJobs.length > 0 && (
-                        <>
-                          {' '}
-                          (가장 오래된 공고: {new Date(selectedCompanyJobs[selectedCompanyJobs.length - 1]?.posted_date || '').toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })} ~ 가장 최신 공고: {new Date(selectedCompanyJobs[0]?.posted_date || '').toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })})
-                        </>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {selectedCompany}
+                      {selectedJobRole !== '전체' && (
+                        <span className="text-gray-600 font-normal ml-2">· {selectedJobRole}</span>
                       )}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedCompanyJobs.length}개의 공고 이미지를 확인할 수 있습니다
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedCompany(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setSelectedCompany(null)
+                    setSearchQuery('')
+                    setSelectedJobRole('전체')
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  초기화
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="space-y-4">
-                  {selectedCompanyJobs.length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">공고가 없습니다.</p>
-                  ) : (
-                    selectedCompanyJobs.map((job) => (
-                      <div
-                        key={job.id}
-                        className="border-2 border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors"
+            </div>
+          )}
+        </div>
+
+        {/* 검색 안내 */}
+        {!selectedCompany && (
+          <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm">
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">회사명과 직무를 검색하세요</h3>
+              <p className="text-gray-600 text-sm">
+                위 검색창에 회사명을 입력하고 직무를 선택한 후 검색 버튼을 클릭하면<br />
+                해당 회사의 옛날 공고 이미지를 확인할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* 회사별 공고 이미지 갤러리 모달 */}
+        {selectedCompany && (() => {
+          // 회사명을 파일명으로 변환하는 매핑
+          const companyNameMap: Record<string, string> = {
+            '토스': 'toss',
+            '(주)토스': 'toss',
+            '카카오': 'kakao',
+            '(주)카카오': 'kakao',
+            '네이버': 'naver',
+            '(주)네이버': 'naver',
+            'LG전자': 'lg',
+            '(주)LG전자': 'lg',
+            'LG': 'lg',
+            'LGCNS': 'lg',
+            '라인': 'line',
+            '(주)라인': 'line',
+            'LINE': 'line',
+            '당근마켓': 'daangn',
+            '(주)당근마켓': 'daangn',
+            '삼성전자': 'samsung-electronics',
+            '(주)삼성전자': 'samsung-electronics',
+            '삼성SDS': 'samsung-sds',
+            '현대자동차': 'hyundai-motor',
+            '(주)현대자동차': 'hyundai-motor',
+            '현대 오토에버': 'hyundai-autoever',
+            '쿠팡': 'coupang',
+            '배민': 'baemin',
+            '한화 시스템': 'hanwha-system',
+            'KT': 'kt',
+            'KPMG': 'kpmg',
+          }
+          
+          const normalizedCompany = selectedCompany.replace('(주)', '').trim()
+          let companySlug = companyNameMap[selectedCompany] || companyNameMap[normalizedCompany]
+          
+          if (!companySlug) {
+            companySlug = normalizedCompany
+              .toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+          }
+          
+          // 이미지 ID 범위 설정 (예: 1부터 100까지, 필요에 따라 조정)
+          const maxImageId = 100
+          const imageIds = Array.from({ length: maxImageId }, (_, i) => i + 1)
+          
+          // 페이지네이션 계산
+          const totalImagePages = Math.ceil(imageIds.length / imagesPerPage)
+          const startIndex = (imageGalleryPage - 1) * imagesPerPage
+          const endIndex = startIndex + imagesPerPage
+          const currentPageImages = imageIds.slice(startIndex, endIndex)
+          
+          return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                      <CompanyLogo name={selectedCompany} className="w-full h-full" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
+                      <p className="text-sm text-gray-600">
+                        옛날 공고 이미지 ({startIndex + 1}-{Math.min(endIndex, imageIds.length)} / 총 {imageIds.length}개)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedCompany(null)
+                      setImageGalleryPage(1)
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {currentPageImages.map((imageId) => {
+                      const imagePath = `/job-postings/${companySlug}/${imageId}.png`
+                      const altText = `${selectedCompany} - 공고 이미지 ${imageId}`
+                      const relatedJob = selectedCompanyJobs.find(job => job.id === imageId) || selectedCompanyJobs[0]
+                      
+                      return (
+                        <div
+                          key={imageId}
+                          className="group relative border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-400 bg-white cursor-pointer transition-all hover:shadow-lg"
+                          onClick={() => {
+                            setSelectedImage({
+                              src: imagePath,
+                              title: relatedJob?.title || `${selectedCompany} 공고 ${imageId}`,
+                              date: relatedJob?.posted_date || ''
+                            })
+                            setImageZoom(1)
+                          }}
+                        >
+                          {/* 공고 이미지 */}
+                          <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
+                            <img
+                              src={imagePath}
+                              alt={altText}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
+                                const placeholder = target.parentElement?.querySelector('.image-placeholder')
+                                if (placeholder) {
+                                  (placeholder as HTMLElement).style.display = 'flex'
+                                }
+                              }}
+                            />
+                            {/* 플레이스홀더 */}
+                            <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                              <svg className="w-12 h-12 text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-xs text-gray-400 text-center">이미지 없음</p>
+                            </div>
+                            
+                            {/* 호버 시 정보 오버레이 */}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                              <div className="text-white text-center px-3">
+                                <p className="text-xs font-medium mb-1 line-clamp-2">{relatedJob?.title || `공고 ${imageId}`}</p>
+                                <p className="text-xs text-gray-200">
+                                  {relatedJob?.posted_date ? new Date(relatedJob.posted_date).toLocaleDateString('ko-KR', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  }) : `ID: ${imageId}`}
+                                </p>
+                                <p className="text-xs text-gray-300 mt-1">클릭하여 확대</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* 하단 정보 */}
+                          <div className="p-3 bg-white">
+                            <p className="text-xs font-semibold text-gray-900 mb-1 line-clamp-1">
+                              {relatedJob?.title || `공고 ${imageId}`}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {relatedJob?.posted_date ? new Date(relatedJob.posted_date).toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              }) : `이미지 ID: ${imageId}`}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  
+                  {/* 페이지네이션 */}
+                  {totalImagePages > 1 && (
+                    <div className="mt-6 flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setImageGalleryPage(prev => Math.max(1, prev - 1))}
+                        disabled={imageGalleryPage === 1}
+                        className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                          <span className="text-sm text-gray-500 whitespace-nowrap ml-4">
-                            {new Date(job.posted_date).toLocaleDateString('ko-KR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.experience}
-                          </span>
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.employment_type}
-                          </span>
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.location}
-                          </span>
-                          {job.meta_data?.tech_stack?.slice(0, 5).map((tech: string, idx: number) => (
-                            <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                        {job.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {job.description.substring(0, 200)}...
-                          </p>
-                        )}
-                        {job.expired_date && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            마감일: {new Date(job.expired_date).toLocaleDateString('ko-KR')}
-                          </p>
-                        )}
+                        이전
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalImagePages) }, (_, i) => {
+                          let pageNum
+                          if (totalImagePages <= 5) {
+                            pageNum = i + 1
+                          } else if (imageGalleryPage <= 3) {
+                            pageNum = i + 1
+                          } else if (imageGalleryPage >= totalImagePages - 2) {
+                            pageNum = totalImagePages - 4 + i
+                          } else {
+                            pageNum = imageGalleryPage - 2 + i
+                          }
+                          
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setImageGalleryPage(pageNum)}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                imageGalleryPage === pageNum
+                                  ? 'bg-gray-900 text-white'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          )
+                        })}
                       </div>
-                    ))
+                      <button
+                        onClick={() => setImageGalleryPage(prev => Math.min(totalImagePages, prev + 1))}
+                        disabled={imageGalleryPage === totalImagePages}
+                        className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        다음
+                      </button>
+                    </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+        
+        {/* 이미지 확대 모달 */}
+        {selectedImage && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4"
+            onClick={() => {
+              setSelectedImage(null)
+              setImageZoom(1)
+            }}
+          >
+            <div 
+              className="relative max-w-5xl w-full max-h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 헤더 */}
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedImage.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {selectedImage.date ? new Date(selectedImage.date).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    }) : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* 줌 컨트롤 */}
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setImageZoom(prev => Math.max(0.5, prev - 0.25))
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                      title="축소"
+                    >
+                      −
+                    </button>
+                    <span className="px-3 py-1.5 text-sm font-medium text-gray-700 min-w-[60px] text-center">
+                      {Math.round(imageZoom * 100)}%
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setImageZoom(prev => Math.min(3, prev + 0.25))
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                      title="확대"
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setImageZoom(1)
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded transition-colors ml-1"
+                      title="원본 크기"
+                    >
+                      리셋
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedImage(null)
+                      setImageZoom(1)
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              {/* 이미지 */}
+              <div 
+                className="relative overflow-auto bg-gray-50" 
+                style={{ maxHeight: 'calc(90vh - 80px)' }}
+              >
+                <div className="flex items-center justify-center p-6" style={{ minHeight: '100%' }}>
+                  <img
+                    src={selectedImage.src}
+                    alt={selectedImage.title}
+                    className="object-contain"
+                    style={{ 
+                      maxWidth: '100%',
+                      width: 'auto',
+                      height: 'auto',
+                      transform: `scale(${imageZoom})`,
+                      transformOrigin: 'center center',
+                      transition: 'transform 0.2s ease-out',
+                      display: 'block'
+                    }}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      const placeholder = target.parentElement?.parentElement?.querySelector('.image-placeholder')
+                      if (placeholder) {
+                        (placeholder as HTMLElement).style.display = 'flex'
+                      }
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      setImageZoom(prev => prev === 1 ? 2 : 1)
+                    }}
+                  />
+                </div>
+                {/* 플레이스홀더 */}
+                <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                  <svg className="w-24 h-24 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-gray-400 text-lg">이미지를 불러올 수 없습니다</p>
+                  <p className="text-gray-300 text-sm mt-2">{selectedImage.src}</p>
                 </div>
               </div>
             </div>

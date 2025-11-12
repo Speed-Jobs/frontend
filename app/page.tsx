@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
-import JobPostingCard from '@/components/JobPostingCard'
 import jobPostingsData from '@/data/jobPostings.json'
 
 export default function Home() {
@@ -223,12 +222,187 @@ export default function Home() {
 
           {/* Job Posting List */}
           {previewJobPostings.length > 0 ? (
-            <div className="space-y-4">
-              {previewJobPostings.map((job) => (
-                <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
-                  <JobPostingCard job={job} />
-                </Link>
-              ))}
+            <div className="space-y-3">
+              {previewJobPostings.map((job) => {
+                // 마감일까지 남은 일수 계산
+                const getDaysUntilExpiry = (expiredDate: string | null): string => {
+                  if (!expiredDate) return '상시채용'
+                  const today = new Date()
+                  const expiry = new Date(expiredDate)
+                  const diffTime = expiry.getTime() - today.getTime()
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                  
+                  if (diffDays < 0) return '마감'
+                  if (diffDays === 0) return '오늘 마감'
+                  return `${diffDays}일 남음`
+                }
+                
+                const deadline = getDaysUntilExpiry(job.expired_date)
+                const companyName = job.company.replace('(주)', '').trim()
+                
+                // 날짜 포맷팅
+                const formatDate = (dateString: string) => {
+                  const date = new Date(dateString)
+                  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+                }
+                
+                const startDate = formatDate(job.posted_date)
+                const endDate = job.expired_date ? formatDate(job.expired_date) : '상시채용'
+                
+                // 공고명 생성 (다양한 형식으로 구성)
+                const getJobPostingTitle = () => {
+                  const postedDate = new Date(job.posted_date)
+                  const year = postedDate.getFullYear()
+                  const month = postedDate.getMonth() + 1
+                  const half = month <= 6 ? '상반기' : '하반기'
+                  
+                  // 경력 정보 파싱
+                  const experience = job.experience || ''
+                  const isNewbie = experience.includes('신입') || experience === '신입'
+                  const isExperienced = experience.includes('경력')
+                  
+                  // 직군명 추출 (괄호 안 내용 포함)
+                  const jobTitle = job.title || ''
+                  const jobCategoryName = job.meta_data?.job_category || ''
+                  
+                  // 괄호 안의 세부 직군명 추출 (예: "백엔드 개발자 (Python/Django)" -> "Python/Django")
+                  const detailMatch = jobTitle.match(/\(([^)]+)\)/)
+                  const detailCategory = detailMatch ? detailMatch[1] : null
+                  
+                  // 다양한 템플릿 배열
+                  const templates: string[] = []
+                  
+                  // 템플릿 1: "YYYY년 하반기 신입구성원(직군) 채용"
+                  if (isNewbie && detailCategory) {
+                    templates.push(`${year}년 ${half} 신입구성원(${detailCategory}) 채용`)
+                  }
+                  
+                  // 템플릿 2: "YYYY년 하반기 신입/경력 채용"
+                  if (isNewbie || isExperienced) {
+                    if (isNewbie && isExperienced) {
+                      templates.push(`${year}년 ${half} 신입/경력 채용`)
+                    } else if (isNewbie) {
+                      templates.push(`${year}년 ${half} 신입 채용`)
+                    } else {
+                      templates.push(`${year}년 ${half} 경력 채용`)
+                    }
+                  }
+                  
+                  // 템플릿 3: "YYYY년 하반기 공개채용"
+                  templates.push(`${year}년 ${half} 공개채용`)
+                  
+                  // 템플릿 4: "YYYY년 하반기 정규직 채용"
+                  if (job.employment_type === '정규직') {
+                    templates.push(`${year}년 ${half} 정규직 채용`)
+                  }
+                  
+                  // 템플릿 5: "YYYY년 하반기 [직군명] 채용"
+                  if (jobCategoryName && jobCategoryName !== '개발') {
+                    templates.push(`${year}년 ${half} ${jobCategoryName} 채용`)
+                  }
+                  
+                  // 템플릿 6: "YYYY년 하반기 신입구성원 채용"
+                  if (isNewbie) {
+                    templates.push(`${year}년 ${half} 신입구성원 채용`)
+                  }
+                  
+                  // 템플릿 7: "YYYY년 하반기 상시채용"
+                  if (!job.expired_date) {
+                    templates.push(`${year}년 ${half} 상시채용`)
+                  }
+                  
+                  // job.id를 기반으로 일관된 템플릿 선택 (같은 공고는 항상 같은 형식)
+                  const templateIndex = job.id % templates.length
+                  return templates[templateIndex] || `${year}년 ${half} 공개채용`
+                }
+                
+                const jobPostingTitle = getJobPostingTitle()
+                
+                // 직군명 추출 (job.title에서 괄호 앞 부분만 추출)
+                const getJobCategory = () => {
+                  if (job.title) {
+                    // 괄호가 있으면 괄호 앞 부분만 추출
+                    const match = job.title.match(/^([^(]+)/)
+                    if (match) {
+                      return match[1].trim()
+                    }
+                    return job.title.trim()
+                  }
+                  // job.title이 없으면 job_category를 기반으로 매핑
+                  const category = job.meta_data?.job_category || '개발'
+                  const categoryMap: Record<string, string> = {
+                    'AI/ML': 'ML Engineer',
+                    '개발': 'Developer',
+                    '데이터': 'Data Engineer',
+                    '인프라': 'Infrastructure Engineer',
+                    '보안': 'Security Engineer',
+                    '기획': 'Product Manager',
+                    '디자인': 'Designer',
+                    '마케팅': 'Marketing'
+                  }
+                  return categoryMap[category] || category
+                }
+                
+                const jobCategory = getJobCategory()
+                
+                return (
+                  <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
+                    <div className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                      {/* 기업사진 */}
+                      <div className="w-20 h-20 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden">
+                        <CompanyLogo name={companyName} className="w-full h-full p-2" />
+                      </div>
+                      
+                      {/* 메인 정보 영역 */}
+                      <div className="flex-1 min-w-0">
+                        {/* 기업명 */}
+                        <div className="mb-2">
+                          <p className="text-sm font-semibold text-gray-900">{companyName}</p>
+                        </div>
+                        
+                        {/* 공고명 */}
+                        <div className="mb-2">
+                          <h4 className="font-bold text-gray-900 text-xl truncate">
+                            {jobPostingTitle}
+                          </h4>
+                        </div>
+                        
+                        {/* 직군명 */}
+                        <div className="mb-2">
+                          <p className="text-sm font-medium text-gray-700 truncate">
+                            {jobCategory}
+                          </p>
+                        </div>
+                        
+                        {/* 날짜, 고용형태 */}
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">기간:</span>
+                            <span className="text-sm font-medium text-gray-700">{startDate} ~ {endDate}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">고용형태:</span>
+                            <span className="text-sm font-medium text-gray-700">{job.employment_type}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* 마감일까지 남은 일수 */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`w-28 px-4 py-2 text-sm font-semibold rounded-lg border whitespace-nowrap text-center ${
+                          deadline === '마감' || deadline === '오늘 마감'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : deadline === '상시채용'
+                            ? 'bg-gray-50 text-gray-700 border-gray-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
+                          {deadline}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

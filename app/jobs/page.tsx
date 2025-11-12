@@ -4,12 +4,14 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
-import JobPostingCard from '@/components/JobPostingCard'
+import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
 
 export default function JobsPage() {
   const router = useRouter()
-  const [selectedJobRole, setSelectedJobRole] = useState('all')
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([])
+  const [companySearchQuery, setCompanySearchQuery] = useState('')
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
 
@@ -29,29 +31,59 @@ export default function JobsPage() {
     '당근마켓', '당근', 'Daangn'
   ]
 
-  // 직군별 통계의 직무 목록
-  const jobRoles = [
-    '모든 직무',
-    'Software Development',
-    'Factory AX Engineering',
-    'Solution Development',
-    'Cloud/Infra Engineering',
-    'Architect',
-    'Project Management',
-    'Quality Management',
-    'AI',
-    '정보보호',
-    'Sales',
-    'Domain Expert',
-    'Consulting',
-    'Biz. Supporting'
-  ]
+  // 회사 목록 (중복 제거, 전체 옵션 포함)
+  const companies = useMemo(() => 
+    Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
+  , [])
 
-  const employmentTypes = ['모든 고용형태', '정규직', '계약직', '인턴', '프리랜서', '파트타임']
+  const employmentTypes = ['고용형태', '정규직', '계약직', '인턴', '프리랜서', '파트타임']
 
-  // 필터링된 공고 목록 (로고가 있는 회사만 + 직무 필터)
+  // 필터링된 회사 목록 (검색어 기반)
+  const filteredCompanies = useMemo(() => {
+    if (!companySearchQuery) return companies
+    const query = companySearchQuery.toLowerCase()
+    return companies.filter(company => 
+      company.toLowerCase().includes(query)
+    )
+  }, [companySearchQuery, companies])
+
+  // 회사 토글 핸들러
+  const handleCompanyToggle = (company: string) => {
+    setSelectedCompanies(prev => 
+      prev.includes(company)
+        ? prev.filter(c => c !== company)
+        : [...prev, company]
+    )
+  }
+
+  // 전체 선택/해제 핸들러
+  const handleSelectAllCompanies = () => {
+    if (selectedCompanies.length === filteredCompanies.length) {
+      setSelectedCompanies([])
+    } else {
+      setSelectedCompanies([...filteredCompanies])
+    }
+  }
+
+  // 회사 제거 핸들러
+  const handleRemoveCompany = (company: string) => {
+    setSelectedCompanies(prev => prev.filter(c => c !== company))
+  }
+
+  // 필터링된 공고 목록 (로고가 있는 회사만 + 회사 필터)
   const filteredJobPostings = useMemo(() => {
     const filtered = jobPostingsData.filter((job) => {
+      // 회사 필터링 (다중 선택)
+      if (selectedCompanies.length > 0) {
+        const normalizedJobCompany = job.company.replace('(주)', '').trim().toLowerCase()
+        const companyMatch = selectedCompanies.some(selectedCompany => {
+          const normalizedSelectedCompany = selectedCompany.toLowerCase()
+          return normalizedJobCompany.includes(normalizedSelectedCompany) ||
+                 normalizedSelectedCompany.includes(normalizedJobCompany)
+        })
+        if (!companyMatch) return false
+      }
+
       // 로고가 있는 회사만 필터링 (더 유연한 매칭)
       const companyName = job.company.replace('(주)', '').trim().toLowerCase()
       const normalizedCompanyName = companyName.replace(/\s+/g, '')
@@ -67,115 +99,10 @@ export default function JobsPage() {
       })
       if (!hasLogo) return false
 
-      // 직무 필터링 (job_category 또는 title에서 매칭)
-      const jobRoleMatch = selectedJobRole === 'all' || 
-        job.meta_data?.job_category?.includes(selectedJobRole) ||
-        job.title.includes(selectedJobRole) ||
-        // Software Development 매칭
-        (selectedJobRole === 'Software Development' && (
-          job.title.includes('개발') || 
-          job.title.includes('Developer') ||
-          job.title.includes('Engineer') ||
-          job.meta_data?.job_category === '개발'
-        )) ||
-        // Factory AX Engineering 매칭
-        (selectedJobRole === 'Factory AX Engineering' && (
-          job.title.includes('Factory') ||
-          job.title.includes('AX') ||
-          job.title.includes('제조') ||
-          job.title.includes('공장') ||
-          job.title.includes('Simulation') ||
-          job.title.includes('기구설계') ||
-          job.title.includes('전장')
-        )) ||
-        // Solution Development 매칭
-        (selectedJobRole === 'Solution Development' && (
-          job.title.includes('Solution') ||
-          job.title.includes('ERP') ||
-          job.title.includes('시스템') ||
-          job.meta_data?.job_category === '기획'
-        )) ||
-        // Cloud/Infra Engineering 매칭
-        (selectedJobRole === 'Cloud/Infra Engineering' && (
-          job.title.includes('Cloud') ||
-          job.title.includes('클라우드') ||
-          job.title.includes('Infra') ||
-          job.title.includes('인프라') ||
-          job.title.includes('DevOps') ||
-          job.meta_data?.job_category === '인프라'
-        )) ||
-        // Architect 매칭
-        (selectedJobRole === 'Architect' && (
-          job.title.includes('Architect') ||
-          job.title.includes('아키텍트') ||
-          job.title.includes('설계')
-        )) ||
-        // Project Management 매칭
-        (selectedJobRole === 'Project Management' && (
-          job.title.includes('PM') ||
-          job.title.includes('Project') ||
-          job.title.includes('프로젝트') ||
-          job.title.includes('관리') ||
-          job.meta_data?.job_category === '기획'
-        )) ||
-        // Quality Management 매칭
-        (selectedJobRole === 'Quality Management' && (
-          job.title.includes('Quality') ||
-          job.title.includes('품질') ||
-          job.title.includes('QA') ||
-          job.title.includes('테스트')
-        )) ||
-        // AI 매칭
-        (selectedJobRole === 'AI' && (
-          job.title.includes('AI') ||
-          job.title.includes('ML') ||
-          job.title.includes('Machine Learning') ||
-          job.title.includes('머신러닝') ||
-          job.title.includes('딥러닝') ||
-          job.meta_data?.job_category === 'AI/ML'
-        )) ||
-        // 정보보호 매칭
-        (selectedJobRole === '정보보호' && (
-          job.title.includes('보안') ||
-          job.title.includes('Security') ||
-          job.title.includes('정보보호') ||
-          job.meta_data?.job_category === '보안'
-        )) ||
-        // Sales 매칭
-        (selectedJobRole === 'Sales' && (
-          job.title.includes('Sales') ||
-          job.title.includes('영업') ||
-          job.title.includes('세일즈') ||
-          job.meta_data?.job_category === '마케팅'
-        )) ||
-        // Domain Expert 매칭
-        (selectedJobRole === 'Domain Expert' && (
-          job.title.includes('Expert') ||
-          job.title.includes('전문가') ||
-          job.title.includes('Consultant') ||
-          job.meta_data?.job_category === '기획'
-        )) ||
-        // Consulting 매칭
-        (selectedJobRole === 'Consulting' && (
-          job.title.includes('Consulting') ||
-          job.title.includes('컨설팅') ||
-          job.title.includes('Advisory')
-        )) ||
-        // Biz. Supporting 매칭
-        (selectedJobRole === 'Biz. Supporting' && (
-          job.title.includes('Strategy') ||
-          job.title.includes('전략') ||
-          job.title.includes('Planning') ||
-          job.title.includes('기획') ||
-          job.title.includes('HR') ||
-          job.title.includes('인사') ||
-          job.meta_data?.job_category === '기획'
-        ))
-
       const employmentTypeMatch =
         selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
       
-      return jobRoleMatch && employmentTypeMatch
+      return employmentTypeMatch
     })
 
     // 정렬 적용
@@ -201,34 +128,28 @@ export default function JobsPage() {
     })
 
     return sorted
-  }, [selectedJobRole, selectedEmploymentType, companiesWithLogo, sortBy])
-
-  const handleJobRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedJobRole(e.target.value === '모든 직무' ? 'all' : e.target.value)
-  }
+  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy])
 
   const handleEmploymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedEmploymentType(e.target.value === '모든 고용형태' ? 'all' : e.target.value)
+    setSelectedEmploymentType(e.target.value === '고용형태' ? 'all' : e.target.value)
   }
 
   return ( 
     <div className="min-h-screen bg-white">
       <Header />
-      <div className="px-8 py-8 max-w-7xl mx-auto">
-        {/* 이전으로 돌아가기 버튼 */}
-        <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-300"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="font-medium">이전으로</span>
-          </button>
-        </div>
+      <div className="px-8 py-8 max-w-[95%] mx-auto relative">
+        {/* 이전으로 버튼 - 아이콘만 원형 버튼 */}
+        <button
+          onClick={() => router.back()}
+          className="absolute left-0 top-8 w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-300 group"
+          aria-label="이전으로"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
-        <div className="mb-10">
+        <div className="mb-10 ml-5">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             경쟁사 공고 전체 목록
           </h1>
@@ -238,68 +159,157 @@ export default function JobsPage() {
         </div>
 
         {/* Filters and Sort */}
-        <div className="flex items-center gap-4 mb-6 flex-wrap">
-          <select
-            value={selectedJobRole === 'all' ? '모든 직무' : selectedJobRole}
-            onChange={handleJobRoleChange}
-            className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
-          >
-            {jobRoles.map((role) => (
-              <option key={role} value={role === '모든 직무' ? 'all' : role}>
-                {role}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedEmploymentType === 'all' ? '모든 고용형태' : selectedEmploymentType}
-            onChange={handleEmploymentTypeChange}
-            className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 transition-colors cursor-pointer shadow-sm"
-          >
-            {employmentTypes.map((type) => (
-              <option key={type} value={type === '모든 고용형태' ? 'all' : type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          
-          {/* 정렬 라디오 버튼 */}
-          <div className="ml-auto inline-flex items-center gap-1">
-            <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
-              <input
-                type="radio"
-                name="sortBy"
-                value="latest"
-                checked={sortBy === 'latest'}
-                onChange={() => setSortBy('latest')}
-                className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
-              />
-              <span className="text-sm font-medium text-gray-700">최신공고순</span>
-            </label>
-            <div className="w-px h-6 bg-gray-300"></div>
-            <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
-              <input
-                type="radio"
-                name="sortBy"
-                value="company"
-                checked={sortBy === 'company'}
-                onChange={() => setSortBy('company')}
-                className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
-              />
-              <span className="text-sm font-medium text-gray-700">회사이름순</span>
-            </label>
-            <div className="w-px h-6 bg-gray-300"></div>
-            <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
-              <input
-                type="radio"
-                name="sortBy"
-                value="deadline"
-                checked={sortBy === 'deadline'}
-                onChange={() => setSortBy('deadline')}
-                className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
-              />
-              <span className="text-sm font-medium text-gray-700">마감순</span>
-            </label>
+        <div className="space-y-3 mb-6">
+          {/* 첫 번째 줄: 검색창과 필터 */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* 회사 멀티 셀렉트 */}
+            <div className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="회사 검색..."
+                  value={companySearchQuery}
+                  onChange={(e) => {
+                    setCompanySearchQuery(e.target.value)
+                    setShowCompanyDropdown(true)
+                  }}
+                  onFocus={() => setShowCompanyDropdown(true)}
+                  className="px-6 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-200 transition-all shadow-sm hover:shadow-md w-64"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+              
+              {/* 드롭다운 메뉴 */}
+              {showCompanyDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowCompanyDropdown(false)}
+                  />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white border-2 border-gray-200 rounded-xl shadow-lg z-20 max-h-80 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                      <button
+                        onClick={handleSelectAllCompanies}
+                        className="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        {selectedCompanies.length === filteredCompanies.length ? '전체 해제' : '전체 선택'}
+                      </button>
+                    </div>
+                    <div className="p-2">
+                      {filteredCompanies.length > 0 ? (
+                        filteredCompanies.map((company) => {
+                          const isSelected = selectedCompanies.includes(company)
+                          return (
+                            <label
+                              key={company}
+                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleCompanyToggle(company)}
+                                className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{company}</span>
+                            </label>
+                          )
+                        })
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-gray-500 text-center">
+                          검색 결과가 없습니다
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedEmploymentType === 'all' ? '고용형태' : selectedEmploymentType}
+                onChange={handleEmploymentTypeChange}
+                className="pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium bg-white hover:border-gray-400 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-200 transition-all cursor-pointer shadow-sm hover:shadow-md text-left appearance-none"
+                style={{ textAlign: 'left', textAlignLast: 'left' }}
+              >
+                {employmentTypes.map((type) => (
+                  <option key={type} value={type === '고용형태' ? 'all' : type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* 정렬 라디오 버튼 */}
+            <div className="ml-auto inline-flex items-center gap-1">
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="latest"
+                  checked={sortBy === 'latest'}
+                  onChange={() => setSortBy('latest')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">최신공고순</span>
+              </label>
+              <div className="w-px h-6 bg-gray-300"></div>
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="company"
+                  checked={sortBy === 'company'}
+                  onChange={() => setSortBy('company')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">회사이름순</span>
+              </label>
+              <div className="w-px h-6 bg-gray-300"></div>
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="deadline"
+                  checked={sortBy === 'deadline'}
+                  onChange={() => setSortBy('deadline')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">마감순</span>
+              </label>
+            </div>
           </div>
+
+          {/* 두 번째 줄: 선택된 회사 태그 */}
+          {selectedCompanies.length > 0 && (
+            <div className="flex flex-wrap gap-2 items-center pt-2">
+              {selectedCompanies.map((company) => (
+                <span
+                  key={company}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-sk-red/10 text-sk-red rounded-xl text-sm font-medium border border-sk-red/20 shadow-sm hover:shadow-md transition-all"
+                >
+                  {company}
+                  <button
+                    onClick={() => handleRemoveCompany(company)}
+                    className="hover:bg-sk-red/20 rounded-full p-0.5 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mb-6">
@@ -309,13 +319,188 @@ export default function JobsPage() {
         </div>
 
         {/* Job Posting List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredJobPostings.length > 0 ? (
-            filteredJobPostings.map((job) => (
-              <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
-                <JobPostingCard job={job} />
-              </Link>
-            ))
+            filteredJobPostings.map((job) => {
+              // 마감일까지 남은 일수 계산
+              const getDaysUntilExpiry = (expiredDate: string | null): string => {
+                if (!expiredDate) return '상시채용'
+                const today = new Date()
+                const expiry = new Date(expiredDate)
+                const diffTime = expiry.getTime() - today.getTime()
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                
+                if (diffDays < 0) return '마감'
+                if (diffDays === 0) return '오늘 마감'
+                return `${diffDays}일 남음`
+              }
+              
+              const deadline = getDaysUntilExpiry(job.expired_date)
+              const companyName = job.company.replace('(주)', '').trim()
+              
+              // 날짜 포맷팅
+              const formatDate = (dateString: string) => {
+                const date = new Date(dateString)
+                return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+              }
+              
+              const startDate = formatDate(job.posted_date)
+              const endDate = job.expired_date ? formatDate(job.expired_date) : '상시채용'
+              
+              // 공고명 생성 (다양한 형식으로 구성)
+              const getJobPostingTitle = () => {
+                const postedDate = new Date(job.posted_date)
+                const year = postedDate.getFullYear()
+                const month = postedDate.getMonth() + 1
+                const half = month <= 6 ? '상반기' : '하반기'
+                
+                // 경력 정보 파싱
+                const experience = job.experience || ''
+                const isNewbie = experience.includes('신입') || experience === '신입'
+                const isExperienced = experience.includes('경력')
+                
+                // 직군명 추출 (괄호 안 내용 포함)
+                const jobTitle = job.title || ''
+                const jobCategoryName = job.meta_data?.job_category || ''
+                
+                // 괄호 안의 세부 직군명 추출 (예: "백엔드 개발자 (Python/Django)" -> "Python/Django")
+                const detailMatch = jobTitle.match(/\(([^)]+)\)/)
+                const detailCategory = detailMatch ? detailMatch[1] : null
+                
+                // 다양한 템플릿 배열
+                const templates: string[] = []
+                
+                // 템플릿 1: "YYYY년 하반기 신입구성원(직군) 채용"
+                if (isNewbie && detailCategory) {
+                  templates.push(`${year}년 ${half} 신입구성원(${detailCategory}) 채용`)
+                }
+                
+                // 템플릿 2: "YYYY년 하반기 신입/경력 채용"
+                if (isNewbie || isExperienced) {
+                  if (isNewbie && isExperienced) {
+                    templates.push(`${year}년 ${half} 신입/경력 채용`)
+                  } else if (isNewbie) {
+                    templates.push(`${year}년 ${half} 신입 채용`)
+                  } else {
+                    templates.push(`${year}년 ${half} 경력 채용`)
+                  }
+                }
+                
+                // 템플릿 3: "YYYY년 하반기 공개채용"
+                templates.push(`${year}년 ${half} 공개채용`)
+                
+                // 템플릿 4: "YYYY년 하반기 정규직 채용"
+                if (job.employment_type === '정규직') {
+                  templates.push(`${year}년 ${half} 정규직 채용`)
+                }
+                
+                // 템플릿 5: "YYYY년 하반기 [직군명] 채용"
+                if (jobCategoryName && jobCategoryName !== '개발') {
+                  templates.push(`${year}년 ${half} ${jobCategoryName} 채용`)
+                }
+                
+                // 템플릿 6: "YYYY년 하반기 신입구성원 채용"
+                if (isNewbie) {
+                  templates.push(`${year}년 ${half} 신입구성원 채용`)
+                }
+                
+                // 템플릿 7: "YYYY년 하반기 상시채용"
+                if (!job.expired_date) {
+                  templates.push(`${year}년 ${half} 상시채용`)
+                }
+                
+                // job.id를 기반으로 일관된 템플릿 선택 (같은 공고는 항상 같은 형식)
+                const templateIndex = job.id % templates.length
+                return templates[templateIndex] || `${year}년 ${half} 공개채용`
+              }
+              
+              const jobPostingTitle = getJobPostingTitle()
+              
+              // 직군명 추출 (job.title에서 괄호 앞 부분만 추출)
+              const getJobCategory = () => {
+                if (job.title) {
+                  // 괄호가 있으면 괄호 앞 부분만 추출
+                  const match = job.title.match(/^([^(]+)/)
+                  if (match) {
+                    return match[1].trim()
+                  }
+                  return job.title.trim()
+                }
+                // job.title이 없으면 job_category를 기반으로 매핑
+                const category = job.meta_data?.job_category || '개발'
+                const categoryMap: Record<string, string> = {
+                  'AI/ML': 'ML Engineer',
+                  '개발': 'Developer',
+                  '데이터': 'Data Engineer',
+                  '인프라': 'Infrastructure Engineer',
+                  '보안': 'Security Engineer',
+                  '기획': 'Product Manager',
+                  '디자인': 'Designer',
+                  '마케팅': 'Marketing'
+                }
+                return categoryMap[category] || category
+              }
+              
+              const jobCategory = getJobCategory()
+              
+              return (
+                <Link key={job.id} href={`/dashboard/jobs/${job.id}`}>
+                  <div className="flex items-center gap-4 p-5 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-lg transition-all duration-300 cursor-pointer group">
+                    {/* 기업사진 */}
+                    <div className="w-20 h-20 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden">
+                      <CompanyLogo name={companyName} className="w-full h-full p-2" />
+                    </div>
+                    
+                    {/* 메인 정보 영역 */}
+                    <div className="flex-1 min-w-0">
+                      {/* 기업명 */}
+                      <div className="mb-2">
+                        <p className="text-sm font-semibold text-gray-900">{companyName}</p>
+                      </div>
+                      
+                      {/* 공고명 */}
+                      <div className="mb-2">
+                        <h4 className="font-bold text-gray-900 text-xl truncate">
+                          {jobPostingTitle}
+                        </h4>
+                      </div>
+                      
+                      {/* 직군명 */}
+                      <div className="mb-2">
+                        <p className="text-sm font-medium text-gray-700 truncate">
+                          {jobCategory}
+                        </p>
+                      </div>
+                      
+                      {/* 날짜, 고용형태 */}
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">기간:</span>
+                          <span className="text-sm font-medium text-gray-700">{startDate} ~ {endDate}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">고용형태:</span>
+                          <span className="text-sm font-medium text-gray-700">{job.employment_type}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* 마감일까지 남은 일수 */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`w-28 px-4 py-2 text-sm font-semibold rounded-lg border whitespace-nowrap text-center ${
+                        deadline === '마감' || deadline === '오늘 마감'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : deadline === '상시채용'
+                          ? 'bg-gray-50 text-gray-700 border-gray-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
+                        {deadline}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">

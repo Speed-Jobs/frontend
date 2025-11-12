@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   
   // 자동매칭 관련 상태
   const [selectedJob, setSelectedJob] = useState<any | null>(null)
@@ -101,7 +102,7 @@ export default function Dashboard() {
 
   // 필터링된 공고 목록 (로고가 있는 회사만 + 회사 필터)
   const filteredJobPostings = useMemo(() => {
-    return jobPostingsData.filter((job) => {
+    const filtered = jobPostingsData.filter((job) => {
       // 회사 필터링
       if (selectedCompany !== '전체') {
         const normalizedJobCompany = job.company.replace('(주)', '').trim().toLowerCase()
@@ -132,7 +133,31 @@ export default function Dashboard() {
       
       return employmentTypeMatch
     })
-  }, [selectedCompany, selectedEmploymentType, companiesWithLogo])
+
+    // 정렬 적용
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'latest':
+          // 최신공고순: posted_date 기준 내림차순
+          return new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+        case 'company':
+          // 회사이름순: company 기준 오름차순
+          const companyA = a.company.replace('(주)', '').trim()
+          const companyB = b.company.replace('(주)', '').trim()
+          return companyA.localeCompare(companyB, 'ko')
+        case 'deadline':
+          // 마감순: expired_date 기준 오름차순 (null은 맨 뒤로)
+          if (!a.expired_date && !b.expired_date) return 0
+          if (!a.expired_date) return 1
+          if (!b.expired_date) return -1
+          return new Date(a.expired_date).getTime() - new Date(b.expired_date).getTime()
+        default:
+          return 0
+      }
+    })
+
+    return sorted
+  }, [selectedCompany, selectedEmploymentType, companiesWithLogo, sortBy])
 
   // 페이지당 5개씩 표시
   const itemsPerPage = 5
@@ -150,6 +175,11 @@ export default function Dashboard() {
 
   const handleEmploymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedEmploymentType(e.target.value === '모든 고용형태' ? 'all' : e.target.value)
+    setCurrentPage(0)
+  }
+
+  const handleSortChange = (sortType: 'latest' | 'company' | 'deadline') => {
+    setSortBy(sortType)
     setCurrentPage(0)
   }
 
@@ -667,7 +697,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             경쟁사 공고 자동 매칭
           </h2>
-          <div className="flex gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-6 flex-wrap">
             <select
               value={selectedCompany}
               onChange={handleCompanyChange}
@@ -691,6 +721,45 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
+            
+            {/* 정렬 라디오 버튼 */}
+            <div className="ml-auto inline-flex items-center gap-1">
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="latest"
+                  checked={sortBy === 'latest'}
+                  onChange={() => handleSortChange('latest')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">최신공고순</span>
+              </label>
+              <div className="w-px h-6 bg-gray-300"></div>
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="company"
+                  checked={sortBy === 'company'}
+                  onChange={() => handleSortChange('company')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">회사이름순</span>
+              </label>
+              <div className="w-px h-6 bg-gray-300"></div>
+              <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="sortBy"
+                  value="deadline"
+                  checked={sortBy === 'deadline'}
+                  onChange={() => handleSortChange('deadline')}
+                  className="w-4 h-4 text-sk-red focus:ring-sk-red focus:ring-2 border-gray-300"
+                />
+                <span className="text-sm font-medium text-gray-700">마감순</span>
+              </label>
+            </div>
           </div>
           <div className="flex items-center justify-between mb-6">
             <p className="text-base text-gray-700 font-medium">

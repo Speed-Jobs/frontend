@@ -19,6 +19,8 @@ import {
   Tooltip,
   Legend,
   CartesianGrid,
+  LineChart,
+  Line,
 } from 'recharts'
 
 export default function Dashboard() {
@@ -39,6 +41,9 @@ export default function Dashboard() {
     keywords: string[]
     similarity: number
   }>>([])
+
+  // AI 분석 리포트 관련 상태
+  const [showReportModal, setShowReportModal] = useState(false)
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
@@ -1255,103 +1260,325 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+      </div>
 
-        {/* 타이밍 분석 Section */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">타이밍 분석</h2>
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      직무
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      우리 회사 시작일
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      경쟁사 평균 시작일
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      시장 대비
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      분석
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      백엔드 개발자
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.10.15
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.10.20
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        빠름 (5일)
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      시장보다 5일 빠르게 공고를 시작하여 선제적 채용 전략을 보여줍니다.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      프론트엔드 개발자
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.11.01
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.10.28
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        보통 (4일)
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      경쟁사 대비 4일 늦게 시작했으나, 시장 트렌드를 고려한 적절한 타이밍입니다.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      데이터 엔지니어
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.10.25
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      2023.10.30
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        빠름 (5일)
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      시장보다 빠르게 공고를 시작하여 우수 인재 확보에 유리한 위치에 있습니다.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
-                <strong>분석 요약:</strong> 우리 회사는 대부분의 직무에서 시장보다 빠르거나 적절한 타이밍에 공고를 발행하고 있어,
-                경쟁력 있는 채용 전략을 유지하고 있습니다. 특히 백엔드 및 데이터 엔지니어 직무에서 선제적 공고 발행으로
-                우수 인재 확보에 유리한 포지션을 차지하고 있습니다.
-              </p>
+      {/* AI 분석 리포트 생성 버튼 - 오른쪽 아래 고정 */}
+      <button
+        onClick={() => setShowReportModal(true)}
+        className="fixed bottom-8 right-8 px-6 py-4 bg-sk-red hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-3 z-40"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        AI 분석 리포트 생성
+      </button>
+
+      {/* AI 분석 리포트 모달 */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto my-8">
+            <div id="ai-report-content" className="p-8 space-y-8">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-gray-200 sticky top-0 bg-white z-10">
+                <h2 className="text-3xl font-bold text-gray-900">AI 분석 리포트</h2>
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const html2canvas = (await import('html2canvas')).default
+                        const jsPDF = (await import('jspdf')).default
+
+                        const element = document.getElementById('ai-report-content')
+                        if (!element) {
+                          alert('리포트 컨텐츠를 찾을 수 없습니다.')
+                          return
+                        }
+
+                        await new Promise(resolve => setTimeout(resolve, 500))
+                        
+                        const pdf = new jsPDF('p', 'mm', 'a4')
+                        const pdfWidth = 210
+                        const pdfHeight = 297
+                        const margin = 15
+                        const contentWidth = pdfWidth - margin * 2
+                        const contentHeight = pdfHeight - margin * 2
+
+                        const canvas = await html2canvas(element, {
+                          scale: 2,
+                          useCORS: true,
+                          allowTaint: false,
+                          logging: false,
+                          backgroundColor: '#ffffff',
+                        })
+
+                        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                          alert('캔버스 생성에 실패했습니다.')
+                          return
+                        }
+
+                        const imgData = canvas.toDataURL('image/png', 1.0)
+                        const imgWidth = canvas.width
+                        const imgHeight = canvas.height
+                        
+                        if (!imgData || imgData === 'data:,') {
+                          alert('이미지 데이터 생성에 실패했습니다.')
+                          return
+                        }
+                        
+                        const imgWidthInPdf = contentWidth
+                        const imgHeightInPdf = (imgHeight * imgWidthInPdf) / imgWidth
+
+                        const totalPages = Math.ceil(imgHeightInPdf / contentHeight)
+                        
+                        for (let i = 0; i < totalPages; i++) {
+                          if (i > 0) {
+                            pdf.addPage()
+                          }
+                          
+                          const sourceY = (imgHeight / totalPages) * i
+                          const sourceHeight = imgHeight / totalPages
+                          const pageImgHeight = imgHeightInPdf / totalPages
+                          
+                          const pageCanvas = document.createElement('canvas')
+                          pageCanvas.width = imgWidth
+                          pageCanvas.height = sourceHeight
+                          const pageCtx = pageCanvas.getContext('2d')
+                          
+                          if (pageCtx) {
+                            const img = new Image()
+                            img.src = imgData
+                            
+                            await new Promise<void>((resolve) => {
+                              img.onload = () => {
+                                try {
+                                  pageCtx.drawImage(
+                                    img,
+                                    0, sourceY, imgWidth, sourceHeight,
+                                    0, 0, imgWidth, sourceHeight
+                                  )
+                                  const pageImgData = pageCanvas.toDataURL('image/png', 1.0)
+                                  if (pageImgData && pageImgData !== 'data:,') {
+                                    pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidthInPdf, pageImgHeight)
+                                  }
+                                } catch (e) {
+                                  console.error('이미지 그리기 오류:', e)
+                                }
+                                resolve()
+                              }
+                              img.onerror = () => {
+                                console.error('이미지 로드 실패')
+                                resolve()
+                              }
+                              setTimeout(() => resolve(), 5000)
+                            })
+                          }
+                        }
+
+                        pdf.save('AI_분석_리포트.pdf')
+                      } catch (error) {
+                        console.error('PDF 생성 중 오류:', error)
+                        alert(`PDF 다운로드 중 오류가 발생했습니다: ${error}`)
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    PDF 다운로드
+                  </button>
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+
+              {/* 1. 공고 발행 통계 */}
+              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">1. 공고 발행 통계</h3>
+                <p className="text-gray-600 mb-6">회사별 공고 수</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {companyTrendData.slice(0, 5).map((company, index) => (
+                    <div
+                      key={index}
+                      className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all duration-300 shadow-md"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center shadow-md">
+                            <span className="text-white font-bold text-lg">{index + 1}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-900 text-lg">{company.name}</h4>
+                            <p className="text-sm text-gray-500">공고 발행 수</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-3xl font-bold text-gray-900">{company.value}</span>
+                          <span className="text-lg text-gray-600">건</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="prose max-w-none">
+                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                    <p>
+                      분석 기간 동안 총 <strong>{companyTrendData.reduce((sum, c) => sum + c.value, 0)}건</strong>의 공고가 발행되었습니다.
+                      주요 기업별 공고 발행 현황은 다음과 같습니다:
+                    </p>
+                    <ul className="list-disc pl-6 space-y-2">
+                      {companyTrendData.slice(0, 5).map((company, index) => (
+                        <li key={index}>
+                          <strong>{company.name}</strong>: {company.value}건
+                        </li>
+                      ))}
+                    </ul>
+                    <p>
+                      {timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'} 트렌드를 분석한 결과,
+                      공고 발행 수는 지속적으로 증가하는 추세를 보이고 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. 트렌드 분석 */}
+              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">2. 트렌드 분석</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {/* 회사별 트렌드 */}
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      회사별 트렌드
+                    </h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={companyTrendData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Bar dataKey="value" fill="#6b7280" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 직무별 트렌드 */}
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      직무별 트렌드
+                    </h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={jobTrendData.slice(0, 5)} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                        <YAxis dataKey="name" type="category" width={120} tick={{ fill: '#6b7280', fontSize: 10 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Bar dataKey="value" fill="#C91A2A" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="prose max-w-none">
+                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                    <p>
+                      공고 트렌드를 분석한 결과, {timeframe === 'Daily' ? '일별' : timeframe === 'Weekly' ? '주별' : '월별'}로 지속적인 증가 추세를 보이고 있습니다.
+                      특히 주요 IT 기업들의 채용 공고가 활발하게 발행되고 있으며, 이는 IT 업계의 인력 수요가 크게 증가하고 있음을 시사합니다.
+                    </p>
+                    <p>
+                      직무별 트렌드에서도 동일한 패턴이 관찰되며, Software Development와 AI 분야에서 특히 높은 수요를 보이고 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. 직무별 분석 */}
+              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">3. 직무별 분석</h3>
+                <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-6">
+                  <ResponsiveContainer width="100%" height={400}>
+                    <PieChart>
+                      <Pie
+                        data={currentJobRoles.slice(0, 8)}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {currentJobRoles.slice(0, 8).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="prose max-w-none">
+                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                    <p>
+                      직무별 분석 결과, {selectedExpertCategory === 'Tech' ? '기술' : selectedExpertCategory === 'Biz' ? '비즈니스' : '비즈니스 지원'} 분야에서
+                      다양한 직무가 활발하게 채용되고 있습니다.
+                    </p>
+                    <ul className="list-disc pl-6 space-y-2">
+                      {currentJobRoles.slice(0, 5).map((role, index) => (
+                        <li key={index}>
+                          <strong>{role.name}</strong>: {role.value}%의 비율을 차지하고 있습니다.
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. 비교 분석 */}
+              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">4. 비교 분석</h3>
+                <div className="prose max-w-none">
+                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                    <p>
+                      우리 회사(SK AX)의 포지셔닝을 경쟁사와 비교한 결과:
+                    </p>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li>
+                        <strong>공고 발행 수</strong>: 경쟁사 대비 중간 수준으로, 시장 점유율 확보를 위한 전략적 접근이 필요합니다.
+                      </li>
+                      <li>
+                        <strong>기술 스택</strong>: 최신 기술 트렌드를 잘 반영하고 있으며, 특히 클라우드 및 AI/ML 분야에서 강점을 보이고 있습니다.
+                      </li>
+                      <li>
+                        <strong>직무 분포</strong>: 다양한 직무 영역에서 균형잡힌 채용 전략을 수립하고 있어 경쟁력 있는 포지셔닝을 유지하고 있습니다.
+                      </li>
+                    </ul>
+                    <p>
+                      전반적으로 우리 회사는 기술 혁신과 시장 트렌드에 대한 이해도가 높으며,
+                      경쟁사 대비 차별화된 채용 전략을 수립할 수 있는 기반을 갖추고 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
 
       {/* 공고 상세 및 매칭 결과 통합 모달 */}
       {showJobDetail && selectedJob && (

@@ -34,14 +34,13 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   
   // 자동매칭 관련 상태
-  const [selectedJob, setSelectedJob] = useState<any | null>(null)
-  const [showJobDetail, setShowJobDetail] = useState(false)
-  const [matchedJobs, setMatchedJobs] = useState<Array<{
+  const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
+  const [matchedJobsMap, setMatchedJobsMap] = useState<Record<number, Array<{
     title: string
     description: string
     keywords: string[]
     similarity: number
-  }>>([])
+  }>>>({})
 
   // AI 분석 리포트 관련 상태
   const [showReportModal, setShowReportModal] = useState(false)
@@ -183,78 +182,87 @@ export default function Dashboard() {
     setCurrentPage(0)
   }
 
-  // 공고 클릭 핸들러 - 자동으로 매칭도 실행
+  // 공고 클릭 핸들러 - 드롭다운 토글 및 매칭 실행
   const handleJobClick = (job: any) => {
-    setSelectedJob(job)
-    setShowJobDetail(true)
+    const isExpanded = expandedJobId === job.id
     
-    // 자동으로 매칭 실행
-    const techStack = job.meta_data?.tech_stack || []
-    const description = job.description?.toLowerCase() || ''
-    
-    // 기술 스택과 설명을 기반으로 매칭된 직무 생성
-    const matched: Array<{
-      title: string
-      description: string
-      keywords: string[]
-      similarity: number
-    }> = []
-    
-    // Kotlin/Spring Boot 관련 매칭
-    if (techStack.some((tech: string) => tech.toLowerCase().includes('kotlin') || tech.toLowerCase().includes('spring'))) {
-      matched.push({
-        title: '핀테크 백엔드 개발자',
-        description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
-        keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
-        similarity: 93,
-      })
-    }
-    
-    // Kubernetes/인프라 관련 매칭
-    if (techStack.some((tech: string) => tech.toLowerCase().includes('kubernetes') || tech.toLowerCase().includes('docker'))) {
-      matched.push({
-        title: '백엔드 플랫폼 엔지니어',
-        description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
-        keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
-        similarity: 87,
-      })
-    }
-    
-    // Redis/캐싱 관련 매칭
-    if (techStack.some((tech: string) => tech.toLowerCase().includes('redis') || tech.toLowerCase().includes('cache'))) {
-      matched.push({
-        title: '서버 개발자 (Kotlin/Spring)',
-        description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
-        keywords: ['Kotlin', 'Spring Boot', 'Redis'],
-        similarity: 84,
-      })
-    }
-    
-    // 기본 매칭 (매칭이 없을 경우)
-    if (matched.length === 0) {
-      matched.push(
-        {
-          title: '핀테크 백엔드 개발자',
-          description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
-          keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
-          similarity: 93,
-        },
-        {
-          title: '백엔드 플랫폼 엔지니어',
-          description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
-          keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
-          similarity: 87,
-        },
-        {
-          title: '서버 개발자 (Kotlin/Spring)',
-          description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
-          keywords: ['Kotlin', 'Spring Boot', 'Redis'],
-          similarity: 84,
+    if (isExpanded) {
+      // 닫기
+      setExpandedJobId(null)
+    } else {
+      // 열기
+      setExpandedJobId(job.id)
+      
+      // 이미 매칭 결과가 있으면 재사용, 없으면 새로 생성
+      if (!matchedJobsMap[job.id]) {
+        const techStack = job.meta_data?.tech_stack || []
+        const description = job.description?.toLowerCase() || ''
+        
+        // 기술 스택과 설명을 기반으로 매칭된 직무 생성
+        const matched: Array<{
+          title: string
+          description: string
+          keywords: string[]
+          similarity: number
+        }> = []
+        
+        // Kotlin/Spring Boot 관련 매칭
+        if (techStack.some((tech: string) => tech.toLowerCase().includes('kotlin') || tech.toLowerCase().includes('spring'))) {
+          matched.push({
+            title: '핀테크 백엔드 개발자',
+            description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
+            keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
+            similarity: 93,
+          })
         }
-      )
-    }
+        
+        // Kubernetes/인프라 관련 매칭
+        if (techStack.some((tech: string) => tech.toLowerCase().includes('kubernetes') || tech.toLowerCase().includes('docker'))) {
+          matched.push({
+            title: '백엔드 플랫폼 엔지니어',
+            description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
+            keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
+            similarity: 87,
+          })
+        }
+        
+        // Redis/캐싱 관련 매칭
+        if (techStack.some((tech: string) => tech.toLowerCase().includes('redis') || tech.toLowerCase().includes('cache'))) {
+          matched.push({
+            title: '서버 개발자 (Kotlin/Spring)',
+            description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
+            keywords: ['Kotlin', 'Spring Boot', 'Redis'],
+            similarity: 84,
+          })
+        }
+        
+        // 기본 매칭 (매칭이 없을 경우)
+        if (matched.length === 0) {
+          matched.push(
+            {
+              title: '핀테크 백엔드 개발자',
+              description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
+              keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
+              similarity: 93,
+            },
+            {
+              title: '백엔드 플랫폼 엔지니어',
+              description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
+              keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
+              similarity: 87,
+            },
+            {
+              title: '서버 개발자 (Kotlin/Spring)',
+              description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
+              keywords: ['Kotlin', 'Spring Boot', 'Redis'],
+              similarity: 84,
+            }
+          )
+        }
 
-    setMatchedJobs(matched)
+        setMatchedJobsMap(prev => ({ ...prev, [job.id]: matched }))
+      }
+    }
   }
 
   const handlePrevPage = () => {
@@ -779,14 +787,112 @@ export default function Dashboard() {
             <div className="relative">
               {/* 슬라이드 컨테이너 */}
               <div className="space-y-4 overflow-hidden">
-                {displayedJobs.map((job) => (
-                  <JobPostingCard 
-                    key={job.id} 
-                    job={job} 
-                    showDetail={true}
-                    onClick={() => handleJobClick(job)}
-                  />
-                ))}
+                {displayedJobs.map((job) => {
+                  const isExpanded = expandedJobId === job.id
+                  const matchedJobs = matchedJobsMap[job.id] || []
+                  
+                  return (
+                    <div key={job.id} className="space-y-0">
+                      <JobPostingCard 
+                        job={job} 
+                        showDetail={true}
+                        onClick={() => handleJobClick(job)}
+                        isExpanded={isExpanded}
+                      />
+                      
+                      {/* 드롭다운 상세 내용 */}
+                      {isExpanded && (
+                        <div className="mt-0 bg-gray-50 border-x-2 border-b-2 border-gray-200 rounded-b-xl overflow-hidden">
+                          <div className="p-6 space-y-6">
+                            {/* 공고 상세 정보 */}
+                            <div className="space-y-4">
+                              <div>
+                                <p className="text-sm text-gray-600 mb-1">회사명</p>
+                                <p className="text-lg font-semibold text-gray-900">{job.company}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-600 mb-1">직무</p>
+                                <p className="text-lg font-semibold text-gray-900">{job.meta_data?.job_category || '개발'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-600 mb-1">공고 설명</p>
+                                <p className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">{job.description || '공고 설명이 없습니다.'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-600 mb-2">요구 기술</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {job.meta_data?.tech_stack?.map((tech: string, idx: number) => (
+                                    <span
+                                      key={idx}
+                                      className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium border border-blue-200"
+                                    >
+                                      {tech}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 매칭 결과 섹션 */}
+                            {matchedJobs.length > 0 && (
+                              <div className="pt-4 border-t border-gray-200">
+                                <div className="mb-4 flex items-center gap-2">
+                                  <div className="px-4 py-2 bg-green-100 text-green-700 rounded-lg flex items-center gap-2">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                    <span className="font-semibold">매칭 완료</span>
+                                  </div>
+                                </div>
+
+                                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                  <svg
+                                    className="w-6 h-6 text-pink-500"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                  매칭된 직무 <span className="text-gray-900">{matchedJobs.length}개</span>
+                                </h3>
+                                <div className="space-y-4">
+                                  {matchedJobs.map((matched, index) => (
+                                    <div
+                                      key={index}
+                                      className="bg-white p-6 border-2 border-gray-200 rounded-xl hover:border-gray-400 transition-all duration-300"
+                                    >
+                                      <div className="flex justify-between items-start mb-3">
+                                        <h4 className="text-lg font-bold text-gray-900">{matched.title}</h4>
+                                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-semibold border border-green-200 whitespace-nowrap">
+                                          {matched.similarity}% 일치
+                                        </span>
+                                      </div>
+                                      <p className="text-gray-700 mb-3 text-sm">{matched.description}</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {matched.keywords.map((keyword, idx) => (
+                                          <span
+                                            key={idx}
+                                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border border-gray-300"
+                                          >
+                                            {keyword}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* 좌우 네비게이션 버튼 */}
@@ -1649,109 +1755,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 공고 상세 및 매칭 결과 통합 모달 */}
-      {showJobDetail && selectedJob && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-3xl font-bold text-gray-900">{selectedJob.title}</h2>
-                <button
-                  onClick={() => {
-                    setShowJobDetail(false)
-                    setSelectedJob(null)
-                  }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* 공고 상세 정보 섹션 */}
-              <div className="space-y-4 mb-8 p-6 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">회사명</p>
-                  <p className="text-lg font-semibold text-gray-900">{selectedJob.company}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">직무</p>
-                  <p className="text-lg font-semibold text-gray-900">{selectedJob.meta_data?.job_category || '개발'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">공고 설명</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedJob.description || '공고 설명이 없습니다.'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">요구 기술</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedJob.meta_data?.tech_stack?.map((tech: string, idx: number) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium border border-blue-200"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 매칭 결과 섹션 */}
-              <div className="mb-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="px-4 py-2 bg-green-100 text-green-700 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span className="font-semibold">매칭 완료</span>
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg
-                    className="w-6 h-6 text-pink-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  매칭된 직무 <span className="text-gray-900">{matchedJobs.length}개</span>
-                </h3>
-                <div className="space-y-4">
-                  {matchedJobs.map((matched, index) => (
-                    <div
-                      key={index}
-                      className="bg-white p-6 border-2 border-gray-200 rounded-xl hover:border-gray-400 transition-all duration-300"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <h4 className="text-lg font-bold text-gray-900">{matched.title}</h4>
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-semibold border border-green-200 whitespace-nowrap">
-                          {matched.similarity}% 일치
-                        </span>
-                      </div>
-                      <p className="text-gray-700 mb-3">{matched.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {matched.keywords.map((keyword, idx) => (
-                          <span
-                            key={idx}
-                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border border-gray-300"
-                          >
-                            {keyword}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   ) 
 }

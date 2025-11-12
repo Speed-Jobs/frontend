@@ -536,27 +536,27 @@ export default function Dashboard() {
     if (index === 0) {
       // 가장 인기 있는 스킬 (최대 크기)
       return { 
-        width: 'w-36', 
-        height: 'h-16', 
-        text: 'text-lg', 
+        width: 'w-32', 
+        height: 'h-14', 
+        text: 'text-base', 
         padding: 'px-8 py-3', 
-        radius: 80,
-        pixelWidth: 144,
-        pixelHeight: 64
+        radius: 70,
+        pixelWidth: 128,
+        pixelHeight: 56
       }
     }
     
     // count에 따라 크기 결정
     if (count >= maxCount * 0.8) {
-      return { width: 'w-32', height: 'h-14', text: 'text-base', padding: 'px-7 py-3', radius: 70, pixelWidth: 128, pixelHeight: 56 }
+      return { width: 'w-28', height: 'h-12', text: 'text-sm', padding: 'px-7 py-3', radius: 60, pixelWidth: 112, pixelHeight: 48 }
     } else if (count >= maxCount * 0.6) {
-      return { width: 'w-28', height: 'h-12', text: 'text-sm', padding: 'px-6 py-2', radius: 64, pixelWidth: 112, pixelHeight: 48 }
+      return { width: 'w-24', height: 'h-10', text: 'text-sm', padding: 'px-6 py-2', radius: 52, pixelWidth: 96, pixelHeight: 40 }
     } else if (count >= maxCount * 0.4) {
-      return { width: 'w-24', height: 'h-10', text: 'text-xs', padding: 'px-5 py-2', radius: 56, pixelWidth: 96, pixelHeight: 40 }
+      return { width: 'w-20', height: 'h-9', text: 'text-xs', padding: 'px-5 py-2', radius: 44, pixelWidth: 80, pixelHeight: 36 }
     } else if (count >= maxCount * 0.25) {
-      return { width: 'w-20', height: 'h-9', text: 'text-xs', padding: 'px-4 py-1.5', radius: 48, pixelWidth: 80, pixelHeight: 36 }
+      return { width: 'w-18', height: 'h-8', text: 'text-xs', padding: 'px-4 py-1.5', radius: 38, pixelWidth: 72, pixelHeight: 32 }
     } else {
-      return { width: 'w-18', height: 'h-8', text: 'text-xs', padding: 'px-3 py-1', radius: 40, pixelWidth: 72, pixelHeight: 32 }
+      return { width: 'w-16', height: 'h-7', text: 'text-xs', padding: 'px-3 py-1', radius: 32, pixelWidth: 64, pixelHeight: 28 }
     }
   }
 
@@ -596,11 +596,12 @@ export default function Dashboard() {
     // 중앙 스킬 (index 0)
     positions[0] = { x: 0, y: 0 }
     
-    // 레이어별 기본 설정 (더 넓은 공간 활용, 좌우로 더 넓게)
+    // 레이어별 기본 설정 (4단계로 확장)
     const layers = [
-      { baseRadius: 150, count: 5 },   // 첫 번째 레이어: 5개
-      { baseRadius: 240, count: 7 },   // 두 번째 레이어: 7개
-      { baseRadius: 330, count: 8 },   // 세 번째 레이어: 8개
+      { baseRadius: 180, count: 5 },
+      { baseRadius: 280, count: 6 },
+      { baseRadius: 380, count: 7 },
+      { baseRadius: 480, count: 8 },
     ]
     
     // 각 스킬의 위치 계산
@@ -742,9 +743,9 @@ export default function Dashboard() {
   // 스킬들의 실제 렌더링 위치 계산 (절대 겹침 방지 - 사각형 기반)
   const finalSkillPositions = useMemo(() => {
     const maxCount = skillsData[0]?.count || 1
-    const skillCount = Math.min(6, skillsData.length)  // 스킬 개수 6개로 제한
-    const containerWidth = 280
-    const containerHeight = 380
+    const skillCount = Math.min(18, skillsData.length)  // 스킬 개수 18개로 증가
+    const containerWidth = 600
+    const containerHeight = 600
     
     // 모든 스킬의 크기와 초기 위치 계산
     const skills: Array<{x: number, y: number, size: {pixelWidth: number, pixelHeight: number}, maxX: number, maxY: number}> = []
@@ -759,34 +760,52 @@ export default function Dashboard() {
     }
     
     // 안전한 경계 계산 (가장 큰 스킬 기준)
-    const safeMaxX = (containerWidth / 2) - (maxSkillWidth / 2) - 20
-    const safeMaxY = (containerHeight / 2) - (maxSkillHeight / 2) - 20
+    const safeMaxX = (containerWidth / 2) - (maxSkillWidth / 2) - 15
+    const safeMaxY = (containerHeight / 2) - (maxSkillHeight / 2) - 15
     
     for (let index = 0; index < skillCount; index++) {
       const size = getSkillSize(skillsData[index].count, index, maxCount)
       // 각 스킬의 실제 크기를 고려한 경계
-      const maxX = Math.min(safeMaxX, (containerWidth / 2) - (size.pixelWidth / 2) - 20)
-      const maxY = Math.min(safeMaxY, (containerHeight / 2) - (size.pixelHeight / 2) - 20)
+      const maxX = Math.min(safeMaxX, (containerWidth / 2) - (size.pixelWidth / 2) - 15)
+      const maxY = Math.min(safeMaxY, (containerHeight / 2) - (size.pixelHeight / 2) - 15)
       
-      // 초기 위치를 원형으로 균등 분산 (경계 내에서)
-      const angle = (index / skillCount) * Math.PI * 2
-      const radius = Math.min(maxX, maxY) * 0.6  // 반지름을 줄여서 경계 내에 확실히 위치
-      const initialX = Math.cos(angle) * radius
-      const initialY = Math.sin(angle) * radius
-      
-      skills.push({
-        x: initialX,
-        y: initialY,
-        size,
-        maxX,
-        maxY
-      })
+      if (index === 0) {
+        // 첫 번째 스킬(가장 인기 있는 스킬)은 항상 중앙에 고정
+        skills.push({
+          x: 0,
+          y: 0,
+          size,
+          maxX,
+          maxY
+        })
+      } else {
+        // 나머지 스킬들은 첫 번째 스킬 주변에 원형으로 배치
+        // 첫 번째 스킬을 제외한 나머지 스킬 개수로 각도 계산
+        const remainingCount = skillCount - 1
+        const angle = ((index - 1) / remainingCount) * Math.PI * 2
+        // 첫 번째 스킬의 크기를 고려한 최소 반지름
+        const firstSkillSize = getSkillSize(skillsData[0].count, 0, maxCount)
+        const padding = 50  // 여유 공간 50px (초기 배치에도 사용)
+        const minRadius = (Math.max(firstSkillSize.pixelWidth, firstSkillSize.pixelHeight) + 
+                          Math.max(size.pixelWidth, size.pixelHeight)) / 2 + padding + 15
+        const radius = Math.max(minRadius, Math.min(maxX, maxY) * 0.65)
+        const initialX = Math.cos(angle) * radius
+        const initialY = Math.sin(angle) * radius
+        
+        skills.push({
+          x: initialX,
+          y: initialY,
+          size,
+          maxX,
+          maxY
+        })
+      }
     }
     
     // 모든 스킬을 동시에 조정하여 겹침 완전 제거 (사각형 기반)
-    const maxIterations = 500  // 반복 횟수 대폭 증가
-    const damping = 0.4  // 댐핑 감소
-    const padding = 80  // 여유 공간 80px
+    const maxIterations = 1000  // 반복 횟수 증가 (더 많은 스킬을 위해)
+    const damping = 0.25  // 댐핑 감소 (더 빠른 수렴)
+    const padding = 50  // 여유 공간 50px (더 많은 스킬을 배치하기 위해 약간 감소)
     
     for (let iter = 0; iter < maxIterations; iter++) {
       let totalOverlaps = 0
@@ -841,8 +860,11 @@ export default function Dashboard() {
       
       if (totalOverlaps === 0) break
       
-      // 모든 스킬 위치 업데이트
+      // 모든 스킬 위치 업데이트 (첫 번째 스킬은 제외)
       for (let i = 0; i < skills.length; i++) {
+        // 첫 번째 스킬(index 0)은 중앙에 고정되어 있으므로 위치 변경하지 않음
+        if (i === 0) continue
+        
         skills[i].x += forces[i].fx * damping
         skills[i].y += forces[i].fy * damping
         
@@ -889,10 +911,23 @@ export default function Dashboard() {
           if (distance < minRequiredDistance && distance > 0.01) {
             const angle = Math.atan2(dy, dx)
             const separation = (minRequiredDistance - distance) / 2
-            skill1.x += Math.cos(angle) * separation
-            skill1.y += Math.sin(angle) * separation
-            skill2.x -= Math.cos(angle) * separation
-            skill2.y -= Math.sin(angle) * separation
+            
+            // 첫 번째 스킬은 고정이므로 다른 스킬만 이동
+            if (i === 0) {
+              // skill1이 첫 번째 스킬이면 skill2만 이동
+              skill2.x -= Math.cos(angle) * separation
+              skill2.y -= Math.sin(angle) * separation
+            } else if (j === 0) {
+              // skill2가 첫 번째 스킬이면 skill1만 이동
+              skill1.x += Math.cos(angle) * separation
+              skill1.y += Math.sin(angle) * separation
+            } else {
+              // 둘 다 첫 번째 스킬이 아니면 양쪽 모두 이동
+              skill1.x += Math.cos(angle) * separation
+              skill1.y += Math.sin(angle) * separation
+              skill2.x -= Math.cos(angle) * separation
+              skill2.y -= Math.sin(angle) * separation
+            }
             
             // 경계 체크 (분리 후에도 경계 내에 있는지 확인)
             const halfWidth1 = skill1.size.pixelWidth / 2
@@ -1549,9 +1584,9 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 스킬별 통계
               </h2>
-              <div className="flex flex-row gap-4 flex-1 min-h-0 overflow-hidden">
-                {/* 스킬 클라우드 - 컴팩트 버전 */}
-                <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col">
+              <div className="flex flex-row gap-4 flex-1 min-h-[600px]">
+                  {/* 스킬 클라우드 - 컴팩트 버전 */}
+                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col min-h-[550px]">
                   {/* 배경 장식 */}
                   <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
                     <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
@@ -1564,8 +1599,8 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
                   </div>
                   
-                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden min-h-0">
-                    {skillsData.slice(0, 6).map((skill, index) => {
+                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden min-h-[500px]">
+                    {skillsData.slice(0, 18).map((skill, index) => {
                       const maxCount = skillsData[0]?.count || 1
                       const size = getSkillSize(skill.count, index, maxCount)
                       const finalPosition = getFinalSkillPosition(index)

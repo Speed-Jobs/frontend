@@ -48,12 +48,10 @@ export default function Dashboard() {
   // AI 분석 리포트 관련 상태
   const [showReportModal, setShowReportModal] = useState(false)
   
-  // 섹션별 AI 분석 상태
-  const [sectionAnalysisModal, setSectionAnalysisModal] = useState<{
-    section: string | null
-    content: string | null
-  }>({ section: null, content: null })
-  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false)
+  // 섹션별 AI 분석 상태 (dropdown 방식)
+  const [openAnalysisSections, setOpenAnalysisSections] = useState<Record<string, boolean>>({})
+  const [sectionAnalysisContent, setSectionAnalysisContent] = useState<Record<string, string>>({})
+  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState<Record<string, boolean>>({})
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
@@ -226,10 +224,18 @@ export default function Dashboard() {
     setCurrentPage(0)
   }
 
-  // 섹션별 AI 분석 글 생성 함수
+  // 섹션별 AI 분석 글 생성 함수 (dropdown 방식)
   const generateSectionAnalysis = async (section: string) => {
-    setIsGeneratingAnalysis(true)
-    setSectionAnalysisModal({ section, content: null })
+    // 이미 열려있으면 닫기, 닫혀있으면 열기
+    const isCurrentlyOpen = openAnalysisSections[section]
+    setOpenAnalysisSections(prev => ({ ...prev, [section]: !isCurrentlyOpen }))
+    
+    // 이미 생성된 내용이 있으면 다시 생성하지 않음
+    if (sectionAnalysisContent[section]) {
+      return
+    }
+    
+    setIsGeneratingAnalysis(prev => ({ ...prev, [section]: true }))
     
     // 시뮬레이션: 실제로는 API 호출
     setTimeout(() => {
@@ -333,9 +339,67 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
           analysisContent = '분석 내용을 생성하는 중입니다...'
       }
       
-      setSectionAnalysisModal({ section, content: analysisContent })
-      setIsGeneratingAnalysis(false)
-    }, 1500) // 1.5초 시뮬레이션
+      setIsGeneratingAnalysis(prev => ({ ...prev, [section]: false }))
+      setSectionAnalysisContent(prev => ({ ...prev, [section]: analysisContent }))
+    }, 1500)
+  }
+  
+  // AI 분석 dropdown 컴포넌트
+  const AnalysisDropdown = ({ section, title }: { section: string, title: string }) => {
+    const isOpen = openAnalysisSections[section] || false
+    const content = sectionAnalysisContent[section] || ''
+    const isGenerating = isGeneratingAnalysis[section] || false
+    
+    if (!isOpen) return null
+    
+    return (
+      <div className="mt-4 mb-4 border-t border-gray-200 pt-4 pb-2">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+          {isGenerating ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-gray-600">AI 분석을 생성하는 중...</p>
+              </div>
+            </div>
+          ) : content ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-end mb-2">
+                <button
+                  onClick={() => {
+                    const element = document.createElement('a')
+                    const blob = new Blob([content], { type: 'text/plain' })
+                    element.href = URL.createObjectURL(blob)
+                    element.download = `AI_분석_${section}_${new Date().toISOString().split('T')[0]}.txt`
+                    element.click()
+                  }}
+                  className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg transition-colors text-xs font-medium border border-gray-200"
+                >
+                  텍스트로 저장
+                </button>
+              </div>
+              <div className="text-gray-700 whitespace-pre-line leading-relaxed text-sm">
+                {content.split('\n').map((line, index) => {
+                  if (line.startsWith('##')) {
+                    return <h4 key={index} className="text-base font-bold text-gray-900 mt-4 mb-2">{line.replace('##', '').trim()}</h4>
+                  } else if (line.startsWith('**') && line.endsWith('**')) {
+                    return <p key={index} className="font-semibold text-gray-900 mb-1.5">{line.replace(/\*\*/g, '')}</p>
+                  } else if (line.startsWith('-')) {
+                    return <li key={index} className="ml-4 mb-1">{line.replace('-', '').trim()}</li>
+                  } else if (line.match(/^\d+\./)) {
+                    return <p key={index} className="ml-4 mb-1.5">{line}</p>
+                  } else if (line.trim() === '') {
+                    return <br key={index} />
+                  } else {
+                    return <p key={index} className="mb-1.5">{line}</p>
+                  }
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    )
   }
 
   // 공고 클릭 핸들러 - 드롭다운 토글 및 매칭 실행
@@ -934,15 +998,23 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 </h2>
                 <button
                   onClick={() => generateSectionAnalysis('jobMatching')}
-                  disabled={isGeneratingAnalysis}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGeneratingAnalysis['jobMatching']}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    openAnalysisSections['jobMatching'] 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                  }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   AI 분석
+                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobMatching'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
               </div>
+              <AnalysisDropdown section="jobMatching" title="경쟁사 공고 자동 매칭 분석" />
           <div className="space-y-2 mb-3">
             {/* 첫 번째 줄: 검색창과 필터 */}
             <div className="flex items-center gap-4 flex-wrap">
@@ -1477,15 +1549,23 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 </h2>
                 <button
                   onClick={() => generateSectionAnalysis('news')}
-                  disabled={isGeneratingAnalysis}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGeneratingAnalysis['news']}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    openAnalysisSections['news'] 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                  }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   AI 분석
+                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['news'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
               </div>
+              <AnalysisDropdown section="news" title="채용 관련 뉴스 분석" />
               <div className="space-y-3">
                 {newsItems.map((news, index) => (
                   <div
@@ -1515,15 +1595,23 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 </h2>
                 <button
                   onClick={() => generateSectionAnalysis('skillStats')}
-                  disabled={isGeneratingAnalysis}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGeneratingAnalysis['skillStats']}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    openAnalysisSections['skillStats'] 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                  }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   AI 분석
+                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['skillStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
               </div>
+              <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
               <div className="flex flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100% - 60px)' }}>
                   {/* 스킬 클라우드 - 컴팩트 버전 */}
                   <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col" style={{ height: '100%' }}>
@@ -1670,15 +1758,23 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               </h2>
               <button
                 onClick={() => generateSectionAnalysis('trend')}
-                disabled={isGeneratingAnalysis}
-                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isGeneratingAnalysis['trend']}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  openAnalysisSections['trend'] 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 AI 분석
+                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['trend'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
+            <AnalysisDropdown section="trend" title="트렌드 비교 분석" />
           
           {/* 기간 탭 (일간, 주간, 월간) */}
           <div className="flex gap-2 mb-4">
@@ -1823,15 +1919,23 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               </h2>
               <button
                 onClick={() => generateSectionAnalysis('jobStats')}
-                disabled={isGeneratingAnalysis}
-                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isGeneratingAnalysis['jobStats']}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  openAnalysisSections['jobStats'] 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 AI 분석
+                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
+            <AnalysisDropdown section="jobStats" title="직군별 통계 분석" />
             
             {/* 전문가 카테고리 탭 */}
             <div className="flex gap-2 mb-4">
@@ -2018,84 +2122,6 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
         AI 분석 리포트 생성
       </button>
 
-      {/* 섹션별 AI 분석 모달 */}
-      {sectionAnalysisModal.section && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {sectionAnalysisModal.section === 'jobMatching' && '경쟁사 공고 자동 매칭 분석'}
-                  {sectionAnalysisModal.section === 'news' && '채용 관련 뉴스 분석'}
-                  {sectionAnalysisModal.section === 'trend' && '트렌드 비교 분석'}
-                  {sectionAnalysisModal.section === 'jobStats' && '직군별 통계 분석'}
-                  {sectionAnalysisModal.section === 'skillStats' && '스킬별 통계 분석'}
-                </h2>
-                <button
-                  onClick={() => setSectionAnalysisModal({ section: null, content: null })}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="prose prose-sm max-w-none">
-                {isGeneratingAnalysis ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <p className="text-gray-600">AI 분석을 생성하는 중...</p>
-                    </div>
-                  </div>
-                ) : sectionAnalysisModal.content ? (
-                  <div className="text-gray-700 whitespace-pre-line leading-relaxed">
-                    {sectionAnalysisModal.content.split('\n').map((line, index) => {
-                      if (line.startsWith('##')) {
-                        return <h3 key={index} className="text-xl font-bold text-gray-900 mt-6 mb-3">{line.replace('##', '').trim()}</h3>
-                      } else if (line.startsWith('**') && line.endsWith('**')) {
-                        return <p key={index} className="font-semibold text-gray-900 mb-2">{line.replace(/\*\*/g, '')}</p>
-                      } else if (line.startsWith('-')) {
-                        return <li key={index} className="ml-4 mb-1">{line.replace('-', '').trim()}</li>
-                      } else if (line.match(/^\d+\./)) {
-                        return <p key={index} className="ml-4 mb-2">{line}</p>
-                      } else if (line.trim() === '') {
-                        return <br key={index} />
-                      } else {
-                        return <p key={index} className="mb-2">{line}</p>
-                      }
-                    })}
-                  </div>
-                ) : null}
-              </div>
-              
-              {sectionAnalysisModal.content && !isGeneratingAnalysis && (
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    onClick={() => {
-                      const element = document.createElement('a')
-                      const blob = new Blob([sectionAnalysisModal.content || ''], { type: 'text/plain' })
-                      element.href = URL.createObjectURL(blob)
-                      element.download = `AI_분석_${sectionAnalysisModal.section}_${new Date().toISOString().split('T')[0]}.txt`
-                      element.click()
-                    }}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
-                  >
-                    텍스트로 저장
-                  </button>
-                  <button
-                    onClick={() => setSectionAnalysisModal({ section: null, content: null })}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
-                  >
-                    닫기
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* AI 분석 리포트 모달 */}
       {showReportModal && (

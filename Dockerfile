@@ -30,11 +30,16 @@ ENV NODE_ENV=production
 # Copy necessary files from builder
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/package.json ./
 
 # Expose port 8080 (as defined in k8s service.yaml)
 EXPOSE 8080
+
+# Set hostname to 0.0.0.0 and port to 8080
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=8080
 
 # Start the application on port 8080
 CMD ["node", "server.js"]

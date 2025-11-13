@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: speedjobs-frontend-ingress
+  namespace: skala-practice
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod 
+spec:
+  ingressClassName: public-nginx
+  rules:
+  - host: speedjobs-ingress.skala25a.project.skala-ai.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: speedjobs-frontend
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - 'speedjobs-ingress.skala25a.project.skala-ai.com'
+    secretName: speedjobs-ingress-project-tls-cert

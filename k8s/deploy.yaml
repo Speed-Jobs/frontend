@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedjobs-frontend
+  namespace: skala-practice
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: speedjobs-frontend
+  template:
+    metadata:
+      labels:
+        app: speedjobs-frontend
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: speedjobs-frontend
+        image: amdp-registry.skala-ai.com/skala25a/speedjobs-frontend:1.0.0
+        imagePullPolicy: Always
+        env:
+        - name: USER_NAME
+          value: speedjobs
+        - name: namespace
+          value: skala-practice

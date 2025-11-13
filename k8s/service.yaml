@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: speedjobs-frontend
+  namespace: skala-practice
+spec:
+  selector:
+    app: speedjobs-frontend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

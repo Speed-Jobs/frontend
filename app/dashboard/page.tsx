@@ -48,6 +48,9 @@ export default function Dashboard() {
   // AI 분석 리포트 관련 상태
   const [showReportModal, setShowReportModal] = useState(false)
   
+  // 광고 패널 열고 닫기 상태
+  const [showAdPanels, setShowAdPanels] = useState(false)
+  
   // 섹션별 AI 분석 상태 (dropdown 방식)
   const [openAnalysisSections, setOpenAnalysisSections] = useState<Record<string, boolean>>({})
   const [sectionAnalysisContent, setSectionAnalysisContent] = useState<Record<string, string>>({})
@@ -1614,7 +1617,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
               <div className="flex flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100% - 60px)' }}>
                   {/* 스킬 클라우드 - 컴팩트 버전 */}
-                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col" style={{ height: '100%' }}>
+                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col overflow-visible" style={{ height: '100%' }}>
                   {/* 배경 장식 */}
                   <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
                     <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
@@ -1627,12 +1630,13 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                     <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
                   </div>
                   
-                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden" 
+                  <div className="relative w-full flex-1 flex items-center justify-center overflow-visible" 
                       style={{ 
                         height: 'calc(100% - 60px)',
                         maxWidth: '500px',   // 600 → 500
                         maxHeight: '500px',  // 600 → 500
-                        margin: '0 auto'
+                        margin: '0 auto',
+                        padding: '20px'
                       }}>
                     {skillsData.slice(0, 13).map((skill, index) => {
                       const maxCount = skillsData[0]?.count || 1
@@ -2111,16 +2115,71 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
       </div>
 
-      {/* AI 분석 리포트 생성 버튼 - 오른쪽 아래 고정 */}
-      <button
-        onClick={() => setShowReportModal(true)}
-        className="fixed bottom-8 right-8 px-6 py-4 bg-sk-red hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-3 z-40"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        AI 분석 리포트 생성
-      </button>
+      {/* 빠른 이동 메뉴 - 오른쪽 아래 고정 */}
+      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end gap-3">
+        {/* 메뉴 패널 (열고 닫기) */}
+        {showAdPanels && (
+          <div className="flex flex-col gap-2 w-56 animate-in fade-in slide-in-from-bottom-2">
+            {/* 공고품질 평가 */}
+            <Link
+              href="/quality"
+              onClick={() => setShowAdPanels(false)}
+              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+            >
+              <div className="p-4 flex flex-col items-center text-center">
+                <p className="text-black font-bold text-base mb-1">공고 품질 평가</p>
+                <p className="text-gray-600 text-xs">AI 기반 품질 분석 →</p>
+              </div>
+            </Link>
+            
+            {/* 회사별 공고 */}
+            <Link
+              href="/companies"
+              onClick={() => setShowAdPanels(false)}
+              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+            >
+              <div className="p-4 flex flex-col items-center text-center">
+                <p className="text-black font-bold text-base mb-1">회사별 공고</p>
+                <p className="text-gray-600 text-xs">경쟁사 분석 보기 →</p>
+              </div>
+            </Link>
+            
+            {/* AI 분석 리포트 생성 */}
+            <button
+              onClick={() => {
+                setShowAdPanels(false)
+                setShowReportModal(true)
+              }}
+              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
+            >
+              <div className="p-4 flex flex-col items-center text-center">
+                <p className="text-black font-bold text-base mb-1">AI 분석 리포트</p>
+                <p className="text-gray-600 text-xs">리포트 생성하기 →</p>
+              </div>
+            </button>
+          </div>
+        )}
+        
+        {/* 토글 버튼 (화살표만) */}
+        <button
+          onClick={() => setShowAdPanels(!showAdPanels)}
+          className={`w-12 h-12 bg-gray-800 hover:bg-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
+            showAdPanels ? 'bg-gray-900' : ''
+          }`}
+        >
+          <svg className={`w-6 h-6 transition-transform ${showAdPanels ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      
+      {/* 메뉴 외부 클릭 시 닫기 */}
+      {showAdPanels && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => setShowAdPanels(false)}
+        />
+      )}
 
 
       {/* AI 분석 리포트 모달 */}

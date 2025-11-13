@@ -54,9 +54,26 @@ export default function Header() {
         <span className="text-2xl font-bold text-gray-900">Speed Jobs</span>
       </Link>
       <nav className="flex gap-2 items-center">
+        {/* 네비게이션 메뉴 - 로그인 여부와 관계없이 항상 표시 */}
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
+              pathname === item.href
+                ? 'bg-gray-900 text-white border border-gray-900'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            {item.icon && <span>{item.icon}</span>}
+            {item.label}
+          </Link>
+        ))}
+        
+        {/* 사용자 메뉴 - 로그인한 경우에만 표시 */}
         {isAuthenticated ? (
-          <>
-            {navItems.map((item) => (
+          <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
+            {userMenuItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -70,34 +87,18 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-            <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
-              {userMenuItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-1 ${
-                    pathname === item.href
-                      ? 'bg-gray-900 text-white border border-gray-900'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  {item.icon && <span>{item.icon}</span>}
-                  {item.label}
-                </Link>
-              ))}
-              <span className="text-sm text-gray-600">{user?.email}</span>
-              <button
-                onClick={logout}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-300"
-              >
-                로그아웃
-              </button>
-            </div>
-          </>
+            <span className="text-sm text-gray-600">{user?.email}</span>
+            <button
+              onClick={logout}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-300"
+            >
+              로그아웃
+            </button>
+          </div>
         ) : (
           <Link
             href="/login"
-            className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
+            className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md ml-4"
           >
             로그인
           </Link>

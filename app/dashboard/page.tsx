@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import JobPostingCard from '@/components/JobPostingCard'
 import NotificationToast from '@/components/NotificationToast'
 import CompanyLogo from '@/components/CompanyLogo'
@@ -56,6 +57,80 @@ export default function Dashboard() {
   const [sectionAnalysisContent, setSectionAnalysisContent] = useState<Record<string, string>>({})
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState<Record<string, boolean>>({})
 
+  // 백엔드에서 받은 회사 목록
+  const [apiCompanies, setApiCompanies] = useState<Array<{ id: number; name: string }>>([])
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
+  const [companiesError, setCompaniesError] = useState<string | null>(null)
+
+  // 회사 목록 API 호출
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        setIsLoadingCompanies(true)
+        setCompaniesError(null)
+        
+        const apiUrl = 'http://172.20.10.2:8080/api/v1/companies/filter'
+        console.log('=== 회사 목록 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('호출 시각:', new Date().toISOString())
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        console.log('응답 상태:', response.status)
+        console.log('응답 URL:', response.url)
+        console.log('응답 헤더:', Object.fromEntries(response.headers.entries()))
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('HTTP 에러 발생! 상태 코드:', response.status)
+          console.error('에러 응답 내용:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 회사 목록:', result)
+        
+        if (result.data && result.data.companies && Array.isArray(result.data.companies)) {
+          console.log('회사 목록 데이터:', result.data.companies)
+          console.log(`✓ 백엔드 API에서 ${result.data.companies.length}개의 회사를 불러왔습니다.`)
+          setApiCompanies(result.data.companies)
+        } else {
+          console.warn('회사 목록 데이터 형식이 올바르지 않습니다.')
+          setApiCompanies([])
+        }
+      } catch (err) {
+        console.error('=== 회사 목록 API 호출 에러 ===')
+        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
+        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
+        console.error('에러 스택:', err instanceof Error ? err.stack : 'N/A')
+        
+        if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+          console.error('CORS 또는 네트워크 에러로 보입니다.')
+          console.error('백엔드에서 다음 CORS 헤더를 설정해야 합니다:')
+          console.error('- Access-Control-Allow-Origin: * (또는 프론트엔드 도메인)')
+          console.error('- Access-Control-Allow-Methods: GET, POST, OPTIONS')
+          console.error('- Access-Control-Allow-Headers: Content-Type, Accept')
+          setCompaniesError('CORS 또는 네트워크 연결 오류가 발생했습니다. 백엔드 CORS 설정을 확인해주세요.')
+        } else {
+          setCompaniesError(err instanceof Error ? err.message : '회사 목록을 불러오는 중 오류가 발생했습니다.')
+        }
+        setApiCompanies([])
+      } finally {
+        setIsLoadingCompanies(false)
+      }
+    }
+
+    fetchCompanies()
+  }, [])
+
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
   const {
@@ -87,10 +162,15 @@ export default function Dashboard() {
     '당근마켓', '당근', 'Daangn'
   ]
 
-  // 회사 목록 (중복 제거, 전체 옵션 포함)
-  const companies = useMemo(() => 
-    Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
-  , [])
+  // 회사 목록 (백엔드 데이터가 있으면 사용, 없으면 기본 데이터 사용)
+  const companies = useMemo(() => {
+    if (apiCompanies.length > 0) {
+      // 백엔드에서 받은 회사 이름만 추출
+      return apiCompanies.map(company => company.name)
+    }
+    // 기본 데이터에서 회사 목록 추출 (중복 제거)
+    return Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
+  }, [apiCompanies])
 
   // 직군별 통계의 직무 목록
   const jobRoles = [
@@ -2489,6 +2569,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
         </div>
       )}
 
+      <Footer />
     </div>
   ) 
 }

@@ -1,12 +1,124 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
 
 export default function Home() {
+  // 백엔드 API에서 데이터 가져오기
+  const [apiData, setApiData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchJobPostings = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        // 실제 호출되는 URL 확인
+        const apiUrl = 'http://172.20.10.2:8080/api/v1/posts/simple'
+        console.log('=== 백엔드 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('호출 시각:', new Date().toISOString())
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // CORS 문제 해결을 위한 옵션
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        console.log('응답 상태:', response.status)
+        console.log('응답 URL:', response.url)
+        console.log('응답 OK:', response.ok)
+        console.log('응답 헤더:', Object.fromEntries(response.headers.entries()))
+        
+        if (!response.ok) {
+          console.error('HTTP 에러 발생! 상태 코드:', response.status)
+          const errorText = await response.text()
+          console.error('에러 응답 내용:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 데이터:', result)
+        console.log('백엔드 posts 배열 순서:', result.data?.posts?.map((p: any) => ({ id: p.id, title: p.title, company: p.company?.name })))
+        
+        // 백엔드 응답 형식을 기존 형식으로 변환 (순서 유지)
+        if (result.data && result.data.posts && Array.isArray(result.data.posts)) {
+          // 순서를 유지하기 위해 map 사용 (정렬하지 않음)
+          const transformedData = result.data.posts.map((post: any, index: number) => {
+            const today = new Date()
+            const expiredDate = new Date(today)
+            expiredDate.setDate(today.getDate() + (post.daysLeft || 0))
+            
+            // experience를 기존 형식으로 변환
+            const experienceMap: Record<string, string> = {
+              'ENTRY': '신입',
+              'JUNIOR': '경력 1~3년',
+              'MID_SENIOR': '경력 3~5년',
+              'SENIOR': '경력 5년 이상'
+            }
+            
+            return {
+              id: post.id,
+              title: post.title,
+              company: post.company?.name || '',
+              location: '',
+              employment_type: '정규직', // 기본값
+              experience: experienceMap[post.experience] || post.experience,
+              crawl_date: today.toISOString().split('T')[0],
+              posted_date: today.toISOString().split('T')[0], // 오늘 날짜로 설정
+              expired_date: expiredDate.toISOString().split('T')[0],
+              description: '',
+              meta_data: {
+                job_category: post.role || '',
+                salary: '면접 후 결정',
+                benefits: [],
+                tech_stack: []
+              }
+            }
+          })
+          
+          console.log('변환된 데이터 순서:', transformedData.map((d: any) => ({ id: d.id, title: d.title, company: d.company })))
+          console.log('변환된 데이터:', transformedData)
+          // 순서를 보장하기 위해 그대로 설정 (정렬하지 않음)
+          setApiData(transformedData)
+        } else {
+          setApiData([])
+        }
+      } catch (err) {
+        console.error('=== API 호출 에러 상세 정보 ===')
+        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
+        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
+        console.error('에러 스택:', err instanceof Error ? err.stack : 'N/A')
+        
+        // CORS 에러인지 확인
+        if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+          console.error('CORS 또는 네트워크 에러로 보입니다.')
+          console.error('백엔드에서 CORS 설정을 확인해주세요.')
+          setError('CORS 또는 네트워크 연결 오류가 발생했습니다. 백엔드 CORS 설정을 확인해주세요.')
+        } else {
+          setError(err instanceof Error ? err.message : '데이터를 불러오는 중 오류가 발생했습니다.')
+        }
+        setApiData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchJobPostings()
+  }, [])
+
+  // API 데이터가 있으면 사용하고, 없으면 기본 데이터 사용
+  const jobPostingsDataToUse = apiData.length > 0 ? apiData : jobPostingsData
 
   const companies = [
     { name: '삼성SDS' },
@@ -66,8 +178,19 @@ export default function Home() {
     },
   ]
 
-  // 대표 경쟁사 공고 미리보기 (로고가 있는 회사만, 최대 10개)
+  // 대표 경쟁사 공고 미리보기 (백엔드 데이터가 있으면 그대로 사용, 없으면 필터링)
+  // 백엔드에서 받은 순서(최신 공고 순)를 그대로 유지
   const previewJobPostings = useMemo(() => {
+    // 백엔드에서 받은 데이터가 있으면 순서 그대로 사용 (최대 10개)
+    // 백엔드에서 이미 최신 공고 순으로 정렬되어 있으므로 순서 변경 없이 그대로 사용
+    if (apiData.length > 0) {
+      // slice만 사용하여 순서 유지 (정렬하지 않음)
+      const result = apiData.slice(0, 10)
+      console.log('previewJobPostings 최종 순서 (백엔드 순서 유지):', result.map((j: any) => ({ id: j.id, title: j.title, company: j.company })))
+      return result
+    }
+    
+    // 기본 데이터는 로고가 있는 회사만 필터링
     return jobPostingsData
       .filter((job) => {
         // 로고가 있는 회사만 필터링 (더 유연한 매칭)
@@ -86,12 +209,33 @@ export default function Home() {
         return hasLogo
       })
       .slice(0, 10) // 최대 10개만 표시
-  }, [companiesWithLogo])
+  }, [apiData, companiesWithLogo, jobPostingsData])
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
       
+      {/* 로딩 상태 */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+            <p className="text-gray-600">데이터를 불러오는 중...</p>
+          </div>
+        </div>
+      )}
+
+      {/* 에러 상태 */}
+      {error && !isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md">
+            <p className="text-yellow-600 font-semibold mb-2">데이터 로드 실패</p>
+            <p className="text-yellow-500 text-sm">{error}</p>
+            <p className="text-gray-500 text-xs mt-2">기본 데이터를 사용합니다.</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="px-8 py-20 text-center relative overflow-hidden">
         {/* Background decoration */}
@@ -211,6 +355,9 @@ export default function Home() {
               <p className="text-gray-600">
                 대표 경쟁사의 최신 채용 공고를 확인하세요
               </p>
+              {apiData.length > 0 && (
+                <p className="text-sm text-green-600 mt-2">✓ 백엔드 API에서 {apiData.length}개의 데이터를 불러왔습니다.</p>
+              )}
             </div>
             <Link
               href="/jobs"
@@ -413,6 +560,7 @@ export default function Home() {
           )}
         </div>
       </section>
+      <Footer />
     </div>
   )
 }

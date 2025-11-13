@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
@@ -37,6 +37,7 @@ export default function CompaniesPage() {
   const [imageZoom, setImageZoom] = useState(1)
   const [imageGalleryPage, setImageGalleryPage] = useState(1)
   const imagesPerPage = 2 // 갤러리에서 한 페이지에 표시할 이미지 수
+
 
   // 회사별 공고 통계 계산
   const companyStats = useMemo(() => {
@@ -264,6 +265,7 @@ export default function CompaniesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      
       <div className="px-8 py-8 max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">옛날 공고 검색</h1>

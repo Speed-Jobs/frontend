@@ -47,6 +47,13 @@ export default function Dashboard() {
 
   // AI 분석 리포트 관련 상태
   const [showReportModal, setShowReportModal] = useState(false)
+  
+  // 섹션별 AI 분석 상태
+  const [sectionAnalysisModal, setSectionAnalysisModal] = useState<{
+    section: string | null
+    content: string | null
+  }>({ section: null, content: null })
+  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false)
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
@@ -217,6 +224,118 @@ export default function Dashboard() {
   const handleSortChange = (sortType: 'latest' | 'company' | 'deadline') => {
     setSortBy(sortType)
     setCurrentPage(0)
+  }
+
+  // 섹션별 AI 분석 글 생성 함수
+  const generateSectionAnalysis = async (section: string) => {
+    setIsGeneratingAnalysis(true)
+    setSectionAnalysisModal({ section, content: null })
+    
+    // 시뮬레이션: 실제로는 API 호출
+    setTimeout(() => {
+      let analysisContent = ''
+      
+      switch (section) {
+        case 'jobMatching':
+          analysisContent = `## 경쟁사 공고 자동 매칭 분석
+
+현재 필터링된 공고는 총 **${filteredJobPostings.length}개**입니다.
+
+**주요 인사이트:**
+- ${selectedCompanies.length > 0 ? `선택된 회사: ${selectedCompanies.join(', ')}` : '전체 회사 대상'}
+- ${selectedEmploymentType !== 'all' ? `고용형태: ${selectedEmploymentType}` : '모든 고용형태'}
+- 정렬 기준: ${sortBy === 'latest' ? '최신순' : sortBy === 'company' ? '회사명순' : '마감순'}
+
+**추천 사항:**
+1. 관심 있는 회사의 공고를 우선적으로 확인하세요.
+2. 마감일이 임박한 공고부터 지원을 고려해보세요.
+3. 매칭된 직무 정보를 참고하여 지원 전략을 수립하세요.`
+          break
+          
+        case 'news':
+          analysisContent = `## 채용 관련 뉴스 분석
+
+현재 표시된 뉴스는 최신 채용 트렌드와 시장 동향을 반영합니다.
+
+**주요 트렌드:**
+- IT 업계의 지속적인 성장으로 인한 인력 수요 증가
+- 원격 근무와 하이브리드 근무 형태의 확산
+- 신입 개발자 채용 시 실무 경험 중시 경향
+
+**시사점:**
+1. 기술 스택의 다양화로 인해 다양한 기술을 학습하는 것이 중요합니다.
+2. 포트폴리오와 프로젝트 경험이 채용에 큰 영향을 미칩니다.
+3. 지속적인 학습과 기술 업데이트가 필수적입니다.`
+          break
+          
+        case 'trend':
+          const trendPeriod = timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'
+          analysisContent = `## 트렌드 비교 분석 (${trendPeriod})
+
+**회사별 트렌드:**
+- 대형 IT 기업들의 지속적인 채용 확대
+- 스타트업의 성장세에 따른 인력 충원
+- 금융권의 디지털 전환으로 인한 IT 인력 수요 증가
+
+**직업별 트렌드:**
+- 백엔드 개발자와 프론트엔드 개발자 수요가 가장 높음
+- 클라우드 엔지니어와 DevOps 인력에 대한 관심 증가
+- AI/ML 엔지니어의 수요가 지속적으로 증가 중
+
+**기술별 트렌드:**
+- React, Spring, Python 등이 가장 많이 요구됨
+- 클라우드 기술(AWS, Azure)에 대한 수요 증가
+- 마이크로서비스 아키텍처 관련 기술 선호도 상승`
+          break
+          
+        case 'jobStats':
+          const categoryName = selectedExpertCategory === 'Tech' ? 'Tech 전문가' : selectedExpertCategory === 'Biz' ? 'Biz 전문가' : 'Biz.Supporting 전문가'
+          const selectedRole = selectedJobRole || '전체'
+          analysisContent = `## 직군별 통계 분석
+
+**현재 선택 카테고리:** ${categoryName}
+**선택된 직무:** ${selectedRole}
+
+**주요 통계:**
+- ${selectedExpertCategory === 'Tech' ? 'Tech 전문가 분야에서 Software Development가 가장 많은 비중을 차지합니다.' : selectedExpertCategory === 'Biz' ? 'Biz 전문가 분야에서 Sales와 Consulting이 주요 직무입니다.' : 'Biz.Supporting 분야에서 다양한 지원 직무가 분포되어 있습니다.'}
+
+**인사이트:**
+1. 각 직무별로 요구되는 기술 스택과 경력 수준이 다릅니다.
+2. Industry별 분포를 확인하여 관심 있는 산업 분야를 파악하세요.
+3. 직무별 상세 통계를 통해 지원 전략을 수립할 수 있습니다.`
+          break
+          
+        case 'skillStats':
+          const topSkills = skillsData.slice(0, 5).map(s => s.name).join(', ')
+          const selectedSkillInfo = selectedSkill ? skillsData.find(s => s.name === selectedSkill) : null
+          analysisContent = `## 스킬별 통계 분석
+
+**상위 인기 스킬:** ${topSkills}
+
+${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
+- 총 공고 수: ${selectedSkillInfo.count}건
+- 비율: ${selectedSkillInfo.percentage}%
+- 전월 대비 변화: ${selectedSkillInfo.change > 0 ? '+' : ''}${selectedSkillInfo.change}%
+- 관련 스킬: ${selectedSkillInfo.relatedSkills.join(', ')}` : ''}
+
+**시장 동향:**
+- ${skillsData[0].name}이 가장 높은 수요를 보이고 있습니다.
+- 프론트엔드와 백엔드 기술 스택이 균형있게 요구되고 있습니다.
+- 클라우드 및 DevOps 관련 스킬의 중요성이 증가하고 있습니다.
+
+**학습 권장사항:**
+1. 상위 인기 스킬들을 우선적으로 학습하세요.
+2. 관련 스킬들을 함께 학습하면 시너지 효과가 있습니다.
+3. 지속적인 트렌드 모니터링으로 시장 변화에 대응하세요.`
+          break
+          
+        default:
+          analysisContent = '분석 내용을 생성하는 중입니다...'
+      }
+      
+      setSectionAnalysisModal({ section, content: analysisContent })
+      setIsGeneratingAnalysis(false)
+    }, 1500) // 1.5초 시뮬레이션
   }
 
   // 공고 클릭 핸들러 - 드롭다운 토글 및 매칭 실행
@@ -598,10 +717,10 @@ export default function Dashboard() {
     
     // 레이어별 기본 설정 (4단계로 확장)
     const layers = [
-      { baseRadius: 180, count: 5 },
-      { baseRadius: 280, count: 6 },
-      { baseRadius: 380, count: 7 },
-      { baseRadius: 480, count: 8 },
+      { baseRadius: 160, count: 5 },
+      { baseRadius: 250, count: 6 },
+      { baseRadius: 340, count: 7 },
+      { baseRadius: 420, count: 8 },
     ]
     
     // 각 스킬의 위치 계산
@@ -651,7 +770,7 @@ export default function Dashboard() {
           if (checkRectOverlap(
             x, y, currentSize.pixelWidth, currentSize.pixelHeight,
             prevPos.x, prevPos.y, prevSize.pixelWidth, prevSize.pixelHeight,
-            25 // 여유 공간 증가 (15 → 25)
+            35 // 여유 공간 증가 (15 → 25)
           )) {
             hasOverlap = true
             break
@@ -660,9 +779,9 @@ export default function Dashboard() {
         
         if (!hasOverlap) {
           // 컨테이너 경계 확인 (더 넓은 공간 활용, 좌우로 더 넓게)
-          const maxRadius = 400
-          const maxX = 500 - currentSize.pixelWidth / 2  // 좌우로 더 넓게
-          const maxY = 350 - currentSize.pixelHeight / 2
+          const maxRadius = 320
+          const maxX = 350 - currentSize.pixelWidth / 2  // 좌우로 더 넓게
+          const maxY = 280 - currentSize.pixelHeight / 2
           
           if (Math.abs(x) <= maxX && Math.abs(y) <= maxY && testRadius <= maxRadius) {
             positions[index] = { x: Math.round(x), y: Math.round(y) }
@@ -740,261 +859,46 @@ export default function Dashboard() {
     return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2)
   }
 
-  // 스킬들의 실제 렌더링 위치 계산 (절대 겹침 방지 - 사각형 기반)
+  // 스킬들의 실제 렌더링 위치 계산 (2개 원형 배치 - 겹침 없음 보장)
   const finalSkillPositions = useMemo(() => {
     const maxCount = skillsData[0]?.count || 1
-    const skillCount = Math.min(18, skillsData.length)  // 스킬 개수 18개로 증가
-    const containerWidth = 600
-    const containerHeight = 600
+    const skillCount = Math.min(13, skillsData.length)  // 13개 (중앙 1 + 내부원 6 + 외부원 6)
     
-    // 모든 스킬의 크기와 초기 위치 계산
-    const skills: Array<{x: number, y: number, size: {pixelWidth: number, pixelHeight: number}, maxX: number, maxY: number}> = []
-    
-    // 가장 큰 스킬 크기 찾기
-    let maxSkillWidth = 0
-    let maxSkillHeight = 0
-    for (let index = 0; index < skillCount; index++) {
-      const size = getSkillSize(skillsData[index].count, index, maxCount)
-      maxSkillWidth = Math.max(maxSkillWidth, size.pixelWidth)
-      maxSkillHeight = Math.max(maxSkillHeight, size.pixelHeight)
-    }
-    
-    // 안전한 경계 계산 (가장 큰 스킬 기준)
-    const safeMaxX = (containerWidth / 2) - (maxSkillWidth / 2) - 15
-    const safeMaxY = (containerHeight / 2) - (maxSkillHeight / 2) - 15
+    const skills: Array<{
+      x: number, 
+      y: number, 
+      size: {pixelWidth: number, pixelHeight: number}
+    }> = []
     
     for (let index = 0; index < skillCount; index++) {
       const size = getSkillSize(skillsData[index].count, index, maxCount)
-      // 각 스킬의 실제 크기를 고려한 경계
-      const maxX = Math.min(safeMaxX, (containerWidth / 2) - (size.pixelWidth / 2) - 15)
-      const maxY = Math.min(safeMaxY, (containerHeight / 2) - (size.pixelHeight / 2) - 15)
       
       if (index === 0) {
-        // 첫 번째 스킬(가장 인기 있는 스킬)은 항상 중앙에 고정
-        skills.push({
-          x: 0,
-          y: 0,
-          size,
-          maxX,
-          maxY
+        // 중앙
+        skills.push({ x: 0, y: 0, size })
+      } else if (index <= 6) {
+        // 내부 원 (6개)
+        const angle = ((index - 1) / 6) * Math.PI * 2 - Math.PI / 2
+        const radius = 120
+        skills.push({ 
+          x: Math.cos(angle) * radius, 
+          y: Math.sin(angle) * radius, 
+          size 
         })
       } else {
-        // 나머지 스킬들은 첫 번째 스킬 주변에 원형으로 배치
-        // 첫 번째 스킬을 제외한 나머지 스킬 개수로 각도 계산
-        const remainingCount = skillCount - 1
-        const angle = ((index - 1) / remainingCount) * Math.PI * 2
-        // 첫 번째 스킬의 크기를 고려한 최소 반지름
-        const firstSkillSize = getSkillSize(skillsData[0].count, 0, maxCount)
-        const padding = 50  // 여유 공간 50px (초기 배치에도 사용)
-        const minRadius = (Math.max(firstSkillSize.pixelWidth, firstSkillSize.pixelHeight) + 
-                          Math.max(size.pixelWidth, size.pixelHeight)) / 2 + padding + 15
-        const radius = Math.max(minRadius, Math.min(maxX, maxY) * 0.65)
-        const initialX = Math.cos(angle) * radius
-        const initialY = Math.sin(angle) * radius
-        
-        skills.push({
-          x: initialX,
-          y: initialY,
-          size,
-          maxX,
-          maxY
+        // 외부 원 (6개)
+        const angle = ((index - 7) / 6) * Math.PI * 2 - Math.PI / 2 + Math.PI / 6
+        const radius = 200
+        skills.push({ 
+          x: Math.cos(angle) * radius, 
+          y: Math.sin(angle) * radius, 
+          size 
         })
       }
     }
     
-    // 모든 스킬을 동시에 조정하여 겹침 완전 제거 (사각형 기반)
-    const maxIterations = 1000  // 반복 횟수 증가 (더 많은 스킬을 위해)
-    const damping = 0.25  // 댐핑 감소 (더 빠른 수렴)
-    const padding = 50  // 여유 공간 50px (더 많은 스킬을 배치하기 위해 약간 감소)
-    
-    for (let iter = 0; iter < maxIterations; iter++) {
-      let totalOverlaps = 0
-      const forces: Array<{fx: number, fy: number}> = skills.map(() => ({ fx: 0, fy: 0 }))
-      
-      // 모든 스킬 쌍에 대해 사각형 기반 겹침 체크
-      for (let i = 0; i < skills.length; i++) {
-        for (let j = i + 1; j < skills.length; j++) {
-          const skill1 = skills[i]
-          const skill2 = skills[j]
-          
-          // 사각형 기반 겹침 체크
-          if (checkRectOverlapFinal(
-            skill1.x, skill1.y, skill1.size.pixelWidth, skill1.size.pixelHeight,
-            skill2.x, skill2.y, skill2.size.pixelWidth, skill2.size.pixelHeight,
-            padding
-          )) {
-            totalOverlaps++
-            
-            // 중심점 간 거리 계산
-            const dx = skill1.x - skill2.x
-            const dy = skill1.y - skill2.y
-            const distance = Math.sqrt(dx * dx + dy * dy)
-            
-            if (distance < 0.01) {
-              // 거의 같은 위치에 있으면 랜덤 방향으로 밀어내기
-              const randomAngle = Math.random() * Math.PI * 2
-              const pushForce = 50
-              forces[i].fx += Math.cos(randomAngle) * pushForce
-              forces[i].fy += Math.sin(randomAngle) * pushForce
-              forces[j].fx -= Math.cos(randomAngle) * pushForce
-              forces[j].fy -= Math.sin(randomAngle) * pushForce
-            } else {
-              // 겹침 정도 계산
-              const minRequiredDistance = (Math.max(skill1.size.pixelWidth, skill1.size.pixelHeight) + 
-                                          Math.max(skill2.size.pixelWidth, skill2.size.pixelHeight)) / 2 + padding
-              const overlap = minRequiredDistance - distance
-              const angle = Math.atan2(dy, dx)
-              
-              // 매우 강한 밀어내기 힘
-              const pushForce = overlap * 3.0
-              
-              // 양쪽 스킬 모두 밀어내기
-              forces[i].fx += Math.cos(angle) * pushForce
-              forces[i].fy += Math.sin(angle) * pushForce
-              forces[j].fx -= Math.cos(angle) * pushForce
-              forces[j].fy -= Math.sin(angle) * pushForce
-            }
-          }
-        }
-      }
-      
-      if (totalOverlaps === 0) break
-      
-      // 모든 스킬 위치 업데이트 (첫 번째 스킬은 제외)
-      for (let i = 0; i < skills.length; i++) {
-        // 첫 번째 스킬(index 0)은 중앙에 고정되어 있으므로 위치 변경하지 않음
-        if (i === 0) continue
-        
-        skills[i].x += forces[i].fx * damping
-        skills[i].y += forces[i].fy * damping
-        
-        // 엄격한 경계 체크 (스킬의 절반 크기를 고려하여 중심점이 경계 내에 있도록)
-        const halfWidth = skills[i].size.pixelWidth / 2
-        const halfHeight = skills[i].size.pixelHeight / 2
-        const actualMaxX = skills[i].maxX
-        const actualMaxY = skills[i].maxY
-        
-        // 스킬의 가장자리가 컨테이너를 넘지 않도록
-        if (skills[i].x + halfWidth > actualMaxX) {
-          skills[i].x = actualMaxX - halfWidth
-        }
-        if (skills[i].x - halfWidth < -actualMaxX) {
-          skills[i].x = -actualMaxX + halfWidth
-        }
-        if (skills[i].y + halfHeight > actualMaxY) {
-          skills[i].y = actualMaxY - halfHeight
-        }
-        if (skills[i].y - halfHeight < -actualMaxY) {
-          skills[i].y = -actualMaxY + halfHeight
-        }
-      }
-    }
-    
-    // 최종 검증: 모든 쌍이 겹치지 않는지 확인
-    for (let i = 0; i < skills.length; i++) {
-      for (let j = i + 1; j < skills.length; j++) {
-        const skill1 = skills[i]
-        const skill2 = skills[j]
-        
-        if (checkRectOverlapFinal(
-          skill1.x, skill1.y, skill1.size.pixelWidth, skill1.size.pixelHeight,
-          skill2.x, skill2.y, skill2.size.pixelWidth, skill2.size.pixelHeight,
-          padding
-        )) {
-          // 여전히 겹치면 강제로 분리
-          const dx = skill1.x - skill2.x
-          const dy = skill1.y - skill2.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          const minRequiredDistance = (Math.max(skill1.size.pixelWidth, skill1.size.pixelHeight) + 
-                                      Math.max(skill2.size.pixelWidth, skill2.size.pixelHeight)) / 2 + padding
-          
-          if (distance < minRequiredDistance && distance > 0.01) {
-            const angle = Math.atan2(dy, dx)
-            const separation = (minRequiredDistance - distance) / 2
-            
-            // 첫 번째 스킬은 고정이므로 다른 스킬만 이동
-            if (i === 0) {
-              // skill1이 첫 번째 스킬이면 skill2만 이동
-              skill2.x -= Math.cos(angle) * separation
-              skill2.y -= Math.sin(angle) * separation
-            } else if (j === 0) {
-              // skill2가 첫 번째 스킬이면 skill1만 이동
-              skill1.x += Math.cos(angle) * separation
-              skill1.y += Math.sin(angle) * separation
-            } else {
-              // 둘 다 첫 번째 스킬이 아니면 양쪽 모두 이동
-              skill1.x += Math.cos(angle) * separation
-              skill1.y += Math.sin(angle) * separation
-              skill2.x -= Math.cos(angle) * separation
-              skill2.y -= Math.sin(angle) * separation
-            }
-            
-            // 경계 체크 (분리 후에도 경계 내에 있는지 확인)
-            const halfWidth1 = skill1.size.pixelWidth / 2
-            const halfHeight1 = skill1.size.pixelHeight / 2
-            const actualMaxX1 = skill1.maxX
-            const actualMaxY1 = skill1.maxY
-            
-            if (skill1.x + halfWidth1 > actualMaxX1) {
-              skill1.x = actualMaxX1 - halfWidth1
-            }
-            if (skill1.x - halfWidth1 < -actualMaxX1) {
-              skill1.x = -actualMaxX1 + halfWidth1
-            }
-            if (skill1.y + halfHeight1 > actualMaxY1) {
-              skill1.y = actualMaxY1 - halfHeight1
-            }
-            if (skill1.y - halfHeight1 < -actualMaxY1) {
-              skill1.y = -actualMaxY1 + halfHeight1
-            }
-            
-            const halfWidth2 = skill2.size.pixelWidth / 2
-            const halfHeight2 = skill2.size.pixelHeight / 2
-            const actualMaxX2 = skill2.maxX
-            const actualMaxY2 = skill2.maxY
-            
-            if (skill2.x + halfWidth2 > actualMaxX2) {
-              skill2.x = actualMaxX2 - halfWidth2
-            }
-            if (skill2.x - halfWidth2 < -actualMaxX2) {
-              skill2.x = -actualMaxX2 + halfWidth2
-            }
-            if (skill2.y + halfHeight2 > actualMaxY2) {
-              skill2.y = actualMaxY2 - halfHeight2
-            }
-            if (skill2.y - halfHeight2 < -actualMaxY2) {
-              skill2.y = -actualMaxY2 + halfHeight2
-            }
-          }
-        }
-      }
-    }
-    
-    // 최종 경계 검증 및 조정
-    for (let i = 0; i < skills.length; i++) {
-      const halfWidth = skills[i].size.pixelWidth / 2
-      const halfHeight = skills[i].size.pixelHeight / 2
-      const actualMaxX = skills[i].maxX
-      const actualMaxY = skills[i].maxY
-      
-      // 스킬의 가장자리가 컨테이너를 넘지 않도록
-      if (skills[i].x + halfWidth > actualMaxX) {
-        skills[i].x = actualMaxX - halfWidth
-      }
-      if (skills[i].x - halfWidth < -actualMaxX) {
-        skills[i].x = -actualMaxX + halfWidth
-      }
-      if (skills[i].y + halfHeight > actualMaxY) {
-        skills[i].y = actualMaxY - halfHeight
-      }
-      if (skills[i].y - halfHeight < -actualMaxY) {
-        skills[i].y = -actualMaxY + halfHeight
-      }
-    }
-    
-    // 최종 위치 반환 (고정된 위치)
-    return skills.map(skill => ({ x: skill.x, y: skill.y, size: skill.size }))
-  }, []) // 의존성 제거하여 한 번만 계산하고 고정
+    return skills
+  }, [])
 
   // 개별 스킬 위치 가져오기
   const getSkillPosition = (index: number) => {
@@ -1024,9 +928,21 @@ export default function Dashboard() {
           {/* 경쟁사 공고 자동 매칭 */}
           <div className="lg:col-span-1 flex flex-col">
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col h-full">
-              <h2 className="text-lg font-bold text-gray-900 mb-3">
-                경쟁사 공고 자동 매칭
-              </h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-900">
+                  경쟁사 공고 자동 매칭
+                </h2>
+                <button
+                  onClick={() => generateSectionAnalysis('jobMatching')}
+                  disabled={isGeneratingAnalysis}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI 분석
+                </button>
+              </div>
           <div className="space-y-2 mb-3">
             {/* 첫 번째 줄: 검색창과 필터 */}
             <div className="flex items-center gap-4 flex-wrap">
@@ -1555,9 +1471,21 @@ export default function Dashboard() {
           <div className="lg:col-span-1 flex flex-col gap-6 h-full">
             {/* 채용 관련 뉴스 */}
             <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                채용 관련 뉴스
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  채용 관련 뉴스
+                </h2>
+                <button
+                  onClick={() => generateSectionAnalysis('news')}
+                  disabled={isGeneratingAnalysis}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI 분석
+                </button>
+              </div>
               <div className="space-y-3">
                 {newsItems.map((news, index) => (
                   <div
@@ -1581,12 +1509,24 @@ export default function Dashboard() {
 
             {/* 스킬별 통계 */}
             <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                스킬별 통계
-              </h2>
-              <div className="flex flex-row gap-4 flex-1 min-h-[600px]">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <h2 className="text-xl font-bold text-gray-900">
+                  스킬별 통계
+                </h2>
+                <button
+                  onClick={() => generateSectionAnalysis('skillStats')}
+                  disabled={isGeneratingAnalysis}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI 분석
+                </button>
+              </div>
+              <div className="flex flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100% - 60px)' }}>
                   {/* 스킬 클라우드 - 컴팩트 버전 */}
-                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col min-h-[550px]">
+                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col" style={{ height: '100%' }}>
                   {/* 배경 장식 */}
                   <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
                     <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
@@ -1594,13 +1534,19 @@ export default function Dashboard() {
                   </div>
                   
                   {/* 헤더 */}
-                  <div className="relative mb-2 z-10">
+                  <div className="relative mb-2 z-10 flex-shrink-0">
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">스킬 클라우드</h3>
                     <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
                   </div>
                   
-                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden min-h-[500px]">
-                    {skillsData.slice(0, 18).map((skill, index) => {
+                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden" 
+                      style={{ 
+                        height: 'calc(100% - 60px)',
+                        maxWidth: '500px',   // 600 → 500
+                        maxHeight: '500px',  // 600 → 500
+                        margin: '0 auto'
+                      }}>
+                    {skillsData.slice(0, 13).map((skill, index) => {
                       const maxCount = skillsData[0]?.count || 1
                       const size = getSkillSize(skill.count, index, maxCount)
                       const finalPosition = getFinalSkillPosition(index)
@@ -1718,9 +1664,21 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Trend Comparison Section */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              트렌드 비교
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                트렌드 비교
+              </h2>
+              <button
+                onClick={() => generateSectionAnalysis('trend')}
+                disabled={isGeneratingAnalysis}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI 분석
+              </button>
+            </div>
           
           {/* 기간 탭 (일간, 주간, 월간) */}
           <div className="flex gap-2 mb-4">
@@ -1859,9 +1817,21 @@ export default function Dashboard() {
 
           {/* Job Statistics Section */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              직군별 통계
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                직군별 통계
+              </h2>
+              <button
+                onClick={() => generateSectionAnalysis('jobStats')}
+                disabled={isGeneratingAnalysis}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI 분석
+              </button>
+            </div>
             
             {/* 전문가 카테고리 탭 */}
             <div className="flex gap-2 mb-4">
@@ -2047,6 +2017,85 @@ export default function Dashboard() {
         </svg>
         AI 분석 리포트 생성
       </button>
+
+      {/* 섹션별 AI 분석 모달 */}
+      {sectionAnalysisModal.section && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {sectionAnalysisModal.section === 'jobMatching' && '경쟁사 공고 자동 매칭 분석'}
+                  {sectionAnalysisModal.section === 'news' && '채용 관련 뉴스 분석'}
+                  {sectionAnalysisModal.section === 'trend' && '트렌드 비교 분석'}
+                  {sectionAnalysisModal.section === 'jobStats' && '직군별 통계 분석'}
+                  {sectionAnalysisModal.section === 'skillStats' && '스킬별 통계 분석'}
+                </h2>
+                <button
+                  onClick={() => setSectionAnalysisModal({ section: null, content: null })}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="prose prose-sm max-w-none">
+                {isGeneratingAnalysis ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      <p className="text-gray-600">AI 분석을 생성하는 중...</p>
+                    </div>
+                  </div>
+                ) : sectionAnalysisModal.content ? (
+                  <div className="text-gray-700 whitespace-pre-line leading-relaxed">
+                    {sectionAnalysisModal.content.split('\n').map((line, index) => {
+                      if (line.startsWith('##')) {
+                        return <h3 key={index} className="text-xl font-bold text-gray-900 mt-6 mb-3">{line.replace('##', '').trim()}</h3>
+                      } else if (line.startsWith('**') && line.endsWith('**')) {
+                        return <p key={index} className="font-semibold text-gray-900 mb-2">{line.replace(/\*\*/g, '')}</p>
+                      } else if (line.startsWith('-')) {
+                        return <li key={index} className="ml-4 mb-1">{line.replace('-', '').trim()}</li>
+                      } else if (line.match(/^\d+\./)) {
+                        return <p key={index} className="ml-4 mb-2">{line}</p>
+                      } else if (line.trim() === '') {
+                        return <br key={index} />
+                      } else {
+                        return <p key={index} className="mb-2">{line}</p>
+                      }
+                    })}
+                  </div>
+                ) : null}
+              </div>
+              
+              {sectionAnalysisModal.content && !isGeneratingAnalysis && (
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      const element = document.createElement('a')
+                      const blob = new Blob([sectionAnalysisModal.content || ''], { type: 'text/plain' })
+                      element.href = URL.createObjectURL(blob)
+                      element.download = `AI_분석_${sectionAnalysisModal.section}_${new Date().toISOString().split('T')[0]}.txt`
+                      element.click()
+                    }}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    텍스트로 저장
+                  </button>
+                  <button
+                    onClick={() => setSectionAnalysisModal({ section: null, content: null })}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                  >
+                    닫기
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI 분석 리포트 모달 */}
       {showReportModal && (

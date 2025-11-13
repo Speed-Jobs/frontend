@@ -1617,7 +1617,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
               <div className="flex flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100% - 60px)' }}>
                   {/* 스킬 클라우드 - 컴팩트 버전 */}
-                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col" style={{ height: '100%' }}>
+                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col overflow-visible" style={{ height: '100%' }}>
                   {/* 배경 장식 */}
                   <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
                     <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
@@ -1630,12 +1630,13 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                     <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
                   </div>
                   
-                  <div className="relative w-full flex-1 flex items-center justify-center overflow-hidden" 
+                  <div className="relative w-full flex-1 flex items-center justify-center overflow-visible" 
                       style={{ 
                         height: 'calc(100% - 60px)',
                         maxWidth: '500px',   // 600 → 500
                         maxHeight: '500px',  // 600 → 500
-                        margin: '0 auto'
+                        margin: '0 auto',
+                        padding: '20px'
                       }}>
                     {skillsData.slice(0, 13).map((skill, index) => {
                       const maxCount = skillsData[0]?.count || 1

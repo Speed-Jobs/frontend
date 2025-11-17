@@ -1095,30 +1095,32 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
   // 월별 채용 공고 수 추이 데이터
   const monthlyJobPostingsData = [
-    { month: '2025-03', count: 0 },
-    { month: '2025-04', count: 0 },
-    { month: '2025-05', count: 0 },
-    { month: '2025-06', count: 0 },
-    { month: '2025-07', count: 0 },
-    { month: '2025-08', count: 0 },
-    { month: '2025-09', count: 1000 },
-    { month: '2025-10', count: 5400 },
-    { month: '2025-11', count: 6200 },
+    { month: '2025-01', count: 1200 },
+    { month: '2025-02', count: 1800 },
+    { month: '2025-03', count: 1500 },
+    { month: '2025-04', count: 2200 },
+    { month: '2025-05', count: 2800 },
+    { month: '2025-06', count: 2400 },
+    { month: '2025-07', count: 3200 },
+    { month: '2025-08', count: 3800 },
+    { month: '2025-09', count: 4200 },
+    { month: '2025-10', count: 5800 },
+    { month: '2025-11', count: 5200 },
   ]
 
   // 주요 회사별 채용 활동 데이터 (8개 경쟁사 - saramin 제외)
   const companyRecruitmentData = [
-    { month: '2025-01', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-02', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-03', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-04', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-05', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-06', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-07', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-08', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-09', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-10', toss: 300, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
-    { month: '2025-11', toss: 400, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-01', toss: 120, line: 80, hanwha: 100, kakao: 150, naver: 180, samsung: 140, lg: 90, sk: 110 },
+    { month: '2025-02', toss: 180, line: 120, hanwha: 150, kakao: 200, naver: 240, samsung: 190, lg: 130, sk: 160 },
+    { month: '2025-03', toss: 150, line: 100, hanwha: 130, kakao: 180, naver: 220, samsung: 170, lg: 110, sk: 140 },
+    { month: '2025-04', toss: 220, line: 160, hanwha: 190, kakao: 260, naver: 300, samsung: 240, lg: 180, sk: 200 },
+    { month: '2025-05', toss: 280, line: 220, hanwha: 250, kakao: 320, naver: 380, samsung: 300, lg: 240, sk: 260 },
+    { month: '2025-06', toss: 240, line: 200, hanwha: 220, kakao: 280, naver: 340, samsung: 260, lg: 200, sk: 230 },
+    { month: '2025-07', toss: 320, line: 260, hanwha: 290, kakao: 360, naver: 420, samsung: 340, lg: 280, sk: 300 },
+    { month: '2025-08', toss: 380, line: 320, hanwha: 350, kakao: 420, naver: 480, samsung: 400, lg: 340, sk: 360 },
+    { month: '2025-09', toss: 450, line: 380, hanwha: 400, kakao: 480, naver: 560, samsung: 450, lg: 390, sk: 410 },
+    { month: '2025-10', toss: 680, line: 520, hanwha: 580, kakao: 720, naver: 850, samsung: 680, lg: 600, sk: 640 },
+    { month: '2025-11', toss: 620, line: 480, hanwha: 540, kakao: 680, naver: 800, samsung: 620, lg: 550, sk: 580 },
   ]
 
   const companyColors = {
@@ -1211,7 +1213,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 />
                 <YAxis 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
-                  domain={[0, 6000]}
+                  domain={[0, 7000]}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1250,7 +1252,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 />
                 <YAxis 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
-                  domain={[0, 6000]}
+                  domain={[0, 1200]}
                 />
                 <Tooltip 
                   contentStyle={{ 

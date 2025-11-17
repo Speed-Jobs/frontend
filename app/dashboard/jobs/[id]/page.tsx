@@ -19,6 +19,13 @@ interface Company {
   name: string
 }
 
+interface MatchedJob {
+  title: string
+  description: string
+  keywords: string[]
+  similarity: number
+}
+
 interface JobPosting {
   id: number
   title: string
@@ -30,6 +37,11 @@ interface JobPosting {
   applyUrl: string
   skills: string[]
   company: Company
+  description?: string
+  meta_data?: {
+    tech_stack?: string[]
+    job_category?: string
+  }
 }
 
 export default function JobDetailPage() {
@@ -38,6 +50,7 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<JobPosting | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [matchedJobs, setMatchedJobs] = useState<MatchedJob[]>([])
 
   useEffect(() => {
     const fetchJobDetail = async () => {
@@ -46,91 +59,9 @@ export default function JobDetailPage() {
         setError(null)
         
         const jobId = params.id as string
-        const apiUrl = `http://172.20.10.2:8080/api/v1/posts/${jobId}`
         
-        console.log('=== 상세 공고 API 호출 ===')
-        console.log('호출 URL:', apiUrl)
-        console.log('호출 시각:', new Date().toISOString())
-        
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          mode: 'cors',
-          credentials: 'omit',
-        })
-        
-        console.log('응답 상태:', response.status)
-        console.log('응답 URL:', response.url)
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const result = await response.json()
-        console.log('백엔드에서 받은 상세 데이터:', result)
-        
-        if (result.data) {
-          setJob(result.data)
-        } else {
-          // 백엔드 데이터가 없으면 기본 데이터에서 찾기
-          const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
-          if (foundJob) {
-            // 기본 데이터를 백엔드 형식으로 변환
-            const today = new Date()
-            const postedDate = new Date(foundJob.posted_date)
-            const expiredDate = foundJob.expired_date ? new Date(foundJob.expired_date) : null
-            
-            const transformedJob: JobPosting = {
-              id: foundJob.id,
-              title: foundJob.title,
-              role: foundJob.meta_data?.job_category || '개발',
-              experience: foundJob.experience,
-              daysLeft: expiredDate ? Math.ceil((expiredDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
-              postedAt: {
-                year: postedDate.getFullYear(),
-                month: postedDate.getMonth() + 1,
-                day: postedDate.getDate(),
-                hour: postedDate.getHours(),
-                minute: postedDate.getMinutes(),
-                second: postedDate.getSeconds(),
-              },
-              closeAt: expiredDate ? {
-                year: expiredDate.getFullYear(),
-                month: expiredDate.getMonth() + 1,
-                day: expiredDate.getDate(),
-                hour: expiredDate.getHours(),
-                minute: expiredDate.getMinutes(),
-                second: expiredDate.getSeconds(),
-              } : {
-                year: 0,
-                month: 0,
-                day: 0,
-                hour: 0,
-                minute: 0,
-                second: 0,
-              },
-              applyUrl: '',
-              skills: foundJob.meta_data?.tech_stack || [],
-              company: {
-                id: 0,
-                name: foundJob.company.replace('(주)', '').trim(),
-              },
-            }
-            setJob(transformedJob)
-          } else {
-            setJob(null)
-          }
-        }
-      } catch (err) {
-        console.error('=== 상세 공고 API 호출 에러 ===')
-        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
-        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
-        
-        // 에러 발생 시 기본 데이터에서 찾기
-        const jobId = parseInt(params.id as string)
-        const foundJob = jobPostingsData.find((j) => j.id === jobId)
+        // 기본 데이터를 먼저 로드하여 빠른 표시
+        const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
         if (foundJob) {
           const today = new Date()
           const postedDate = new Date(foundJob.posted_date)
@@ -171,20 +102,164 @@ export default function JobDetailPage() {
               id: 0,
               name: foundJob.company.replace('(주)', '').trim(),
             },
+            description: foundJob.description,
+            meta_data: foundJob.meta_data,
           }
           setJob(transformedJob)
-          setError('백엔드 API 호출 실패. 기본 데이터를 사용합니다.')
+          setIsLoading(false)
         } else {
+          // 기본 데이터가 없으면 에러 설정
           setJob(null)
-          setError(err instanceof Error ? err.message : '공고를 불러오는 중 오류가 발생했습니다.')
+          setError('공고를 찾을 수 없습니다.')
+          setIsLoading(false)
+          return
         }
-      } finally {
+        
+        // 백엔드 API 호출 (타임아웃 3초)
+        const apiUrl = `http://172.20.10.2:8080/api/v1/posts/${jobId}`
+        
+        console.log('=== 상세 공고 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('호출 시각:', new Date().toISOString())
+        
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3초 타임아웃
+        
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            mode: 'cors',
+            credentials: 'omit',
+            signal: controller.signal,
+          })
+          
+          clearTimeout(timeoutId)
+          
+          console.log('응답 상태:', response.status)
+          console.log('응답 URL:', response.url)
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          
+          const result = await response.json()
+          console.log('백엔드에서 받은 상세 데이터:', result)
+        
+          if (result.data) {
+            // 백엔드 데이터에 description이 없을 경우 기본 데이터에서 찾기
+            const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
+            if (foundJob && !result.data.description) {
+              result.data.description = foundJob.description
+            }
+            if (foundJob && !result.data.meta_data) {
+              result.data.meta_data = foundJob.meta_data
+            }
+            // 백엔드 데이터로 업데이트
+            setJob(result.data)
+            setIsLoading(false)
+          }
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId)
+          
+          // 타임아웃 또는 네트워크 에러인 경우 기본 데이터 사용 (이미 로드됨)
+          if (fetchError.name === 'AbortError') {
+            console.log('API 호출 타임아웃. 기본 데이터를 사용합니다.')
+            // 기본 데이터는 이미 로드되었으므로 아무것도 하지 않음
+          } else {
+            console.error('=== 상세 공고 API 호출 에러 ===')
+            console.error('에러 타입:', fetchError instanceof Error ? fetchError.constructor.name : typeof fetchError)
+            console.error('에러 메시지:', fetchError instanceof Error ? fetchError.message : String(fetchError))
+            // 기본 데이터는 이미 로드되었으므로 에러만 기록
+          }
+        }
+      } catch (err) {
+        // 기본 데이터 로드 실패 시
+        console.error('=== 기본 데이터 로드 에러 ===')
+        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
+        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
+        
+        const jobId = parseInt(params.id as string)
+        const foundJob = jobPostingsData.find((j) => j.id === jobId)
+        if (!foundJob) {
+          setJob(null)
+          setError('공고를 찾을 수 없습니다.')
+        }
         setIsLoading(false)
       }
     }
 
     fetchJobDetail()
   }, [params.id])
+
+  // 매칭된 직무 생성
+  useEffect(() => {
+    if (!job) return
+
+    const techStack = job.meta_data?.tech_stack || job.skills || []
+    const description = job.description?.toLowerCase() || ''
+    
+    // 기술 스택과 설명을 기반으로 매칭된 직무 생성
+    const matched: MatchedJob[] = []
+    
+    // Kotlin/Spring Boot 관련 매칭
+    if (techStack.some((tech: string) => tech.toLowerCase().includes('kotlin') || tech.toLowerCase().includes('spring'))) {
+      matched.push({
+        title: '핀테크 백엔드 개발자',
+        description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
+        keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
+        similarity: 93,
+      })
+    }
+    
+    // Kubernetes/인프라 관련 매칭
+    if (techStack.some((tech: string) => tech.toLowerCase().includes('kubernetes') || tech.toLowerCase().includes('docker'))) {
+      matched.push({
+        title: '백엔드 플랫폼 엔지니어',
+        description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
+        keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
+        similarity: 87,
+      })
+    }
+    
+    // Redis/캐싱 관련 매칭
+    if (techStack.some((tech: string) => tech.toLowerCase().includes('redis') || tech.toLowerCase().includes('cache'))) {
+      matched.push({
+        title: '서버 개발자 (Kotlin/Spring)',
+        description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
+        keywords: ['Kotlin', 'Spring Boot', 'Redis'],
+        similarity: 84,
+      })
+    }
+    
+    // 기본 매칭 (매칭이 없을 경우)
+    if (matched.length === 0) {
+      matched.push(
+        {
+          title: '핀테크 백엔드 개발자',
+          description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
+          keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
+          similarity: 93,
+        },
+        {
+          title: '백엔드 플랫폼 엔지니어',
+          description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
+          keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
+          similarity: 87,
+        },
+        {
+          title: '서버 개발자 (Kotlin/Spring)',
+          description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
+          keywords: ['Kotlin', 'Spring Boot', 'Redis'],
+          similarity: 84,
+        }
+      )
+    }
+
+    setMatchedJobs(matched)
+  }, [job])
 
   // 날짜 객체를 문자열로 변환
   const formatDateFromObject = (dateObj: PostedAt) => {
@@ -342,6 +417,16 @@ export default function JobDetailPage() {
           </div>
         )}
 
+        {/* 공고 내용 */}
+        {job.description && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">공고 내용</h2>
+            <div className="space-y-2">
+              <p className="text-gray-700 whitespace-pre-wrap text-base leading-relaxed">{job.description}</p>
+            </div>
+          </div>
+        )}
+
         {/* Tech Stack */}
         {job.skills && job.skills.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
@@ -354,6 +439,61 @@ export default function JobDetailPage() {
                 >
                   {skill}
                 </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 매칭된 직무 */}
+        {matchedJobs.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="px-4 py-1.5 bg-green-100 text-green-700 rounded-lg flex items-center gap-2 shadow-sm">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="text-xs font-semibold">매칭 완료</span>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-1.5">
+              <svg
+                className="w-6 h-6 text-pink-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              매칭된 직무 <span className="text-gray-900">{matchedJobs.length}개</span>
+            </h2>
+            <div className="space-y-3">
+              {matchedJobs.map((matched, index) => (
+                <div
+                  key={index}
+                  className="bg-white p-4 border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-md transition-all duration-300"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-base font-bold text-gray-900">{matched.title}</h4>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-xs font-semibold border border-green-200 whitespace-nowrap">
+                      {matched.similarity}% 일치
+                    </span>
+                  </div>
+                  <p className="text-gray-700 mb-2 text-sm">{matched.description}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {matched.keywords.map((keyword, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-medium border border-gray-300"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

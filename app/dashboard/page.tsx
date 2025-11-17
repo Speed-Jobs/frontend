@@ -742,6 +742,34 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
         'GSAT(Global Samsung Aptitude Test)가 26일 실시되어 종합적 사고력과 문제 해결 능력을 평가하여 미래 인재를 선발합니다.',
       image: '👨‍💼',
     },
+    {
+      source: '조선비즈 - 2025.09.24',
+      headline: '네이버, AI 인재 대규모 채용... 생성형 AI 분야 집중 투자',
+      snippet:
+        '네이버가 생성형 AI 분야의 핵심 인재를 대규모로 채용하며, AI 기술 경쟁력을 강화하고 있습니다.',
+      image: '🤖',
+    },
+    {
+      source: '매일경제 - 2025.09.23',
+      headline: '카카오, 클라우드 엔지니어 200명 긴급 채용 발표',
+      snippet:
+        '카카오가 클라우드 인프라 확장을 위해 엔지니어를 대규모로 채용하며, 서비스 안정성 강화에 나섭니다.',
+      image: '☁️',
+    },
+    {
+      source: '한국경제 - 2025.09.22',
+      headline: 'SK하이닉스, 반도체 설계 인재 확보 박차... 연봉 상향 조정',
+      snippet:
+        'SK하이닉스가 반도체 설계 분야의 우수 인재를 확보하기 위해 채용 조건을 개선하고 있습니다.',
+      image: '💻',
+    },
+    {
+      source: '아시아경제 - 2025.09.21',
+      headline: '현대자동차, 소프트웨어 개발자 500명 채용 계획 발표',
+      snippet:
+        '현대자동차가 전기차 및 자율주행 기술 개발을 위해 소프트웨어 개발자를 대규모로 채용합니다.',
+      image: '🚗',
+    },
   ]
 
   // 스킬셋 데이터 (인기순으로 정렬, count는 공고 수) - 더 다양하게 추가
@@ -1070,10 +1098,369 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
       )}
 
       <div className="px-8 py-6 max-w-[95%] mx-auto">
-        {/* 첫 번째 줄: 경쟁사 공고 자동 매칭과 채용 관련 뉴스 */}
+        {/* 첫 번째 줄: 스킬별 통계와 직군별 통계 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 스킬별 통계 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-900">
+                스킬별 통계
+              </h2>
+              <button
+                onClick={() => generateSectionAnalysis('skillStats')}
+                disabled={isGeneratingAnalysis['skillStats']}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  openAnalysisSections['skillStats'] 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI 분석
+                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['skillStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
+            <div className="flex flex-col gap-4">
+                {/* 스킬 클라우드 - 컴팩트 버전 */}
+                <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex flex-col overflow-hidden">
+                {/* 배경 장식 */}
+                <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
+                  <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
+                  <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
+                </div>
+                
+                {/* 헤더 */}
+                <div className="relative mb-2 z-10 flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">스킬 클라우드</h3>
+                  <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
+                </div>
+                
+                <div className="relative w-full flex items-center justify-center overflow-hidden" 
+                    style={{ 
+                      height: '500px',
+                      maxWidth: '100%',
+                      margin: '0 auto',
+                      padding: '20px'
+                    }}>
+                  {skillsData.slice(0, 13).map((skill, index) => {
+                    const maxCount = skillsData[0]?.count || 1
+                    const size = getSkillSize(skill.count, index, maxCount)
+                    const finalPosition = getFinalSkillPosition(index)
+                    const isMain = index === 0
+                    const isSelected = selectedSkill === skill.name
+                    
+                    const finalX = finalPosition.x
+                    const finalY = finalPosition.y
+                    
+                    return (
+                      <button
+                        key={skill.name}
+                        onClick={() => setSelectedSkill(skill.name)}
+                        className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap ${
+                          isMain ? 'z-30' : 'z-10'
+                        } ${
+                          isMain
+                            ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
+                            : isSelected
+                            ? 'bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700'
+                            : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
+                        }`}
+                        style={{
+                          left: `calc(50% + ${finalX}px)`,
+                          top: `calc(50% + ${finalY}px)`,
+                          transform: `translate(-50%, -50%)`,
+                          transition: 'none',
+                          minWidth: size.width,
+                        }}
+                      >
+                        {skill.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              
+              {/* 스킬 상세 정보 */}
+              <div className="bg-gradient-to-br from-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow w-full flex flex-col">
+                <div className="mb-3">
+                  <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl mb-2 shadow-lg">
+                    <span className="text-lg font-bold text-white uppercase">
+                      {selectedSkillData.name.charAt(0)}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900 mb-1 capitalize">
+                    {selectedSkillData.name}
+                  </h3>
+                  <p className="text-xs text-gray-500">스킬 상세 정보</p>
+                </div>
+                
+                <div className="space-y-3 flex-1">
+                  {/* 통계 카드들 - 가로로 배치 */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-gradient-to-br from-gray-50 to-white p-3 rounded-lg border border-gray-100">
+                      <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        총 공고 수
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {selectedSkillData.count}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">건</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-gray-50 to-white p-3 rounded-lg border border-gray-100">
+                      <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        비율
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {selectedSkillData.percentage}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">%</p>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-100">
+                      <p className="text-xs font-medium text-gray-600 mb-1">전월 대비 변화</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold text-green-700">
+                          +{selectedSkillData.change}%
+                        </p>
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 관련 스킬 */}
+                  <div className="pt-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      <p className="text-xs font-semibold text-gray-700">관련 스킬</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedSkillData.relatedSkills.slice(0, 4).map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-gray-50 text-gray-700 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+          {/* 직군별 통계 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                직군별 통계
+              </h2>
+              <button
+                onClick={() => generateSectionAnalysis('jobStats')}
+                disabled={isGeneratingAnalysis['jobStats']}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  openAnalysisSections['jobStats'] 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI 분석
+                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            <AnalysisDropdown section="jobStats" title="직군별 통계 분석" />
+            
+            {/* 전문가 카테고리 탭 */}
+            <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('Tech')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                selectedExpertCategory === 'Tech'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+              }`}
+            >
+              Tech 전문가
+            </button>
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('Biz')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                selectedExpertCategory === 'Biz'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+              }`}
+            >
+              Biz 전문가
+            </button>
+            <button
+              onClick={() => {
+                setSelectedExpertCategory('BizSupporting')
+                setSelectedJobRole(null)
+              }}
+              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                selectedExpertCategory === 'BizSupporting'
+                  ? 'bg-gray-900 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+              }`}
+            >
+              Biz.Supporting 전문가
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* 직무 원그래프 */}
+            <div className="bg-gradient-to-br from-gray-50 to-white p-5 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">직무</h3>
+              <ResponsiveContainer width="100%" height={380}>
+                <PieChart>
+                  <Pie
+                    data={currentJobRoles}
+                    cx="50%"
+                    cy="42%"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
+                    }
+                    outerRadius={100}
+                    innerRadius={40}
+                    fill="#6b7280"
+                    dataKey="value"
+                    onClick={(data: any) => {
+                      setSelectedJobRole(data.name)
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {currentJobRoles.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={pieColors[index % pieColors.length]}
+                        stroke={selectedJobRole === entry.name ? '#111827' : '#fff'}
+                        strokeWidth={selectedJobRole === entry.name ? 3 : 1}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '13px'
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `${value}건`,
+                      name
+                    ]}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={80}
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    formatter={(value) => <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{value}</span>}
+                    iconType="circle"
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Industry 테이블 (직무 선택 시 아래에 표시) */}
+            {selectedJobRole && (
+              <div className="bg-gradient-to-br from-gray-50 to-white p-5 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="text-base font-semibold text-gray-900 mb-3">
+                  {selectedJobRole} - Industry
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Industry
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Percentage
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          Chart
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(() => {
+                        const selectedRole = currentJobRoles.find(role => role.name === selectedJobRole)
+                        if (!selectedRole) return null
+                        
+                        const industryCounts = selectedRole.industries.map(industry => {
+                          const key = `${selectedJobRole}-${industry}`
+                          return industrySampleData[selectedExpertCategory]?.[key] || 10
+                        })
+                        const total = industryCounts.reduce((sum, count) => sum + count, 0)
+                        
+                        return selectedRole.industries.map((industry, index) => {
+                          const count = industryCounts[index]
+                          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
+                          
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {industry}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {count}건
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                {percentage}%
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-gray-700 h-2 rounded-full transition-all duration-300"
+                                    style={{ 
+                                      width: `${percentage}%`
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+          </section>
+        </div>
+
+        {/* 두 번째 줄: 경쟁사 공고 자동 매칭과 채용 관련 뉴스 */}
+        <div className="relative mb-8">
           {/* 경쟁사 공고 자동 매칭 */}
-          <div className="lg:col-span-1 flex flex-col">
+          <div className="flex flex-col pr-80">
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col h-full">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-gray-900">
@@ -1257,6 +1644,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             {filteredJobPostings.length > itemsPerPage && (
               <Link
                 href="/jobs"
+                prefetch={false}
                 className="px-3 py-1.5 text-gray-700 hover:text-gray-900 text-sm font-semibold transition-colors duration-300 flex items-center gap-1"
               >
                 더보기
@@ -1622,575 +2010,53 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             </section>
           </div>
 
-          {/* 채용 관련 뉴스와 스킬별 통계 */}
-          <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-            {/* 채용 관련 뉴스 */}
-            <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  채용 관련 뉴스
+          {/* 채용 관련 뉴스 - 오른쪽 고정 팝업 */}
+          <div className="absolute top-0 right-0 w-72 h-full">
+            <section className="bg-white rounded-2xl p-4 shadow-lg border-2 border-gray-200 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 sticky top-0 bg-white z-10">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  채용 뉴스
                 </h2>
                 <button
                   onClick={() => generateSectionAnalysis('news')}
                   disabled={isGeneratingAnalysis['news']}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`px-2 py-1 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed ${
                     openAnalysisSections['news'] 
                       ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                       : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  AI 분석
-                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['news'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  AI
                 </button>
               </div>
               <AnalysisDropdown section="news" title="채용 관련 뉴스 분석" />
-              <div className="space-y-3">
+              <div className="space-y-2 mt-3">
                 {newsItems.map((news, index) => (
                   <div
                     key={index}
-                    className="bg-gradient-to-r from-gray-50 to-white p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-start gap-3"
+                    className="bg-gradient-to-r from-gray-50 to-white p-3 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer group"
                   >
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 mb-1">{news.source}</p>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                        {news.headline}
-                      </h3>
-                      <p className="text-xs text-gray-600">{news.snippet}</p>
-                    </div>
-                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
-                      {news.image}
+                    <div className="flex items-start gap-2">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+                        {news.image}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 mb-1 truncate">{news.source}</p>
+                        <h3 className="text-xs font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {news.headline}
+                        </h3>
+                        <p className="text-xs text-gray-600 line-clamp-2">{news.snippet}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
-
-            {/* 스킬별 통계 */}
-            <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-900">
-                  스킬별 통계
-                </h2>
-                <button
-                  onClick={() => generateSectionAnalysis('skillStats')}
-                  disabled={isGeneratingAnalysis['skillStats']}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    openAnalysisSections['skillStats'] 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  AI 분석
-                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['skillStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-              <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
-              <div className="flex flex-row gap-4 flex-1 min-h-0" style={{ height: 'calc(100% - 60px)' }}>
-                  {/* 스킬 클라우드 - 컴팩트 버전 */}
-                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex-1 flex flex-col overflow-visible" style={{ height: '100%' }}>
-                  {/* 배경 장식 */}
-                  <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
-                    <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
-                  </div>
-                  
-                  {/* 헤더 */}
-                  <div className="relative mb-2 z-10 flex-shrink-0">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">스킬 클라우드</h3>
-                    <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
-                  </div>
-                  
-                  <div className="relative w-full flex-1 flex items-center justify-center overflow-visible" 
-                      style={{ 
-                        height: 'calc(100% - 60px)',
-                        maxWidth: '500px',   // 600 → 500
-                        maxHeight: '500px',  // 600 → 500
-                        margin: '0 auto',
-                        padding: '20px'
-                      }}>
-                    {skillsData.slice(0, 13).map((skill, index) => {
-                      const maxCount = skillsData[0]?.count || 1
-                      const size = getSkillSize(skill.count, index, maxCount)
-                      const finalPosition = getFinalSkillPosition(index)
-                      const isMain = index === 0
-                      const isSelected = selectedSkill === skill.name
-                      
-                      const finalX = finalPosition.x
-                      const finalY = finalPosition.y
-                      
-                      return (
-                        <button
-                          key={skill.name}
-                          onClick={() => setSelectedSkill(skill.name)}
-                          className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap ${
-                            isMain ? 'z-30' : 'z-10'
-                          } ${
-                            isMain
-                              ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
-                              : isSelected
-                              ? 'bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700'
-                              : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
-                          }`}
-                          style={{
-                            left: `calc(50% + ${finalX}px)`,
-                            top: `calc(50% + ${finalY}px)`,
-                            transform: `translate(-50%, -50%)`,
-                            transition: 'none',
-                            minWidth: size.width,
-                          }}
-                        >
-                          {skill.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                
-                {/* 스킬 상세 정보 */}
-                <div className="bg-gradient-to-br from-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow w-64 flex-shrink-0 flex flex-col">
-                  <div className="mb-3">
-                    <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl mb-2 shadow-lg">
-                      <span className="text-lg font-bold text-white uppercase">
-                        {selectedSkillData.name.charAt(0)}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900 mb-1 capitalize">
-                      {selectedSkillData.name}
-                    </h3>
-                    <p className="text-xs text-gray-500">스킬 상세 정보</p>
-                  </div>
-                  
-                  <div className="space-y-3 flex-1">
-                    {/* 통계 카드들 - 세로로 배치 */}
-                    <div className="space-y-2">
-                      <div className="bg-gradient-to-br from-gray-50 to-white p-3 rounded-lg border border-gray-100">
-                        <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                          총 공고 수
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {selectedSkillData.count}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">건</p>
-                      </div>
-                      
-                      <div className="bg-gradient-to-br from-gray-50 to-white p-3 rounded-lg border border-gray-100">
-                        <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
-                          비율
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {selectedSkillData.percentage}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">%</p>
-                      </div>
-
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-100">
-                        <p className="text-xs font-medium text-gray-600 mb-1">전월 대비 변화</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xl font-bold text-green-700">
-                            +{selectedSkillData.change}%
-                          </p>
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 관련 스킬 */}
-                    <div className="pt-1">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        <p className="text-xs font-semibold text-gray-700">관련 스킬</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedSkillData.relatedSkills.slice(0, 4).map((skill, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-gray-50 text-gray-700 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
-        </div>
-
-        {/* 두 번째 줄: 트렌드 비교와 직군별 통계 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Trend Comparison Section */}
-          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                트렌드 비교
-              </h2>
-              <button
-                onClick={() => generateSectionAnalysis('trend')}
-                disabled={isGeneratingAnalysis['trend']}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  openAnalysisSections['trend'] 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI 분석
-                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['trend'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
-            <AnalysisDropdown section="trend" title="트렌드 비교 분석" />
-          
-          {/* 기간 탭 (일간, 주간, 월간) */}
-          <div className="flex gap-2 mb-4">
-            {['Daily', 'Weekly', 'Monthly'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setTimeframe(tab)}
-                className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                  timeframe === tab
-                    ? 'bg-gray-900 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-                }`}
-              >
-                {tab === 'Daily' ? '일간' : tab === 'Weekly' ? '주간' : '월간'}
-              </button>
-            ))}
-          </div>
-
-          {/* 트렌드 차트 그리드 (회사별, 직업별, 기술별) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* 회사별 트렌드 */}
-            <div className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                회사별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={companyTrendData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, 'dataMax + 50']}
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={140} 
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#1f2937',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value: number) => [`${value}건`, '']}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    fill="#6b7280" 
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* 직업별 트렌드 */}
-            <div className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                직업별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={jobTrendData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, 'dataMax + 50']}
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={140} 
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#1f2937',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value: number) => [`${value}건`, '']}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    fill="#6b7280" 
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* 기술별 트렌드 */}
-            <div className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                기술별 트렌드 ({timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'})
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={techTrendData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    type="number" 
-                    domain={[0, 'dataMax + 50']}
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={140} 
-                    tick={{ fill: '#6b7280', fontSize: 12 }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#1f2937',
-                      fontSize: '12px'
-                    }}
-                    formatter={(value: number) => [`${value}건`, '']}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    fill="#6b7280" 
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          </section>
-
-          {/* Job Statistics Section */}
-          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                직군별 통계
-              </h2>
-              <button
-                onClick={() => generateSectionAnalysis('jobStats')}
-                disabled={isGeneratingAnalysis['jobStats']}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  openAnalysisSections['jobStats'] 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI 분석
-                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
-            <AnalysisDropdown section="jobStats" title="직군별 통계 분석" />
-            
-            {/* 전문가 카테고리 탭 */}
-            <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => {
-                setSelectedExpertCategory('Tech')
-                setSelectedJobRole(null)
-              }}
-              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                selectedExpertCategory === 'Tech'
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-              }`}
-            >
-              Tech 전문가
-            </button>
-            <button
-              onClick={() => {
-                setSelectedExpertCategory('Biz')
-                setSelectedJobRole(null)
-              }}
-              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                selectedExpertCategory === 'Biz'
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-              }`}
-            >
-              Biz 전문가
-            </button>
-            <button
-              onClick={() => {
-                setSelectedExpertCategory('BizSupporting')
-                setSelectedJobRole(null)
-              }}
-              className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                selectedExpertCategory === 'BizSupporting'
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-              }`}
-            >
-              Biz.Supporting 전문가
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {/* 직무 원그래프 */}
-            <div className="bg-gradient-to-br from-gray-50 to-white p-5 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">직무</h3>
-              <ResponsiveContainer width="100%" height={380}>
-                <PieChart>
-                  <Pie
-                    data={currentJobRoles}
-                    cx="50%"
-                    cy="42%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
-                    }
-                    outerRadius={100}
-                    innerRadius={40}
-                    fill="#6b7280"
-                    dataKey="value"
-                    onClick={(data: any) => {
-                      setSelectedJobRole(data.name)
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {currentJobRoles.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={pieColors[index % pieColors.length]}
-                        stroke={selectedJobRole === entry.name ? '#111827' : '#fff'}
-                        strokeWidth={selectedJobRole === entry.name ? 3 : 1}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#1f2937',
-                      fontSize: '13px'
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${value}건`,
-                      name
-                    ]}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={80}
-                    wrapperStyle={{ paddingTop: '20px' }}
-                    formatter={(value) => <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{value}</span>}
-                    iconType="circle"
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Industry 테이블 (직무 선택 시 아래에 표시) */}
-            {selectedJobRole && (
-              <div className="bg-gradient-to-br from-gray-50 to-white p-5 border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-base font-semibold text-gray-900 mb-3">
-                  {selectedJobRole} - Industry
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                          Industry
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                          Count
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                          Percentage
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                          Chart
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(() => {
-                        const selectedRole = currentJobRoles.find(role => role.name === selectedJobRole)
-                        if (!selectedRole) return null
-                        
-                        const industryCounts = selectedRole.industries.map(industry => {
-                          const key = `${selectedJobRole}-${industry}`
-                          return industrySampleData[selectedExpertCategory]?.[key] || 10
-                        })
-                        const total = industryCounts.reduce((sum, count) => sum + count, 0)
-                        
-                        return selectedRole.industries.map((industry, index) => {
-                          const count = industryCounts[index]
-                          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
-                          
-                          return (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {industry}
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {count}건
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {percentage}%
-                              </td>
-                              <td className="px-4 py-4 whitespace-nowrap">
-                                <div className="w-32 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className="bg-gray-700 h-2 rounded-full transition-all duration-300"
-                                    style={{ 
-                                      width: `${percentage}%`
-                                    }}
-                                  />
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-          </section>
         </div>
 
       </div>
@@ -2203,7 +2069,11 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             {/* 공고품질 평가 */}
             <Link
               href="/quality"
-              onClick={() => setShowAdPanels(false)}
+              prefetch={false}
+              onClick={(e) => {
+                setShowAdPanels(false)
+                // 즉시 네비게이션을 위해 기본 동작 유지
+              }}
               className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
             >
               <div className="p-4 flex flex-col items-center text-center">
@@ -2215,7 +2085,11 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             {/* 회사별 공고 */}
             <Link
               href="/companies"
-              onClick={() => setShowAdPanels(false)}
+              prefetch={false}
+              onClick={(e) => {
+                setShowAdPanels(false)
+                // 즉시 네비게이션을 위해 기본 동작 유지
+              }}
               className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
             >
               <div className="p-4 flex flex-col items-center text-center">

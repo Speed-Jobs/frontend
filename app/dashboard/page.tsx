@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
+  const [expandedRelatedSkills, setExpandedRelatedSkills] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
@@ -1127,7 +1128,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
             <div className="flex flex-col gap-4">
                 {/* 스킬 클라우드 - 컴팩트 버전 */}
-                <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex flex-col overflow-hidden">
+                <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex flex-col overflow-visible">
                 {/* 배경 장식 */}
                 <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
                   <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
@@ -1140,48 +1141,174 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                   <p className="text-xs text-gray-500">스킬을 클릭하면 상세 정보를 확인할 수 있습니다</p>
                 </div>
                 
-                <div className="relative w-full flex items-center justify-center overflow-hidden" 
-                    style={{ 
-                      height: '500px',
-                      maxWidth: '100%',
-                      margin: '0 auto',
-                      padding: '20px'
-                    }}>
-                  {skillsData.slice(0, 13).map((skill, index) => {
-                    const maxCount = skillsData[0]?.count || 1
-                    const size = getSkillSize(skill.count, index, maxCount)
-                    const finalPosition = getFinalSkillPosition(index)
-                    const isMain = index === 0
-                    const isSelected = selectedSkill === skill.name
-                    
-                    const finalX = finalPosition.x
-                    const finalY = finalPosition.y
-                    
-                    return (
-                      <button
-                        key={skill.name}
-                        onClick={() => setSelectedSkill(skill.name)}
-                        className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap ${
-                          isMain ? 'z-30' : 'z-10'
-                        } ${
-                          isMain
-                            ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
-                            : isSelected
-                            ? 'bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700'
-                            : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
-                        }`}
-                        style={{
-                          left: `calc(50% + ${finalX}px)`,
-                          top: `calc(50% + ${finalY}px)`,
-                          transform: `translate(-50%, -50%)`,
-                          transition: 'none',
-                          minWidth: size.width,
-                        }}
-                      >
-                        {skill.name}
-                      </button>
-                    )
-                  })}
+                <div 
+                  className={`relative w-full flex items-center justify-center overflow-visible transition-all duration-300 ${
+                    selectedSkill ? 'bg-gray-50/50' : ''
+                  }`}
+                  style={{ 
+                    height: '500px',
+                    maxWidth: '100%',
+                    margin: '0 auto',
+                    padding: '20px',
+                    borderRadius: '0.75rem',
+                  }}
+                >
+                  {/* 배경 오버레이 - 선택된 스킬이 있을 때만 표시 */}
+                  {selectedSkill && (
+                    <div
+                      className="absolute inset-0 z-0"
+                      onClick={() => {
+                        setSelectedSkill(null)
+                        setExpandedRelatedSkills(new Set())
+                      }}
+                    />
+                  )}
+                  
+                  {selectedSkill ? (
+                    // 선택된 스킬이 있을 때: 선택된 스킬을 중심으로 관련 스킬들 표시
+                    (() => {
+                      const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
+                      if (!selectedSkillData) return null
+                      
+                      // 컨테이너 중심 좌표 (실제 컨테이너는 padding 포함 500px)
+                      // 버튼 위치는 calc(50% + px) 형식이므로, SVG도 같은 기준 사용
+                      const radius = 130 // 관련 스킬까지의 거리
+                      
+                      return (
+                        <>
+                          {/* SVG를 사용한 가지치기 선 그리기 */}
+                          <svg 
+                            className="absolute inset-0 pointer-events-none z-5"
+                            style={{ width: '100%', height: '100%' }}
+                            viewBox="0 0 500 500"
+                            preserveAspectRatio="xMidYMid meet"
+                          >
+                            {selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
+                              const angle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
+                              const relatedX = Math.cos(angle) * radius
+                              const relatedY = Math.sin(angle) * radius
+                              
+                              // SVG 좌표 (컨테이너 중심 250, 250 기준)
+                              const lineStartX = 250
+                              const lineStartY = 250
+                              const lineEndX = lineStartX + relatedX
+                              const lineEndY = lineStartY + relatedY
+                              
+                              return (
+                                <line
+                                  key={relatedSkillName}
+                                  x1={lineStartX}
+                                  y1={lineStartY}
+                                  x2={lineEndX}
+                                  y2={lineEndY}
+                                  stroke="#9CA3AF"
+                                  strokeWidth="2"
+                                  strokeDasharray="4 4"
+                                  opacity="0.5"
+                                />
+                              )
+                            })}
+                          </svg>
+                          
+                          {/* 선택된 스킬 (중앙) */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSkill(null)
+                              setExpandedRelatedSkills(new Set())
+                            }}
+                            className="absolute px-6 py-3 h-12 rounded-full flex items-center justify-center text-base font-bold cursor-pointer whitespace-nowrap z-30 bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700 transition-all duration-300"
+                            style={{
+                              left: '50%',
+                              top: '50%',
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          >
+                            {selectedSkill}
+                          </button>
+                          
+                          {/* 관련 스킬들을 가지치기 형태로 표시 */}
+                          {selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
+                            const angle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
+                            const relatedX = Math.cos(angle) * radius
+                            const relatedY = Math.sin(angle) * radius
+                            
+                            // 관련 스킬이 실제 skillsData에 있는지 확인
+                            const relatedSkillData = skillsData.find(s => s.name === relatedSkillName)
+                            const isRelatedSkillInData = !!relatedSkillData
+                            
+                            return (
+                              <button
+                                key={relatedSkillName}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (isRelatedSkillInData) {
+                                    setSelectedSkill(relatedSkillName)
+                                    setExpandedRelatedSkills(prev => new Set([...Array.from(prev), relatedSkillName]))
+                                  }
+                                }}
+                                className={`absolute px-3 py-1.5 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer whitespace-nowrap z-40 transition-all duration-300 ${
+                                  isRelatedSkillInData
+                                    ? 'bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 hover:scale-110 shadow-md'
+                                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200 hover:scale-105 shadow-sm'
+                                }`}
+                                style={{
+                                  left: `calc(50% + ${relatedX}px)`,
+                                  top: `calc(50% + ${relatedY}px)`,
+                                  transform: `translate(-50%, -50%) scale(0)`,
+                                  opacity: 0,
+                                  animation: `fadeInScale 0.3s ease forwards`,
+                                  animationDelay: `${idx * 0.05}s`,
+                                }}
+                              >
+                                {relatedSkillName}
+                              </button>
+                            )
+                          })}
+                        </>
+                      )
+                    })()
+                  ) : (
+                    // 선택된 스킬이 없을 때: 기존 스킬 클라우드 표시
+                    <>
+                      {skillsData.slice(0, 13).map((skill, index) => {
+                        const maxCount = skillsData[0]?.count || 1
+                        const size = getSkillSize(skill.count, index, maxCount)
+                        const finalPosition = getFinalSkillPosition(index)
+                        const isMain = index === 0
+                        
+                        const finalX = finalPosition.x
+                        const finalY = finalPosition.y
+                        
+                        return (
+                          <button
+                            key={skill.name}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSkill(skill.name)
+                              setExpandedRelatedSkills(new Set([skill.name]))
+                            }}
+                            className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap transition-all duration-300 ${
+                              isMain ? 'z-30' : 'z-10'
+                            } ${
+                              isMain
+                                ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
+                                : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
+                            }`}
+                            style={{
+                              left: `calc(50% + ${finalX}px)`,
+                              top: `calc(50% + ${finalY}px)`,
+                              transform: `translate(-50%, -50%)`,
+                              transition: 'all 0.3s ease',
+                              minWidth: size.width,
+                            }}
+                          >
+                            {skill.name}
+                          </button>
+                        )
+                      })}
+                    </>
+                  )}
                 </div>
               </div>
               

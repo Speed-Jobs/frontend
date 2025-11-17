@@ -257,15 +257,15 @@ export default function Home() {
           </p>
           
           {/* Company Logos - Infinite Scroll Animation */}
-          <div className="relative mb-16 overflow-hidden w-full">
+          <div className="relative mb-16 overflow-hidden w-full py-4">
             <div className="flex animate-scroll gap-12 items-center whitespace-nowrap">
               {/* 첫 번째 세트 */}
               {companies.map((company, index) => (
                 <div
                   key={`first-${index}`}
-                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-110 flex-shrink-0 min-w-[120px]"
+                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-100 flex-shrink-0 min-w-[120px]"
                 >
-                  <div className="relative mb-3">
+                  <div className="relative mb-3 p-2">
                     {/* Logo container with shadow */}
                     <div className="w-20 h-20 bg-white rounded-xl shadow-lg hover:shadow-xl hover:border-sk-red transition-all duration-300 flex items-center justify-center p-3 border border-gray-200 opacity-75">
                       <CompanyLogo name={company.name} className="w-full h-full" />
@@ -278,9 +278,9 @@ export default function Home() {
               {companies.map((company, index) => (
                 <div
                   key={`second-${index}`}
-                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-110 flex-shrink-0 min-w-[120px]"
+                  className="flex flex-col items-center group cursor-pointer transform transition-all duration-300 hover:scale-105 active:scale-100 flex-shrink-0 min-w-[120px]"
                 >
-                  <div className="relative mb-3">
+                  <div className="relative mb-3 p-2">
                     {/* Logo container with shadow */}
                     <div className="w-20 h-20 bg-white rounded-xl shadow-lg hover:shadow-xl hover:border-sk-red transition-all duration-300 flex items-center justify-center p-3 border border-gray-200 opacity-75">
                       <CompanyLogo name={company.name} className="w-full h-full" />

@@ -23,6 +23,8 @@ import {
   CartesianGrid,
   LineChart,
   Line,
+  AreaChart,
+  Area,
 } from 'recharts'
 
 export default function Dashboard() {
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
+  const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1090,6 +1093,92 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
   // 선택된 스킬의 데이터
   const selectedSkillData = skillsData.find(s => s.name === selectedSkill) || skillsData[0]
 
+  // 월별 채용 공고 수 추이 데이터
+  const monthlyJobPostingsData = [
+    { month: '2025-03', count: 0 },
+    { month: '2025-04', count: 0 },
+    { month: '2025-05', count: 0 },
+    { month: '2025-06', count: 0 },
+    { month: '2025-07', count: 0 },
+    { month: '2025-08', count: 0 },
+    { month: '2025-09', count: 1000 },
+    { month: '2025-10', count: 5400 },
+    { month: '2025-11', count: 6200 },
+  ]
+
+  // 주요 회사별 채용 활동 데이터 (8개 경쟁사 - saramin 제외)
+  const companyRecruitmentData = [
+    { month: '2025-01', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-02', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-03', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-04', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-05', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-06', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-07', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-08', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-09', toss: 0, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-10', toss: 300, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+    { month: '2025-11', toss: 400, line: 0, hanwha: 0, kakao: 0, naver: 0, samsung: 0, lg: 0, sk: 0 },
+  ]
+
+  const companyColors = {
+    saramin: '#3b82f6', // blue
+    toss: '#f97316', // orange
+    line: '#10b981', // green
+    hanwha: '#ef4444', // red
+    kakao: '#8b5cf6', // purple
+    naver: '#06b6d4', // cyan
+    samsung: '#6366f1', // indigo
+    lg: '#ec4899', // pink
+    sk: '#14b8a6', // teal
+  }
+
+  // 회사별 스킬 다양성 데이터
+  const companySkillDiversityData = [
+    { company: '토스', skills: 415 },
+    { company: '라인', skills: 285 },
+    { company: '한화', skills: 125 },
+    { company: '카카오', skills: 90 },
+    { company: '네이버', skills: 75 },
+  ]
+
+  // 회사별 상위 스킬 분기별 트렌드 데이터
+  const companySkillTrendData: Record<string, Array<{ month: string; python: number; sql: number; java: number; kubernetes: number; docker: number; react: number; typescript: number; aws: number; spring: number; nodejs: number }>> = {
+    '토스': [
+      { month: '2025.09', python: 2, sql: 3, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+      { month: '2025.10', python: 87, sql: 65, java: 60, kubernetes: 54, docker: 44, react: 38, typescript: 35, aws: 32, spring: 28, nodejs: 25 },
+    ],
+    '라인': [
+      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+      { month: '2025.10', python: 75, sql: 55, java: 50, kubernetes: 45, docker: 38, react: 32, typescript: 30, aws: 28, spring: 25, nodejs: 22 },
+    ],
+    '한화': [
+      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+      { month: '2025.10', python: 65, sql: 48, java: 45, kubernetes: 38, docker: 32, react: 28, typescript: 25, aws: 22, spring: 20, nodejs: 18 },
+    ],
+    '카카오': [
+      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+      { month: '2025.10', python: 70, sql: 52, java: 48, kubernetes: 42, docker: 35, react: 30, typescript: 28, aws: 25, spring: 22, nodejs: 20 },
+    ],
+    '네이버': [
+      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+      { month: '2025.10', python: 68, sql: 50, java: 46, kubernetes: 40, docker: 33, react: 29, typescript: 26, aws: 24, spring: 21, nodejs: 19 },
+    ],
+  }
+
+  const skillColors = {
+    python: '#3b82f6', // light blue
+    sql: '#f97316', // orange
+    java: '#10b981', // green
+    kubernetes: '#eab308', // yellow
+    docker: '#8b5cf6', // purple
+    react: '#06b6d4', // cyan
+    typescript: '#6366f1', // indigo
+    aws: '#ec4899', // pink
+    spring: '#14b8a6', // teal
+    nodejs: '#f59e0b', // amber
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -1099,6 +1188,194 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
       )}
 
       <div className="px-8 py-6 max-w-[95%] mx-auto">
+        {/* 상단 그래프 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 월별 채용 공고 수 추이 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">월별 채용 공고 수 추이</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={monthlyJobPostingsData}>
+                <defs>
+                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  domain={[0, 6000]}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '8px', 
+                    color: '#1f2937',
+                    fontSize: '13px'
+                  }}
+                  formatter={(value: number) => [`${value}건`, '공고 수']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorCount)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </section>
+
+          {/* 주요 회사별 채용 활동 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">주요 회사별 채용 활동</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={companyRecruitmentData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  domain={[0, 6000]}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '8px', 
+                    color: '#1f2937',
+                    fontSize: '13px'
+                  }}
+                  formatter={(value: number, name: string) => [`${value}건`, name]}
+                />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  iconType="line"
+                />
+                <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </section>
+        </div>
+
+        {/* 회사별 스킬 다양성 및 분기별 트렌드 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 회사별 스킬 다양성 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">회사별 스킬 다양성</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={companySkillDiversityData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  type="number" 
+                  domain={[0, 450]}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                />
+                <YAxis 
+                  dataKey="company" 
+                  type="category" 
+                  width={80}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '8px', 
+                    color: '#1f2937',
+                    fontSize: '13px'
+                  }}
+                  formatter={(value: number) => [`${value}개`, '고유 스킬 수']}
+                />
+                <Bar 
+                  dataKey="skills" 
+                  fill="#93c5fd"
+                  radius={[0, 4, 4, 0]}
+                  onClick={(data: any) => {
+                    setSelectedCompanyForSkills(data.company)
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+
+          {/* 선택된 회사의 상위 스킬 분기별 트렌드 */}
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              {selectedCompanyForSkills ? `${selectedCompanyForSkills} 상위 스킬 분기별 트렌드` : '회사를 선택하세요'}
+            </h2>
+            {selectedCompanyForSkills && companySkillTrendData[selectedCompanyForSkills] ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={companySkillTrendData[selectedCompanyForSkills]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    domain={[0, 90]}
+                    label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '13px'
+                    }}
+                    formatter={(value: number, name: string) => [`${value}회`, name]}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                    iconType="square"
+                  />
+                  <Bar dataKey="python" fill={skillColors.python} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="sql" fill={skillColors.sql} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="java" fill={skillColors.java} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="kubernetes" fill={skillColors.kubernetes} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="docker" fill={skillColors.docker} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="react" fill={skillColors.react} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="typescript" fill={skillColors.typescript} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="aws" fill={skillColors.aws} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="spring" fill={skillColors.spring} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="nodejs" fill={skillColors.nodejs} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-400">
+                <p className="text-sm">왼쪽 그래프에서 회사를 클릭하여 상세 정보를 확인하세요</p>
+              </div>
+            )}
+          </section>
+        </div>
+
         {/* 첫 번째 줄: 스킬별 통계와 직군별 통계 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* 스킬별 통계 */}
@@ -1164,151 +1441,211 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                     />
                   )}
                   
-                  {selectedSkill ? (
-                    // 선택된 스킬이 있을 때: 선택된 스킬을 중심으로 관련 스킬들 표시
-                    (() => {
+                  {/* SVG를 사용한 가지치기 선 그리기 */}
+                  {selectedSkill && (() => {
+                    const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
+                    if (!selectedSkillData) return null
+                    
+                    const selectedIndex = skillsData.slice(0, 13).findIndex(s => s.name === selectedSkill)
+                    if (selectedIndex === -1) return null
+                    
+                    const selectedPosition = getFinalSkillPosition(selectedIndex)
+                    const radius = 130 // 관련 스킬까지의 거리
+                    
+                    // SVG 좌표 (컨테이너 중심 250, 250 기준)
+                    const containerCenterX = 250
+                    const containerCenterY = 250
+                    const selectedX = containerCenterX + selectedPosition.x
+                    const selectedY = containerCenterY + selectedPosition.y
+                    
+                    return (
+                      <svg 
+                        className="absolute inset-0 pointer-events-none z-5"
+                        style={{ width: '100%', height: '100%' }}
+                        viewBox="0 0 500 500"
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        {selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
+                          // go나 kotlin 같은 상단 스킬의 경우 가지치기 방향 조정
+                          const isTopSkill = selectedSkill === 'go' || selectedSkill === 'kotlin'
+                          const baseAngle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
+                          
+                          // 상단 스킬의 경우 각도를 아래쪽으로 조정 (위쪽으로 가지치기가 나가지 않도록)
+                          const adjustedAngle = isTopSkill && selectedPosition.y < -30
+                            ? baseAngle + Math.PI / 4 // 45도 아래로 회전
+                            : baseAngle
+                          
+                          const relatedX = Math.cos(adjustedAngle) * radius
+                          const relatedY = Math.sin(adjustedAngle) * radius
+                          
+                          const lineEndX = selectedX + relatedX
+                          const lineEndY = selectedY + relatedY
+                          
+                          return (
+                            <line
+                              key={relatedSkillName}
+                              x1={selectedX}
+                              y1={selectedY}
+                              x2={lineEndX}
+                              y2={lineEndY}
+                              stroke="#9CA3AF"
+                              strokeWidth="2"
+                              strokeDasharray="4 4"
+                              opacity="0.5"
+                            />
+                          )
+                        })}
+                      </svg>
+                    )
+                  })()}
+                  
+                  {/* 메인 스킬들 */}
+                  {skillsData.slice(0, 13).map((skill, index) => {
+                    const maxCount = skillsData[0]?.count || 1
+                    const size = getSkillSize(skill.count, index, maxCount)
+                    const finalPosition = getFinalSkillPosition(index)
+                    const isMain = index === 0
+                    const isSelected = selectedSkill === skill.name
+                    
+                    // 선택된 스킬이 있을 때만 blur 처리 로직 적용
+                    let shouldBlur = false
+                    let shouldHide = false
+                    
+                    if (selectedSkill) {
                       const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
-                      if (!selectedSkillData) return null
+                      if (selectedSkillData) {
+                        // 선택된 스킬의 관련 스킬 목록
+                        const relatedSkillsSet = new Set(selectedSkillData.relatedSkills)
+                        
+                        // 현재 스킬이 선택된 스킬이면 표시
+                        if (isSelected) {
+                          shouldBlur = false
+                          shouldHide = false
+                        } 
+                        // 현재 스킬이 관련 스킬이면 숨김 (가지치기 형태로만 표시)
+                        else if (relatedSkillsSet.has(skill.name)) {
+                          shouldBlur = false
+                          shouldHide = true
+                        }
+                        // 관련 스킬이 아니면 blur 처리
+                        else {
+                          shouldBlur = true
+                          shouldHide = false
+                        }
+                      }
+                    }
+                    
+                    const finalX = finalPosition.x
+                    const finalY = finalPosition.y
+                    
+                    // 관련 스킬은 숨김 (가지치기 형태로만 표시)
+                    if (shouldHide) {
+                      return null
+                    }
+                    
+                    return (
+                      <button
+                        key={skill.name}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (selectedSkill === skill.name) {
+                            // 같은 스킬을 다시 클릭하면 선택 해제
+                            setSelectedSkill(null)
+                            setExpandedRelatedSkills(new Set())
+                          } else {
+                            setSelectedSkill(skill.name)
+                            setExpandedRelatedSkills(new Set([skill.name]))
+                          }
+                        }}
+                        className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap transition-all duration-300 ${
+                          isMain ? 'z-30' : 'z-10'
+                        } ${
+                          isMain && !shouldBlur
+                            ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
+                            : isSelected
+                            ? 'bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700 z-30'
+                            : shouldBlur
+                            ? 'bg-white text-gray-700 border-2 border-gray-200 shadow-lg opacity-20 blur-md pointer-events-none'
+                            : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
+                        }`}
+                        style={{
+                          left: `calc(50% + ${finalX}px)`,
+                          top: `calc(50% + ${finalY}px)`,
+                          transform: `translate(-50%, -50%)`,
+                          transition: 'all 0.3s ease',
+                          minWidth: size.width,
+                          filter: shouldBlur ? 'blur(6px)' : 'none',
+                          pointerEvents: shouldBlur ? 'none' : 'auto',
+                        }}
+                      >
+                        {skill.name}
+                      </button>
+                    )
+                  })}
+                  
+                  {/* 관련 스킬들을 가지치기 형태로 표시 */}
+                  {selectedSkill && (() => {
+                    const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
+                    if (!selectedSkillData) return null
+                    
+                    const selectedIndex = skillsData.slice(0, 13).findIndex(s => s.name === selectedSkill)
+                    if (selectedIndex === -1) return null
+                    
+                    const selectedPosition = getFinalSkillPosition(selectedIndex)
+                    const radius = 130
+                    
+                    return selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
+                      // go나 kotlin 같은 상단 스킬의 경우 가지치기 방향 조정
+                      const isTopSkill = selectedSkill === 'go' || selectedSkill === 'kotlin'
+                      const baseAngle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
                       
-                      // 컨테이너 중심 좌표 (실제 컨테이너는 padding 포함 500px)
-                      // 버튼 위치는 calc(50% + px) 형식이므로, SVG도 같은 기준 사용
-                      const radius = 130 // 관련 스킬까지의 거리
+                      // 상단 스킬의 경우 각도를 아래쪽으로 조정 (위쪽으로 가지치기가 나가지 않도록)
+                      const adjustedAngle = isTopSkill && selectedPosition.y < -30
+                        ? baseAngle + Math.PI / 4 // 45도 아래로 회전
+                        : baseAngle
+                      
+                      const relatedX = Math.cos(adjustedAngle) * radius
+                      const relatedY = Math.sin(adjustedAngle) * radius
+                      
+                      // 관련 스킬이 화면에 보이는 스킬들(skillsData.slice(0, 13))에 있는지 확인
+                      const visibleSkills = skillsData.slice(0, 13)
+                      const relatedSkillData = visibleSkills.find(s => s.name === relatedSkillName)
+                      const isRelatedSkillInData = !!relatedSkillData
+                      
+                      // 화면에 보이는 스킬의 경우 더 큰 크기로 표시
+                      const buttonSize = isRelatedSkillInData 
+                        ? 'px-4 py-2 h-8 text-sm' 
+                        : 'px-3 py-1.5 h-7 text-xs'
                       
                       return (
-                        <>
-                          {/* SVG를 사용한 가지치기 선 그리기 */}
-                          <svg 
-                            className="absolute inset-0 pointer-events-none z-5"
-                            style={{ width: '100%', height: '100%' }}
-                            viewBox="0 0 500 500"
-                            preserveAspectRatio="xMidYMid meet"
-                          >
-                            {selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
-                              const angle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
-                              const relatedX = Math.cos(angle) * radius
-                              const relatedY = Math.sin(angle) * radius
-                              
-                              // SVG 좌표 (컨테이너 중심 250, 250 기준)
-                              const lineStartX = 250
-                              const lineStartY = 250
-                              const lineEndX = lineStartX + relatedX
-                              const lineEndY = lineStartY + relatedY
-                              
-                              return (
-                                <line
-                                  key={relatedSkillName}
-                                  x1={lineStartX}
-                                  y1={lineStartY}
-                                  x2={lineEndX}
-                                  y2={lineEndY}
-                                  stroke="#9CA3AF"
-                                  strokeWidth="2"
-                                  strokeDasharray="4 4"
-                                  opacity="0.5"
-                                />
-                              )
-                            })}
-                          </svg>
-                          
-                          {/* 선택된 스킬 (중앙) */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedSkill(null)
-                              setExpandedRelatedSkills(new Set())
-                            }}
-                            className="absolute px-6 py-3 h-12 rounded-full flex items-center justify-center text-base font-bold cursor-pointer whitespace-nowrap z-30 bg-gray-600 text-white shadow-xl hover:scale-110 border-2 border-gray-700 transition-all duration-300"
-                            style={{
-                              left: '50%',
-                              top: '50%',
-                              transform: 'translate(-50%, -50%)',
-                            }}
-                          >
-                            {selectedSkill}
-                          </button>
-                          
-                          {/* 관련 스킬들을 가지치기 형태로 표시 */}
-                          {selectedSkillData.relatedSkills.map((relatedSkillName, idx) => {
-                            const angle = (idx / selectedSkillData.relatedSkills.length) * Math.PI * 2 - Math.PI / 2
-                            const relatedX = Math.cos(angle) * radius
-                            const relatedY = Math.sin(angle) * radius
-                            
-                            // 관련 스킬이 실제 skillsData에 있는지 확인
-                            const relatedSkillData = skillsData.find(s => s.name === relatedSkillName)
-                            const isRelatedSkillInData = !!relatedSkillData
-                            
-                            return (
-                              <button
-                                key={relatedSkillName}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (isRelatedSkillInData) {
-                                    setSelectedSkill(relatedSkillName)
-                                    setExpandedRelatedSkills(prev => new Set([...Array.from(prev), relatedSkillName]))
-                                  }
-                                }}
-                                className={`absolute px-3 py-1.5 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer whitespace-nowrap z-40 transition-all duration-300 ${
-                                  isRelatedSkillInData
-                                    ? 'bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 hover:scale-110 shadow-md'
-                                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200 hover:scale-105 shadow-sm'
-                                }`}
-                                style={{
-                                  left: `calc(50% + ${relatedX}px)`,
-                                  top: `calc(50% + ${relatedY}px)`,
-                                  transform: `translate(-50%, -50%) scale(0)`,
-                                  opacity: 0,
-                                  animation: `fadeInScale 0.3s ease forwards`,
-                                  animationDelay: `${idx * 0.05}s`,
-                                }}
-                              >
-                                {relatedSkillName}
-                              </button>
-                            )
-                          })}
-                        </>
+                        <button
+                          key={relatedSkillName}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (isRelatedSkillInData) {
+                              setSelectedSkill(relatedSkillName)
+                              setExpandedRelatedSkills(prev => new Set([...Array.from(prev), relatedSkillName]))
+                            }
+                          }}
+                          className={`absolute ${buttonSize} rounded-full flex items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-all duration-300 ${
+                            isRelatedSkillInData
+                              ? 'bg-blue-100 text-blue-700 border-2 border-blue-300 hover:bg-blue-200 hover:scale-110 shadow-md'
+                              : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200 hover:scale-105 shadow-sm'
+                          }`}
+                          style={{
+                            left: `calc(50% + ${selectedPosition.x + relatedX}px)`,
+                            top: `calc(50% + ${selectedPosition.y + relatedY}px)`,
+                            transform: `translate(-50%, -50%) scale(0)`,
+                            opacity: 0,
+                            animation: `fadeInScale 0.3s ease forwards`,
+                            animationDelay: `${idx * 0.05}s`,
+                          }}
+                        >
+                          {relatedSkillName}
+                        </button>
                       )
-                    })()
-                  ) : (
-                    // 선택된 스킬이 없을 때: 기존 스킬 클라우드 표시
-                    <>
-                      {skillsData.slice(0, 13).map((skill, index) => {
-                        const maxCount = skillsData[0]?.count || 1
-                        const size = getSkillSize(skill.count, index, maxCount)
-                        const finalPosition = getFinalSkillPosition(index)
-                        const isMain = index === 0
-                        
-                        const finalX = finalPosition.x
-                        const finalY = finalPosition.y
-                        
-                        return (
-                          <button
-                            key={skill.name}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedSkill(skill.name)
-                              setExpandedRelatedSkills(new Set([skill.name]))
-                            }}
-                            className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold cursor-pointer whitespace-nowrap transition-all duration-300 ${
-                              isMain ? 'z-30' : 'z-10'
-                            } ${
-                              isMain
-                                ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
-                                : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-400 hover:scale-105 shadow-lg'
-                            }`}
-                            style={{
-                              left: `calc(50% + ${finalX}px)`,
-                              top: `calc(50% + ${finalY}px)`,
-                              transform: `translate(-50%, -50%)`,
-                              transition: 'all 0.3s ease',
-                              minWidth: size.width,
-                            }}
-                          >
-                            {skill.name}
-                          </button>
-                        )
-                      })}
-                    </>
-                  )}
+                    })
+                  })()}
                 </div>
               </div>
               

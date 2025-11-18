@@ -1,0 +1,957 @@
+openapi: 3.0.3
+
+info:
+  title: 대시보드 API 명세서
+  version: 1.0.0
+  description: |
+    대시보드 화면에서 사용하는 모든 데이터를 제공하는 API 명세서입니다.
+    모든 응답은 공통 래퍼(status, code, message, data)를 따릅니다.
+
+tags:
+  - name: Dashboard
+    description: 대시보드 통계 및 트렌드 데이터
+  - name: Stats
+    description: 통계 데이터
+
+paths:
+  # 1. 채용 공고 수 추이 (일간/주간/월간)
+  /api/v1/dashboard/job-postings-trend:
+    get:
+      tags: [Dashboard]
+      summary: 채용 공고 수 추이 조회
+      description: 전체 채용 공고 수의 일간/주간/월간 추이를 조회합니다.
+      parameters:
+        - in: query
+          name: timeframe
+          required: true
+          description: 시간 단위
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            example: daily
+        - in: query
+          name: start_date
+          required: false
+          description: 시작일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-11-01"
+        - in: query
+          name: end_date
+          required: false
+          description: 종료일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: "2025-11-30"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 채용 공고 수 추이 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      timeframe:
+                        type: string
+                        enum: [daily, weekly, monthly]
+                      period:
+                        type: object
+                        properties:
+                          start_date:
+                            type: string
+                            format: date
+                          end_date:
+                            type: string
+                            format: date
+                      trends:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            period:
+                              type: string
+                              description: '기간 표시 (일간: "11/1", 주간: "9월 1주", 월간: "2025-01")'
+                            count:
+                              type: integer
+                              description: 해당 기간의 공고 수
+              examples:
+                daily:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 일간 채용 공고 수 추이 조회 성공
+                    data:
+                      timeframe: daily
+                      period:
+                        start_date: "2025-11-01"
+                        end_date: "2025-11-30"
+                      trends:
+                        - period: "11/1"
+                          count: 180
+                        - period: "11/2"
+                          count: 195
+                        - period: "11/3"
+                          count: 210
+                weekly:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 주간 채용 공고 수 추이 조회 성공
+                    data:
+                      timeframe: weekly
+                      period:
+                        start_date: "2025-09-01"
+                        end_date: "2025-11-30"
+                      trends:
+                        - period: "9월 1주"
+                          count: 850
+                        - period: "9월 2주"
+                          count: 920
+                monthly:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 월간 채용 공고 수 추이 조회 성공
+                    data:
+                      timeframe: monthly
+                      period:
+                        start_date: "2025-01-01"
+                        end_date: "2025-11-30"
+                      trends:
+                        - period: "2025-01"
+                          count: 1200
+                        - period: "2025-02"
+                          count: 1800
+
+  # 2. 주요 회사별 채용 활동 (일간/주간/월간, 다중 회사 비교)
+  /api/v1/dashboard/companies/recruitment-activity:
+    get:
+      tags: [Dashboard]
+      summary: 주요 회사별 채용 활동 조회
+      description: 여러 회사의 채용 활동을 일간/주간/월간 단위로 비교 조회합니다.
+      parameters:
+        - in: query
+          name: timeframe
+          required: true
+          description: 시간 단위
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            example: daily
+        - in: query
+          name: company_ids
+          required: false
+          description: 조회할 회사 ID 리스트 (쉼표 구분). 없으면 기본 8개 회사 반환
+          schema:
+            type: string
+            example: "3,4,5,6,7,8,9,10"
+        - in: query
+          name: start_date
+          required: false
+          description: 시작일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: end_date
+          required: false
+          description: 종료일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 주요 회사별 채용 활동 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      timeframe:
+                        type: string
+                        enum: [daily, weekly, monthly]
+                      companies:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            name:
+                              type: string
+                            key:
+                              type: string
+                              description: 프론트엔드에서 사용하는 키 (toss, line, hanwha 등)
+                      activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            period:
+                              type: string
+                              description: 기간 표시
+                            counts:
+                              type: object
+                              description: 각 회사별 공고 수 (key-value 형태)
+                              additionalProperties:
+                                type: integer
+              examples:
+                daily:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 일간 주요 회사별 채용 활동 조회 성공
+                    data:
+                      timeframe: daily
+                      companies:
+                        - id: 3
+                          name: "토스"
+                          key: "toss"
+                        - id: 4
+                          name: "라인"
+                          key: "line"
+                        - id: 5
+                          name: "한화"
+                          key: "hanwha"
+                        - id: 6
+                          name: "카카오"
+                          key: "kakao"
+                        - id: 7
+                          name: "네이버"
+                          key: "naver"
+                        - id: 8
+                          name: "삼성"
+                          key: "samsung"
+                        - id: 9
+                          name: "LG"
+                          key: "lg"
+                        - id: 10
+                          name: "SK"
+                          key: "sk"
+                      activities:
+                        - period: "11/1"
+                          counts:
+                            toss: 18
+                            line: 14
+                            hanwha: 15
+                            kakao: 17
+                            naver: 19
+                            samsung: 16
+                            lg: 13
+                            sk: 15
+                        - period: "11/2"
+                          counts:
+                            toss: 19
+                            line: 15
+                            hanwha: 16
+                            kakao: 18
+                            naver: 20
+                            samsung: 17
+                            lg: 14
+                            sk: 16
+
+  # 3. 회사별 스킬 다양성 (전체보기/연도별)
+  /api/v1/dashboard/companies/skill-diversity:
+    get:
+      tags: [Dashboard]
+      summary: 회사별 스킬 다양성 조회
+      description: 회사별로 요구하는 고유 스킬 수를 전체보기 또는 연도별로 조회합니다.
+      parameters:
+        - in: query
+          name: view_mode
+          required: true
+          description: 전체보기 또는 연도별
+          schema:
+            type: string
+            enum: [all, year]
+            example: all
+        - in: query
+          name: year
+          required: false
+          description: view_mode가 year일 때 필수. 연도 (2021-2025)
+          schema:
+            type: integer
+            minimum: 2021
+            maximum: 2025
+            example: 2025
+        - in: query
+          name: company_ids
+          required: false
+          description: 특정 회사만 조회 (쉼표 구분)
+          schema:
+            type: string
+            example: "3,4,5"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 회사별 스킬 다양성 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      view_mode:
+                        type: string
+                        enum: [all, year]
+                      year:
+                        type: integer
+                        nullable: true
+                      diversity:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            company:
+                              type: string
+                              description: 회사명 (한글)
+                            skills:
+                              type: integer
+                              description: 고유 스킬 수
+              examples:
+                all:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 회사별 스킬 다양성 조회 성공 (전체)
+                    data:
+                      view_mode: all
+                      year: null
+                      diversity:
+                        - company: "토스"
+                          skills: 415
+                        - company: "라인"
+                          skills: 285
+                        - company: "한화"
+                          skills: 125
+                        - company: "카카오"
+                          skills: 90
+                        - company: "네이버"
+                          skills: 75
+                year:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 회사별 스킬 다양성 조회 성공 (연도별)
+                    data:
+                      view_mode: year
+                      year: 2025
+                      diversity:
+                        - company: "토스"
+                          skills: 415
+                        - company: "라인"
+                          skills: 285
+
+  # 4. 회사별 상위 스킬 분기별 트렌드
+  /api/v1/dashboard/companies/{companyId}/skill-trends:
+    get:
+      tags: [Dashboard]
+      summary: 회사별 상위 스킬 분기별 트렌드 조회
+      description: |
+        특정 회사의 상위 스킬들이 분기별로 어떻게 변하는지 추이를 조회합니다.
+        현재 분기와 이전 분기의 데이터만 반환됩니다.
+        같은 분기의 월별 데이터는 자동으로 집계되어 분기 단위로 제공됩니다.
+      parameters:
+        - in: path
+          name: companyId
+          required: true
+          description: 회사 ID 또는 회사명 (한글)
+          schema:
+            type: string
+            example: "3"
+        - in: query
+          name: year
+          required: false
+          description: "연도 (기본값: 현재 연도)"
+          schema:
+            type: integer
+            minimum: 2021
+            maximum: 2025
+            example: 2025
+        - in: query
+          name: top_n
+          required: false
+          description: "상위 N개 스킬 (기본값: 10)"
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 회사별 스킬 트렌드 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      company:
+                        type: string
+                        description: 회사명
+                      year:
+                        type: integer
+                      trends:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            quarter:
+                              type: string
+                              description: '분기 (YYYY QN 형식, 예: "2025 Q3", "2025 Q4")'
+                            skills:
+                              type: object
+                              description: 각 스킬별 공고 수 (해당 분기의 월별 데이터 집계값)
+                              additionalProperties:
+                                type: integer
+              example:
+                status: 200
+                code: SUCCESS
+                message: 회사별 스킬 트렌드 조회 성공
+                data:
+                  company: "토스"
+                  year: 2025
+                  trends:
+                    - quarter: "2025 Q3"
+                      skills:
+                        python: 2
+                        sql: 3
+                        java: 2
+                        kubernetes: 0
+                        docker: 1
+                        react: 1
+                        typescript: 1
+                        aws: 0
+                        spring: 1
+                        nodejs: 1
+                    - quarter: "2025 Q4"
+                      skills:
+                        python: 87
+                        sql: 65
+                        java: 60
+                        kubernetes: 54
+                        docker: 44
+                        react: 38
+                        typescript: 35
+                        aws: 32
+                        spring: 28
+                        nodejs: 25
+
+  # 5. 스킬별 통계 (목록 및 상세)
+  /api/v1/dashboard/skills/statistics:
+    get:
+      tags: [Dashboard]
+      summary: 스킬별 통계 목록 조회
+      description: 인기 스킬 목록과 각 스킬의 기본 통계를 조회합니다.
+      parameters:
+        - in: query
+          name: start_date
+          required: false
+          description: 시작일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: end_date
+          required: false
+          description: 종료일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: company_ids
+          required: false
+          description: 회사 필터 (쉼표 구분)
+          schema:
+            type: string
+            example: "3,4,5"
+        - in: query
+          name: limit
+          required: false
+          description: "반환할 스킬 개수 (기본값: 20)"
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 스킬별 통계 조회 성공
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                          description: 스킬 이름 (소문자)
+                        count:
+                          type: integer
+                          description: 해당 스킬이 언급된 공고 수
+                        percentage:
+                          type: number
+                          format: float
+                          description: 전체 공고 대비 비율 (%)
+                        change:
+                          type: number
+                          format: float
+                          description: 이전 기간 대비 변화율 (%)
+                        related_skills:
+                          type: array
+                          items:
+                            type: string
+                          description: 관련 스킬 목록 (선택사항, 없으면 빈 배열)
+              example:
+                status: 200
+                code: SUCCESS
+                message: 스킬별 통계 조회 성공
+                data:
+                  - id: 1
+                    name: "spring"
+                    count: 286
+                    percentage: 26.8
+                    change: 3.5
+                    related_skills: ["kotlin", "java", "maven", "gradle"]
+                  - id: 2
+                    name: "react"
+                    count: 245
+                    percentage: 22.9
+                    change: 5.2
+                    related_skills: ["typescript", "javascript", "nextjs"]
+                  - id: 3
+                    name: "python"
+                    count: 198
+                    percentage: 18.5
+                    change: 2.1
+                    related_skills: ["django", "flask", "fastapi"]
+
+  # 6. 스킬 상세 통계
+  /api/v1/dashboard/skills/{skillId}/statistics:
+    get:
+      tags: [Dashboard]
+      summary: 특정 스킬 상세 통계 조회
+      description: 특정 스킬의 상세 통계 정보를 조회합니다.
+      parameters:
+        - in: path
+          name: skillId
+          required: true
+          description: 스킬 ID 또는 스킬 이름
+          schema:
+            type: string
+            example: "1"
+        - in: query
+          name: span
+          required: false
+          description: 기간 (week 또는 month)
+          schema:
+            type: string
+            enum: [week, month]
+            default: month
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 특정 스킬 상세 통계 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      top_skills:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            name:
+                              type: string
+                      top_skill_stat:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            description: 해당 스킬이 언급된 공고 수
+                          market_share:
+                            type: number
+                            format: float
+                            description: 시장 점유율 (%)
+                          weekly_change_rate:
+                            type: number
+                            format: float
+                            description: 주간 변화율 (%)
+                          monthly_change_rate:
+                            type: number
+                            format: float
+                            description: 월간 변화율 (%)
+              example:
+                status: 200
+                code: SUCCESS
+                message: 특정 스킬 상세 통계 조회 성공
+                data:
+                  top_skills:
+                    - id: 1
+                      name: "React"
+                  top_skill_stat:
+                    count: 154
+                    market_share: 62.4
+                    weekly_change_rate: 45.3
+                    monthly_change_rate: 84.8
+
+  # 7. 직군별 통계 (카테고리별)
+  /api/v1/dashboard/job-roles/statistics:
+    get:
+      tags: [Dashboard]
+      summary: 직군별 통계 조회
+      description: Tech/Biz/BizSupporting 카테고리별 직무 통계를 조회합니다.
+      parameters:
+        - in: query
+          name: category
+          required: true
+          description: 전문가 카테고리
+          schema:
+            type: string
+            enum: [Tech, Biz, BizSupporting]
+            example: Tech
+        - in: query
+          name: span
+          required: false
+          description: 기간 (week 또는 month)
+          schema:
+            type: string
+            enum: [week, month]
+            default: month
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 직군별 통계 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      category:
+                        type: string
+                        enum: [Tech, Biz, BizSupporting]
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: 직무명
+                            value:
+                              type: integer
+                              description: 해당 직무의 공고 수 또는 비율
+                            industries:
+                              type: array
+                              items:
+                                type: string
+                              description: 세부 산업/분야 목록
+              examples:
+                Tech:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 직군별 통계 조회 성공
+                    data:
+                      category: Tech
+                      roles:
+                        - name: "Software Development"
+                          value: 35
+                          industries:
+                            - "Front-end Development"
+                            - "Back-end Development"
+                            - "Mobile Development"
+                        - name: "Factory AX Engineering"
+                          value: 18
+                          industries:
+                            - "Simulation"
+                            - "기구설계"
+                            - "전장/제어"
+                        - name: "Solution Development"
+                          value: 22
+                          industries:
+                            - "ERP_FCM"
+                            - "ERP_SCM"
+                            - "ERP_HCM"
+                Biz:
+                  value:
+                    status: 200
+                    code: SUCCESS
+                    message: 직군별 통계 조회 성공
+                    data:
+                      category: Biz
+                      roles:
+                        - name: "Sales"
+                          value: 40
+                          industries:
+                            - "[금융] 제1금융"
+                            - "[금융] 제2금융"
+                            - "[공공/Global] 공공"
+                        - name: "Domain Expert"
+                          value: 25
+                          industries:
+                            - "금융 도메인"
+                            - "제조 도메인"
+
+  # 8. 경쟁사 공고 자동 매칭
+  /api/v1/dashboard/jobs/match:
+    post:
+      tags: [Dashboard]
+      summary: 경쟁사 공고 자동 매칭
+      description: 기술 스택 기반으로 유사한 경쟁사 공고를 찾습니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tech_stack]
+              properties:
+                job_id:
+                  type: integer
+                  description: 자사 공고 ID (선택사항)
+                tech_stack:
+                  type: array
+                  items:
+                    type: string
+                  description: 기술 스택 목록
+                  example: ["Kotlin", "Spring Boot", "Redis"]
+                description:
+                  type: string
+                  description: 공고 설명 (선택사항)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 경쟁사 공고 자동 매칭 성공
+                  data:
+                    type: object
+                    properties:
+                      matched_jobs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            title:
+                              type: string
+                            description:
+                              type: string
+                            keywords:
+                              type: array
+                              items:
+                                type: string
+                            similarity:
+                              type: integer
+                              description: 유사도 점수 (0-100)
+              example:
+                status: 200
+                code: SUCCESS
+                message: 경쟁사 공고 자동 매칭 성공
+                data:
+                  matched_jobs:
+                    - id: 87
+                      title: "핀테크 백엔드 개발자"
+                      description: "금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다."
+                      keywords: ["Kotlin", "Spring Boot", "금융 시스템", "안정성"]
+                      similarity: 93
+                    - id: 88
+                      title: "백엔드 플랫폼 엔지니어"
+                      description: "Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다."
+                      keywords: ["Kotlin", "PostgreSQL", "Kubernetes", "확장성"]
+                      similarity: 87
+
+  # 9. 채용뉴스
+  /api/v1/dashboard/news/recruitment:
+    get:
+      tags: [Dashboard]
+      summary: 채용 관련 뉴스 조회
+      description: 최신 채용 관련 뉴스를 조회합니다.
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: "반환할 뉴스 개수 (기본값: 5)"
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 50
+        - in: query
+          name: start_date
+          required: false
+          description: 시작일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: end_date
+          required: false
+          description: 종료일 (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  code:
+                    type: string
+                    example: SUCCESS
+                  message:
+                    type: string
+                    example: 채용뉴스 조회 성공
+                  data:
+                    type: object
+                    properties:
+                      news:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                              description: 뉴스 출처
+                            headline:
+                              type: string
+                              description: 뉴스 헤드라인
+                            snippet:
+                              type: string
+                              description: 뉴스 요약
+                            image:
+                              type: string
+                              description: 이모지 또는 이미지 URL
+                            published_date:
+                              type: string
+                              format: date
+                              description: 발행일 (YYYY-MM-DD)
+              example:
+                status: 200
+                code: SUCCESS
+                message: 채용뉴스 조회 성공
+                data:
+                  news:
+                    - source: "이데일리 - 2025.09.25 - 네이버뉴스"
+                      headline: "LG CNS 신학협력 신입사원 채 투트랙으로 AX 인재 확보 박자"
+                      snippet: "LG CNS가 클라우드, 스마트팩토리, ERP, 아키텍처 등 다양한 분야의 신입사원을 모집하고 있으며, 5월부터 활동을 시작했습니다."
+                      image: "🏢"
+                      published_date: "2025-09-25"
+                    - source: "EBN - 1주 전"
+                      headline: "삼성, 하반기 공채 GSAT 실시 5년간 6만명 채용 통해 미래 대..."
+                      snippet: "GSAT(Global Samsung Aptitude Test)가 26일 실시되어 종합적 사고력과 문제 해결 능력을 평가하여 미래 인재를 선발합니다."
+                      image: "👨‍💼"
+                      published_date: "2025-09-18"
+
+
+
+
+
+
+

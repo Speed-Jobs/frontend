@@ -1590,17 +1590,164 @@ export default function Dashboard() {
     },
   }
 
+  // 현재 분기와 이전 분기 계산 함수
+  const getCurrentAndPreviousQuarters = () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 1-12
+    
+    // 현재 분기 계산 (1분기: 1-3월, 2분기: 4-6월, 3분기: 7-9월, 4분기: 10-12월)
+    const currentQuarter = Math.ceil(currentMonth / 3)
+    
+    // 현재 분기의 월들
+    const currentQuarterMonths: number[] = []
+    for (let i = (currentQuarter - 1) * 3 + 1; i <= currentQuarter * 3; i++) {
+      currentQuarterMonths.push(i)
+    }
+    
+    // 이전 분기 계산
+    let previousQuarter = currentQuarter - 1
+    let previousYear = currentYear
+    if (previousQuarter === 0) {
+      previousQuarter = 4
+      previousYear = currentYear - 1
+    }
+    
+    // 이전 분기의 월들
+    const previousQuarterMonths: number[] = []
+    for (let i = (previousQuarter - 1) * 3 + 1; i <= previousQuarter * 3; i++) {
+      previousQuarterMonths.push(i)
+    }
+    
+    return {
+      currentYear,
+      currentQuarterMonths,
+      previousYear,
+      previousQuarterMonths
+    }
+  }
+
+  // 월을 분기로 변환하는 함수
+  const getQuarterFromMonth = (year: number, month: number): string => {
+    const quarter = Math.ceil(month / 3)
+    return `${year} Q${quarter}`
+  }
+
   // 선택된 모드와 연도에 따른 회사별 상위 스킬 분기별 트렌드 데이터
   const companySkillTrendData = useMemo(() => {
     if (!selectedCompanyForSkills) return null
     
-    if (skillDiversityViewMode === 'all') {
-      // 전체보기일 때는 2025년 데이터 사용
-      return companySkillTrendDataByYear['2025'][selectedCompanyForSkills] || null
-    } else {
-      // 연도별일 때는 선택된 연도 데이터 사용
-      return companySkillTrendDataByYear[selectedYear]?.[selectedCompanyForSkills] || null
-    }
+    // 현재 분기와 이전 분기 정보 가져오기
+    const { currentYear, currentQuarterMonths, previousYear, previousQuarterMonths } = getCurrentAndPreviousQuarters()
+    const targetYear = skillDiversityViewMode === 'all' ? currentYear : parseInt(selectedYear)
+    
+    // 현재 연도와 이전 연도 데이터 가져오기
+    const currentYearData = companySkillTrendDataByYear[targetYear.toString()]?.[selectedCompanyForSkills] || []
+    const previousYearData = (previousYear !== targetYear) 
+      ? companySkillTrendDataByYear[previousYear.toString()]?.[selectedCompanyForSkills] || []
+      : []
+    
+    // 모든 데이터 합치기
+    const allData = [...currentYearData, ...previousYearData]
+    
+    if (allData.length === 0) return null
+    
+    // 현재 분기와 이전 분기의 월 데이터만 필터링
+    const filteredData = allData.filter(item => {
+      const [year, month] = item.month.split('.').map(Number)
+      
+      // 현재 연도의 현재 분기 월들
+      if (year === targetYear && currentQuarterMonths.includes(month)) {
+        return true
+      }
+      
+      // 이전 연도의 이전 분기 월들 (연도가 바뀐 경우)
+      if (year === previousYear && previousQuarterMonths.includes(month)) {
+        return true
+      }
+      
+      // 같은 연도의 이전 분기 월들
+      if (year === targetYear && previousYear === targetYear && previousQuarterMonths.includes(month)) {
+        return true
+      }
+      
+      return false
+    })
+    
+    // 월 순서대로 정렬
+    filteredData.sort((a, b) => {
+      const [yearA, monthA] = a.month.split('.').map(Number)
+      const [yearB, monthB] = b.month.split('.').map(Number)
+      if (yearA !== yearB) return yearA - yearB
+      return monthA - monthB
+    })
+    
+    // 분기별로 집계
+    const quarterMap = new Map<string, {
+      quarter: string;
+      python: number;
+      sql: number;
+      java: number;
+      kubernetes: number;
+      docker: number;
+      react: number;
+      typescript: number;
+      aws: number;
+      spring: number;
+      nodejs: number;
+      count: number; // 해당 분기의 월 개수
+    }>()
+    
+    filteredData.forEach(item => {
+      const [year, month] = item.month.split('.').map(Number)
+      const quarter = getQuarterFromMonth(year, month)
+      
+      if (!quarterMap.has(quarter)) {
+        quarterMap.set(quarter, {
+          quarter,
+          python: 0,
+          sql: 0,
+          java: 0,
+          kubernetes: 0,
+          docker: 0,
+          react: 0,
+          typescript: 0,
+          aws: 0,
+          spring: 0,
+          nodejs: 0,
+          count: 0
+        })
+      }
+      
+      const quarterData = quarterMap.get(quarter)!
+      quarterData.python += item.python
+      quarterData.sql += item.sql
+      quarterData.java += item.java
+      quarterData.kubernetes += item.kubernetes
+      quarterData.docker += item.docker
+      quarterData.react += item.react
+      quarterData.typescript += item.typescript
+      quarterData.aws += item.aws
+      quarterData.spring += item.spring
+      quarterData.nodejs += item.nodejs
+      quarterData.count += 1
+    })
+    
+    // 분기별 평균 계산 (또는 합계 유지 - 여기서는 합계로 유지)
+    const quarterDataArray = Array.from(quarterMap.values()).map(item => {
+      const { count, ...rest } = item
+      return rest
+    })
+    
+    // 분기 순서대로 정렬
+    quarterDataArray.sort((a, b) => {
+      const [yearA, quarterA] = a.quarter.split(' Q').map(Number)
+      const [yearB, quarterB] = b.quarter.split(' Q').map(Number)
+      if (yearA !== yearB) return yearA - yearB
+      return quarterA - quarterB
+    })
+    
+    return quarterDataArray.length > 0 ? quarterDataArray : null
   }, [selectedCompanyForSkills, skillDiversityViewMode, selectedYear])
 
   // 선택된 연도에 따른 스킬 트렌드 Y축 최대값
@@ -1942,7 +2089,7 @@ export default function Dashboard() {
                 <BarChart data={companySkillTrendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
-                    dataKey="month" 
+                    dataKey="quarter" 
                     tick={{ fill: '#6b7280', fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
@@ -3399,7 +3546,7 @@ export default function Dashboard() {
                         <BarChart data={companySkillTrendData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                           <XAxis 
-                            dataKey="month" 
+                            dataKey="quarter" 
                             tick={{ fill: '#6b7280', fontSize: 12 }}
                             angle={-45}
                             textAnchor="end"

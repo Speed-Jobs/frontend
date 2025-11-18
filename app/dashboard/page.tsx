@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
+  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1305,6 +1306,37 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
     sk: '#14b8a6', // teal
   }
 
+  // 회사별 채용 활동 회사 목록
+  const recruitmentCompanies = [
+    { key: 'toss', name: '토스', color: companyColors.toss },
+    { key: 'line', name: '라인', color: companyColors.line },
+    { key: 'hanwha', name: '한화', color: companyColors.hanwha },
+    { key: 'kakao', name: '카카오', color: companyColors.kakao },
+    { key: 'naver', name: '네이버', color: companyColors.naver },
+    { key: 'samsung', name: '삼성', color: companyColors.samsung },
+    { key: 'lg', name: 'LG', color: companyColors.lg },
+    { key: 'sk', name: 'SK', color: companyColors.sk },
+  ]
+
+  // hex 색상을 rgba로 변환하는 헬퍼 함수
+  const hexToRgba = useCallback((hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }, [])
+
+  // 회사 선택 토글 함수
+  const toggleRecruitmentCompany = (companyKey: string) => {
+    setSelectedRecruitmentCompanies(prev => {
+      if (prev.includes(companyKey)) {
+        return prev.filter(c => c !== companyKey)
+      } else {
+        return [...prev, companyKey]
+      }
+    })
+  }
+
   // 회사별 스킬 다양성 데이터 - 전체보기 (누적)
   const companySkillDiversityDataAll = [
     { company: '토스', skills: 415 },
@@ -1628,39 +1660,60 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
           {/* 주요 회사별 채용 활동 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">{companyRecruitmentTitle}</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCompanyRecruitmentTimeframe('Daily')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    companyRecruitmentTimeframe === 'Daily'
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  일간
-                </button>
-                <button
-                  onClick={() => setCompanyRecruitmentTimeframe('Weekly')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    companyRecruitmentTimeframe === 'Weekly'
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  주간
-                </button>
-                <button
-                  onClick={() => setCompanyRecruitmentTimeframe('Monthly')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    companyRecruitmentTimeframe === 'Monthly'
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  월간
-                </button>
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">{companyRecruitmentTitle}</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCompanyRecruitmentTimeframe('Daily')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      companyRecruitmentTimeframe === 'Daily'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    일간
+                  </button>
+                  <button
+                    onClick={() => setCompanyRecruitmentTimeframe('Weekly')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      companyRecruitmentTimeframe === 'Weekly'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    주간
+                  </button>
+                  <button
+                    onClick={() => setCompanyRecruitmentTimeframe('Monthly')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      companyRecruitmentTimeframe === 'Monthly'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    월간
+                  </button>
+                </div>
+              </div>
+              {/* 회사 선택 텍스트 */}
+              <div className="flex flex-wrap gap-4 items-center">
+                {recruitmentCompanies.map((company) => {
+                  const isSelected = selectedRecruitmentCompanies.includes(company.key)
+                  return (
+                    <button
+                      key={company.key}
+                      onClick={() => toggleRecruitmentCompany(company.key)}
+                      className={`text-sm font-medium transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? 'text-gray-900 font-semibold'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      {company.name}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
@@ -1691,14 +1744,30 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                   wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                   iconType="line"
                 />
-                <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+                {selectedRecruitmentCompanies.includes('toss') && (
+                  <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('line') && (
+                  <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('hanwha') && (
+                  <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('kakao') && (
+                  <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('naver') && (
+                  <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('samsung') && (
+                  <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('lg') && (
+                  <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
+                )}
+                {selectedRecruitmentCompanies.includes('sk') && (
+                  <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </section>

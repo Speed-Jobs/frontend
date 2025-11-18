@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
@@ -41,6 +41,11 @@ export default function QualityPage() {
   const [selectedCompany, setSelectedCompany] = useState('전체')
   const [selectedJobRole, setSelectedJobRole] = useState('전체')
   const [searchResults, setSearchResults] = useState<JobPosting[]>([])
+
+  // 페이지네이션 상태
+  const [ourJobPage, setOurJobPage] = useState(1)
+  const [competitorJobPage, setCompetitorJobPage] = useState(1)
+  const itemsPerPage = 5
 
   // 회사 목록 (중복 제거)
   const companies = Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
@@ -100,6 +105,18 @@ export default function QualityPage() {
     })
   }, [experienceFilter, employmentTypeFilter, jobRoleInput])
 
+  // 우리 회사 공고 페이지네이션
+  const ourJobTotalPages = Math.ceil(filteredOurJobs.length / itemsPerPage)
+  const ourJobPaginatedData = filteredOurJobs.slice(
+    (ourJobPage - 1) * itemsPerPage,
+    ourJobPage * itemsPerPage
+  )
+
+  // 필터 변경 시 페이지 초기화
+  useEffect(() => {
+    setOurJobPage(1)
+  }, [experienceFilter, employmentTypeFilter, jobRoleInput])
+
   // 경쟁사 공고 검색
   const handleCompetitorSearch = () => {
     const filtered = jobPostingsData.filter((job) => {
@@ -120,7 +137,15 @@ export default function QualityPage() {
       return companyMatch && roleMatch
     })
     setSearchResults(filtered)
+    setCompetitorJobPage(1) // 검색 시 페이지 초기화
   }
+
+  // 경쟁사 공고 페이지네이션
+  const competitorJobTotalPages = Math.ceil(searchResults.length / itemsPerPage)
+  const competitorJobPaginatedData = searchResults.slice(
+    (competitorJobPage - 1) * itemsPerPage,
+    competitorJobPage * itemsPerPage
+  )
 
   // 필터 토글 함수
   const toggleFilter = (filterArray: string[], setFilterArray: (filters: string[]) => void, value: string) => {
@@ -431,7 +456,8 @@ export default function QualityPage() {
                           : '공고가 없습니다.'}
                       </p>
                     ) : (
-                      filteredOurJobs.map((job) => (
+                      <>
+                        {ourJobPaginatedData.map((job) => (
                       <div
                         key={job.id}
                         onClick={() => {
@@ -458,7 +484,38 @@ export default function QualityPage() {
                           {formatDate(job.posted_date)} ~ {job.expired_date ? formatDate(job.expired_date) : '상시채용'}
                         </p>
                       </div>
-                    ))
+                        ))}
+                        {/* 페이지네이션 */}
+                        {ourJobTotalPages > 1 && (
+                          <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => setOurJobPage(prev => Math.max(1, prev - 1))}
+                              disabled={ourJobPage === 1}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                ourJobPage === 1
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              이전
+                            </button>
+                            <span className="px-4 py-1.5 text-sm text-gray-700">
+                              {ourJobPage} / {ourJobTotalPages}
+                            </span>
+                            <button
+                              onClick={() => setOurJobPage(prev => Math.min(ourJobTotalPages, prev + 1))}
+                              disabled={ourJobPage === ourJobTotalPages}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                ourJobPage === ourJobTotalPages
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              다음
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                     </div>
                   </div>
@@ -568,7 +625,8 @@ export default function QualityPage() {
                     {searchResults.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">회사와 직무를 선택한 후 검색 버튼을 클릭하세요.</p>
                     ) : (
-                      searchResults.map((job) => (
+                      <>
+                        {competitorJobPaginatedData.map((job) => (
                         <div
                           key={job.id}
                           onClick={() => {
@@ -597,7 +655,38 @@ export default function QualityPage() {
                             {formatDate(job.posted_date)}
                           </p>
                         </div>
-                      ))
+                        ))}
+                        {/* 페이지네이션 */}
+                        {competitorJobTotalPages > 1 && (
+                          <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => setCompetitorJobPage(prev => Math.max(1, prev - 1))}
+                              disabled={competitorJobPage === 1}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                competitorJobPage === 1
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              이전
+                            </button>
+                            <span className="px-4 py-1.5 text-sm text-gray-700">
+                              {competitorJobPage} / {competitorJobTotalPages}
+                            </span>
+                            <button
+                              onClick={() => setCompetitorJobPage(prev => Math.min(competitorJobTotalPages, prev + 1))}
+                              disabled={competitorJobPage === competitorJobTotalPages}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                competitorJobPage === competitorJobTotalPages
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              다음
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                     </div>
                   </div>

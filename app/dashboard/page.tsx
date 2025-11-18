@@ -61,10 +61,10 @@ export default function Dashboard() {
   // 광고 패널 열고 닫기 상태
   const [showAdPanels, setShowAdPanels] = useState(false)
   
-  // 섹션별 AI 분석 상태 (dropdown 방식)
-  const [openAnalysisSections, setOpenAnalysisSections] = useState<Record<string, boolean>>({})
-  const [sectionAnalysisContent, setSectionAnalysisContent] = useState<Record<string, string>>({})
-  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState<Record<string, boolean>>({})
+  // 전체 AI 분석 상태 (말풍선 방식)
+  const [showGlobalAnalysis, setShowGlobalAnalysis] = useState(false)
+  const [globalAnalysisContent, setGlobalAnalysisContent] = useState('')
+  const [isGeneratingGlobalAnalysis, setIsGeneratingGlobalAnalysis] = useState(false)
 
   // 백엔드에서 받은 회사 목록
   const [apiCompanies, setApiCompanies] = useState<Array<{ id: number; name: string }>>([])
@@ -316,181 +316,128 @@ export default function Dashboard() {
     setCurrentPage(0)
   }
 
-  // 섹션별 AI 분석 글 생성 함수 (dropdown 방식)
-  const generateSectionAnalysis = async (section: string) => {
-    // 이미 열려있으면 닫기, 닫혀있으면 열기
-    const isCurrentlyOpen = openAnalysisSections[section]
-    setOpenAnalysisSections(prev => ({ ...prev, [section]: !isCurrentlyOpen }))
+  // 전체 AI 분석 생성 함수
+  const generateGlobalAnalysis = async () => {
+    setShowGlobalAnalysis(true)
     
     // 이미 생성된 내용이 있으면 다시 생성하지 않음
-    if (sectionAnalysisContent[section]) {
+    if (globalAnalysisContent) {
       return
     }
     
-    setIsGeneratingAnalysis(prev => ({ ...prev, [section]: true }))
+    setIsGeneratingGlobalAnalysis(true)
     
     // 시뮬레이션: 실제로는 API 호출
     setTimeout(() => {
-      let analysisContent = ''
+      const trendPeriod = jobPostingsTrendTimeframe === 'Daily' ? '일간' : jobPostingsTrendTimeframe === 'Weekly' ? '주간' : '월간'
+      const companyRecruitmentPeriod = companyRecruitmentTimeframe === 'Daily' ? '일간' : companyRecruitmentTimeframe === 'Weekly' ? '주간' : '월간'
+      const topSkills = skillsData.slice(0, 5).map(s => s.name).join(', ')
+      const selectedCompanies = selectedRecruitmentCompanies.length > 0 ? selectedRecruitmentCompanies.join(', ') : '전체 회사'
       
-      switch (section) {
-        case 'jobMatching':
-          analysisContent = `## 경쟁사 공고 자동 매칭 분석
+      const analysisContent = `## 전체 대시보드 종합 분석
 
-현재 필터링된 공고는 총 **${filteredJobPostings.length}개**입니다.
+### 1. 채용 공고 수 추이 (${trendPeriod})
+**현재 트렌드:**
+- ${trendPeriod} 기준으로 채용 공고 수가 지속적으로 증가하고 있습니다.
+- 최근 3개월간 평균 증가율이 높아지고 있어 시장이 활발합니다.
 
+### 2. 주요 회사별 채용 활동 (${companyRecruitmentPeriod})
+**분석 대상 회사:** ${selectedCompanies}
 **주요 인사이트:**
-- ${selectedCompanies.length > 0 ? `선택된 회사: ${selectedCompanies.join(', ')}` : '전체 회사 대상'}
-- ${selectedEmploymentType !== 'all' ? `고용형태: ${selectedEmploymentType}` : '모든 고용형태'}
-- 정렬 기준: ${sortBy === 'latest' ? '최신순' : sortBy === 'company' ? '회사명순' : '마감순'}
+- 대형 IT 기업들의 지속적인 채용 확대가 두드러집니다.
+- 스타트업의 성장세에 따른 인력 충원이 활발합니다.
 
-**추천 사항:**
-1. 관심 있는 회사의 공고를 우선적으로 확인하세요.
-2. 마감일이 임박한 공고부터 지원을 고려해보세요.
-3. 매칭된 직무 정보를 참고하여 지원 전략을 수립하세요.`
-          break
-          
-        case 'news':
-          analysisContent = `## 채용 관련 뉴스 분석
-
-현재 표시된 뉴스는 최신 채용 트렌드와 시장 동향을 반영합니다.
-
-**주요 트렌드:**
-- IT 업계의 지속적인 성장으로 인한 인력 수요 증가
-- 원격 근무와 하이브리드 근무 형태의 확산
-- 신입 개발자 채용 시 실무 경험 중시 경향
-
-**시사점:**
-1. 기술 스택의 다양화로 인해 다양한 기술을 학습하는 것이 중요합니다.
-2. 포트폴리오와 프로젝트 경험이 채용에 큰 영향을 미칩니다.
-3. 지속적인 학습과 기술 업데이트가 필수적입니다.`
-          break
-          
-        case 'trend':
-          const trendPeriod = timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'
-          analysisContent = `## 트렌드 비교 분석 (${trendPeriod})
-
-**회사별 트렌드:**
-- 대형 IT 기업들의 지속적인 채용 확대
-- 스타트업의 성장세에 따른 인력 충원
-- 금융권의 디지털 전환으로 인한 IT 인력 수요 증가
-
-**직업별 트렌드:**
-- 백엔드 개발자와 프론트엔드 개발자 수요가 가장 높음
-- 클라우드 엔지니어와 DevOps 인력에 대한 관심 증가
-- AI/ML 엔지니어의 수요가 지속적으로 증가 중
-
-**기술별 트렌드:**
-- React, Spring, Python 등이 가장 많이 요구됨
-- 클라우드 기술(AWS, Azure)에 대한 수요 증가
-- 마이크로서비스 아키텍처 관련 기술 선호도 상승`
-          break
-          
-        case 'jobStats':
-          const categoryName = selectedExpertCategory === 'Tech' ? 'Tech 전문가' : selectedExpertCategory === 'Biz' ? 'Biz 전문가' : 'Biz.Supporting 전문가'
-          const selectedRole = selectedJobRole || '전체'
-          analysisContent = `## 직군별 통계 분석
-
-**현재 선택 카테고리:** ${categoryName}
-**선택된 직무:** ${selectedRole}
-
-**주요 통계:**
-- ${selectedExpertCategory === 'Tech' ? 'Tech 전문가 분야에서 Software Development가 가장 많은 비중을 차지합니다.' : selectedExpertCategory === 'Biz' ? 'Biz 전문가 분야에서 Sales와 Consulting이 주요 직무입니다.' : 'Biz.Supporting 분야에서 다양한 지원 직무가 분포되어 있습니다.'}
-
-**인사이트:**
-1. 각 직무별로 요구되는 기술 스택과 경력 수준이 다릅니다.
-2. Industry별 분포를 확인하여 관심 있는 산업 분야를 파악하세요.
-3. 직무별 상세 통계를 통해 지원 전략을 수립할 수 있습니다.`
-          break
-          
-        case 'skillStats':
-          const topSkills = skillsData.slice(0, 5).map(s => s.name).join(', ')
-          const selectedSkillInfo = selectedSkill ? skillsData.find(s => s.name === selectedSkill) : null
-          analysisContent = `## 스킬별 통계 분석
-
+### 3. 스킬별 통계
 **상위 인기 스킬:** ${topSkills}
-
-${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
-- 총 공고 수: ${selectedSkillInfo.count}건
-- 비율: ${selectedSkillInfo.percentage}%
-- 전월 대비 변화: ${selectedSkillInfo.change > 0 ? '+' : ''}${selectedSkillInfo.change}%
-- 관련 스킬: ${selectedSkillInfo.relatedSkills.join(', ')}` : ''}
-
 **시장 동향:**
-- ${skillsData[0].name}이 가장 높은 수요를 보이고 있습니다.
 - 프론트엔드와 백엔드 기술 스택이 균형있게 요구되고 있습니다.
 - 클라우드 및 DevOps 관련 스킬의 중요성이 증가하고 있습니다.
 
-**학습 권장사항:**
+### 4. 종합 추천사항
 1. 상위 인기 스킬들을 우선적으로 학습하세요.
-2. 관련 스킬들을 함께 학습하면 시너지 효과가 있습니다.
-3. 지속적인 트렌드 모니터링으로 시장 변화에 대응하세요.`
-          break
-          
-        default:
-          analysisContent = '분석 내용을 생성하는 중입니다...'
-      }
+2. 지속적인 트렌드 모니터링으로 시장 변화에 대응하세요.
+3. 관심 있는 회사의 채용 활동을 주기적으로 확인하세요.`
       
-      setIsGeneratingAnalysis(prev => ({ ...prev, [section]: false }))
-      setSectionAnalysisContent(prev => ({ ...prev, [section]: analysisContent }))
-    }, 1500)
+      setIsGeneratingGlobalAnalysis(false)
+      setGlobalAnalysisContent(analysisContent)
+    }, 2000)
   }
   
-  // AI 분석 dropdown 컴포넌트
-  const AnalysisDropdown = ({ section, title }: { section: string, title: string }) => {
-    const isOpen = openAnalysisSections[section] || false
-    const content = sectionAnalysisContent[section] || ''
-    const isGenerating = isGeneratingAnalysis[section] || false
-    
-    if (!isOpen) return null
+  // 전체 AI 분석 말풍선 컴포넌트
+  const GlobalAnalysisBubble = () => {
+    if (!showGlobalAnalysis) return null
     
     return (
-      <div className="mt-4 mb-4 border-t border-gray-200 pt-4 pb-2">
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-          {isGenerating ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-                <p className="text-sm text-gray-600">AI 분석을 생성하는 중...</p>
+      <>
+        {/* 배경 오버레이 */}
+        <div 
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setShowGlobalAnalysis(false)}
+        />
+        <div className="fixed top-24 right-8 z-50 w-96 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-2xl border-2 border-blue-200 p-6 relative">
+          {/* 말풍선 꼬리 */}
+          <div className="absolute -top-3 right-8 w-6 h-6 bg-white border-l-2 border-t-2 border-blue-200 transform rotate-45"></div>
+          
+          {/* 닫기 버튼 */}
+          <button
+            onClick={() => setShowGlobalAnalysis(false)}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+            {isGeneratingGlobalAnalysis ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                  <p className="text-sm text-gray-600">AI 분석을 생성하는 중...</p>
+                </div>
               </div>
-            </div>
-          ) : content ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-end mb-2">
-                <button
-                  onClick={() => {
-                    const element = document.createElement('a')
-                    const blob = new Blob([content], { type: 'text/plain' })
-                    element.href = URL.createObjectURL(blob)
-                    element.download = `AI_분석_${section}_${new Date().toISOString().split('T')[0]}.txt`
-                    element.click()
-                  }}
-                  className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg transition-colors text-xs font-medium border border-gray-200"
-                >
-                  텍스트로 저장
-                </button>
+            ) : globalAnalysisContent ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-end mb-2">
+                  <button
+                    onClick={() => {
+                      const element = document.createElement('a')
+                      const blob = new Blob([globalAnalysisContent], { type: 'text/plain' })
+                      element.href = URL.createObjectURL(blob)
+                      element.download = `AI_분석_전체_${new Date().toISOString().split('T')[0]}.txt`
+                      element.click()
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg transition-colors text-xs font-medium border border-gray-200"
+                  >
+                    텍스트로 저장
+                  </button>
+                </div>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed text-sm">
+                  {globalAnalysisContent.split('\n').map((line, index) => {
+                    if (line.startsWith('##')) {
+                      return <h4 key={index} className="text-base font-bold text-gray-900 mt-4 mb-2">{line.replace('##', '').trim()}</h4>
+                    } else if (line.startsWith('###')) {
+                      return <h5 key={index} className="text-sm font-bold text-gray-800 mt-3 mb-1.5">{line.replace('###', '').trim()}</h5>
+                    } else if (line.startsWith('**') && line.endsWith('**')) {
+                      return <p key={index} className="font-semibold text-gray-900 mb-1.5">{line.replace(/\*\*/g, '')}</p>
+                    } else if (line.startsWith('-')) {
+                      return <li key={index} className="ml-4 mb-1">{line.replace('-', '').trim()}</li>
+                    } else if (line.match(/^\d+\./)) {
+                      return <p key={index} className="ml-4 mb-1.5">{line}</p>
+                    } else if (line.trim() === '') {
+                      return <br key={index} />
+                    } else {
+                      return <p key={index} className="mb-1.5">{line}</p>
+                    }
+                  })}
+                </div>
               </div>
-              <div className="text-gray-700 whitespace-pre-line leading-relaxed text-sm">
-                {content.split('\n').map((line, index) => {
-                  if (line.startsWith('##')) {
-                    return <h4 key={index} className="text-base font-bold text-gray-900 mt-4 mb-2">{line.replace('##', '').trim()}</h4>
-                  } else if (line.startsWith('**') && line.endsWith('**')) {
-                    return <p key={index} className="font-semibold text-gray-900 mb-1.5">{line.replace(/\*\*/g, '')}</p>
-                  } else if (line.startsWith('-')) {
-                    return <li key={index} className="ml-4 mb-1">{line.replace('-', '').trim()}</li>
-                  } else if (line.match(/^\d+\./)) {
-                    return <p key={index} className="ml-4 mb-1.5">{line}</p>
-                  } else if (line.trim() === '') {
-                    return <br key={index} />
-                  } else {
-                    return <p key={index} className="mb-1.5">{line}</p>
-                  }
-                })}
-              </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
+      </>
     )
   }
 
@@ -1577,6 +1524,27 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
       )}
 
       <div className="px-8 py-6 max-w-[95%] mx-auto">
+        {/* 전체 AI 분석 버튼 */}
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={generateGlobalAnalysis}
+            disabled={isGeneratingGlobalAnalysis}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              showGlobalAnalysis && globalAnalysisContent
+                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            AI 분석
+          </button>
+        </div>
+        
+        {/* AI 분석 말풍선 */}
+        <GlobalAnalysisBubble />
+        
         {/* 상단 그래프 섹션 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* 채용 공고 수 추이 */}
@@ -1909,25 +1877,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               <h2 className="text-xl font-bold text-gray-900">
                 스킬별 통계
               </h2>
-              <button
-                onClick={() => generateSectionAnalysis('skillStats')}
-                disabled={isGeneratingAnalysis['skillStats']}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  openAnalysisSections['skillStats'] 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI 분석
-                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['skillStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
             </div>
-            <AnalysisDropdown section="skillStats" title="스킬별 통계 분석" />
             <div className="flex flex-col gap-4">
                 {/* 스킬 클라우드 - 컴팩트 버전 */}
                 <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-shadow relative flex flex-col overflow-visible">
@@ -2254,25 +2204,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
               <h2 className="text-xl font-bold text-gray-900">
                 직군별 통계
               </h2>
-              <button
-                onClick={() => generateSectionAnalysis('jobStats')}
-                disabled={isGeneratingAnalysis['jobStats']}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  openAnalysisSections['jobStats'] 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                AI 분석
-                <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobStats'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
             </div>
-            <AnalysisDropdown section="jobStats" title="직군별 통계 분석" />
             
             {/* 전문가 카테고리 탭 */}
             <div className="flex gap-2 mb-4">
@@ -2455,25 +2387,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 <h2 className="text-lg font-bold text-gray-900">
                   경쟁사 공고 자동 매칭
                 </h2>
-                <button
-                  onClick={() => generateSectionAnalysis('jobMatching')}
-                  disabled={isGeneratingAnalysis['jobMatching']}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    openAnalysisSections['jobMatching'] 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  AI 분석
-                  <svg className={`w-3 h-3 transition-transform ${openAnalysisSections['jobMatching'] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
               </div>
-              <AnalysisDropdown section="jobMatching" title="경쟁사 공고 자동 매칭 분석" />
           <div className="space-y-2 mb-3">
             {/* 첫 번째 줄: 검색창과 필터 */}
             <div className="flex items-center gap-4 flex-wrap">
@@ -3007,22 +2921,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                   <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                   채용 뉴스
                 </h2>
-                <button
-                  onClick={() => generateSectionAnalysis('news')}
-                  disabled={isGeneratingAnalysis['news']}
-                  className={`px-2 py-1 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    openAnalysisSections['news'] 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                  }`}
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  AI
-                </button>
               </div>
-              <AnalysisDropdown section="news" title="채용 관련 뉴스 분석" />
               <div className="space-y-2 mt-3">
                 {newsItems.map((news, index) => (
                   <div
@@ -3050,79 +2949,25 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
       </div>
 
-      {/* 빠른 이동 메뉴 - 오른쪽 아래 고정 */}
-      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end gap-3">
-        {/* 메뉴 패널 (열고 닫기) */}
-        {showAdPanels && (
-          <div className="flex flex-col gap-2 w-56 animate-in fade-in slide-in-from-bottom-2">
-            {/* 공고품질 평가 */}
-            <Link
-              href="/quality"
-              prefetch={false}
-              onClick={(e) => {
-                setShowAdPanels(false)
-                // 즉시 네비게이션을 위해 기본 동작 유지
-              }}
-              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
-            >
-              <div className="p-4 flex flex-col items-center text-center">
-                <p className="text-black font-bold text-base mb-1">공고 품질 평가</p>
-                <p className="text-gray-600 text-xs">AI 기반 품질 분석 →</p>
-              </div>
-            </Link>
-            
-            {/* 회사별 공고 */}
-            <Link
-              href="/companies"
-              prefetch={false}
-              onClick={(e) => {
-                setShowAdPanels(false)
-                // 즉시 네비게이션을 위해 기본 동작 유지
-              }}
-              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
-            >
-              <div className="p-4 flex flex-col items-center text-center">
-                <p className="text-black font-bold text-base mb-1">회사별 공고</p>
-                <p className="text-gray-600 text-xs">경쟁사 분석 보기 →</p>
-              </div>
-            </Link>
-            
-            {/* AI 분석 리포트 생성 */}
-            <button
-              onClick={() => {
-                setShowAdPanels(false)
-                setShowReportModal(true)
-              }}
-              className="w-full bg-white border-2 border-black rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer"
-            >
-              <div className="p-4 flex flex-col items-center text-center">
-                <p className="text-black font-bold text-base mb-1">AI 분석 리포트</p>
-                <p className="text-gray-600 text-xs">리포트 생성하기 →</p>
-              </div>
-            </button>
-          </div>
-        )}
-        
-        {/* 토글 버튼 (화살표만) */}
+      {/* AI 분석 리포트 버튼 - 오른쪽 아래 고정 */}
+      <div className="fixed bottom-8 right-8 z-40">
         <button
-          onClick={() => setShowAdPanels(!showAdPanels)}
-          className={`w-12 h-12 bg-gray-800 hover:bg-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
-            showAdPanels ? 'bg-gray-900' : ''
-          }`}
+          onClick={() => {
+            setShowReportModal(true)
+          }}
+          className="group relative bg-gradient-to-r from-blue-400 to-indigo-400 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-4 flex items-center gap-3 font-semibold"
         >
-          <svg className={`w-6 h-6 transition-transform ${showAdPanels ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-base">AI 분석 리포트</span>
+            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
         </button>
       </div>
-      
-      {/* 메뉴 외부 클릭 시 닫기 */}
-      {showAdPanels && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setShowAdPanels(false)}
-        />
-      )}
 
 
       {/* AI 분석 리포트 모달 */}
@@ -3248,182 +3093,438 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 </div>
               </div>
 
-              {/* 1. 공고 발행 통계 */}
-              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">1. 공고 발행 통계</h3>
-                <p className="text-gray-600 mb-6">회사별 공고 수</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {companyTrendData.slice(0, 5).map((company, index) => (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all duration-300 shadow-md"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center shadow-md">
-                            <span className="text-white font-bold text-lg">{index + 1}</span>
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-900 text-lg">{company.name}</h4>
-                            <p className="text-sm text-gray-500">공고 발행 수</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-4">
-                        <div className="flex items-baseline gap-2 mb-2">
-                          <span className="text-3xl font-bold text-gray-900">{company.value}</span>
-                          <span className="text-lg text-gray-600">건</span>
-                        </div>
+              {/* AI 분석 리포트 내용 - 그래프와 요약 */}
+              <div className="space-y-8">
+                {/* 1. 채용 공고 수 추이 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">1. 채용 공고 수 추이 ({jobPostingsTrendTimeframe === 'Daily' ? '일간' : jobPostingsTrendTimeframe === 'Weekly' ? '주간' : '월간'})</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={jobPostingsTrendData}>
+                        <defs>
+                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="period" 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          domain={[0, trendYAxisMax]}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#1f2937',
+                            fontSize: '13px'
+                          }}
+                          formatter={(value: number) => [`${value}건`, '공고 수']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="count" 
+                          stroke="#3b82f6" 
+                          fillOpacity={1} 
+                          fill="url(#colorCount)" 
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        {jobPostingsTrendTimeframe === 'Daily' ? '일간' : jobPostingsTrendTimeframe === 'Weekly' ? '주간' : '월간'} 기준으로 채용 공고 수가 지속적으로 증가하는 추세를 보이고 있습니다.
+                        최근 3개월간 평균 증가율이 높아지고 있어 시장이 활발합니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. 주요 회사별 채용 활동 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">2. 주요 회사별 채용 활동 ({companyRecruitmentTimeframe === 'Daily' ? '일간' : companyRecruitmentTimeframe === 'Weekly' ? '주간' : '월간'})</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={companyRecruitmentData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="period" 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis 
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          domain={[0, companyRecruitmentYAxisMax]}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#1f2937',
+                            fontSize: '13px'
+                          }}
+                          formatter={(value: number, name: string) => [`${value}건`, name]}
+                        />
+                        <Legend 
+                          wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                          iconType="line"
+                        />
+                        {selectedRecruitmentCompanies.includes('toss') && (
+                          <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('line') && (
+                          <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('hanwha') && (
+                          <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('kakao') && (
+                          <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('naver') && (
+                          <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('samsung') && (
+                          <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('lg') && (
+                          <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                        {selectedRecruitmentCompanies.includes('sk') && (
+                          <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+                        )}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        대형 IT 기업들의 지속적인 채용 확대가 두드러지며, 스타트업의 성장세에 따른 인력 충원이 활발합니다.
+                        {selectedRecruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length < 8 && (
+                          <> 선택된 회사({selectedRecruitmentCompanies.map(c => recruitmentCompanies.find(comp => comp.key === c)?.name).join(', ')})의 채용 활동이 특히 활발합니다.</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. 회사별 스킬 다양성 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">3. 회사별 스킬 다양성</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={companySkillDiversityData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          type="number" 
+                          domain={[0, skillDiversityYAxisMax]}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <YAxis 
+                          dataKey="company" 
+                          type="category" 
+                          width={80}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#1f2937',
+                            fontSize: '13px'
+                          }}
+                          formatter={(value: number) => [`${value}개`, '고유 스킬 수']}
+                        />
+                        <Bar 
+                          dataKey="skills" 
+                          fill="#93c5fd"
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        각 회사별로 요구하는 기술 스택의 다양성을 보여주며, {companySkillDiversityData.length > 0 && companySkillDiversityData[0] && (
+                          <><strong>{companySkillDiversityData[0].company}</strong>이 가장 많은 고유 스킬을 요구하고 있습니다.</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 상위 스킬 분기별 트렌드 */}
+                {selectedCompanyForSkills && companySkillTrendData && (
+                  <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">4. {selectedCompanyForSkills} 상위 스킬 분기별 트렌드</h3>
+                    <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={companySkillTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="month" 
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis 
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            domain={[0, skillTrendYAxisMax]}
+                            label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#fff', 
+                              border: '1px solid #e5e7eb', 
+                              borderRadius: '8px', 
+                              color: '#1f2937',
+                              fontSize: '13px'
+                            }}
+                            formatter={(value: number, name: string) => [`${value}회`, name]}
+                          />
+                          <Legend 
+                            wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                            iconType="square"
+                          />
+                          <Bar dataKey="python" fill={skillColors.python} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="sql" fill={skillColors.sql} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="java" fill={skillColors.java} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="kubernetes" fill={skillColors.kubernetes} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="docker" fill={skillColors.docker} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="react" fill={skillColors.react} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="typescript" fill={skillColors.typescript} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="aws" fill={skillColors.aws} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="spring" fill={skillColors.spring} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="nodejs" fill={skillColors.nodejs} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="prose max-w-none">
+                      <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                        <p>
+                          {selectedCompanyForSkills}의 주요 기술 스택 트렌드를 분기별로 분석한 결과, 최신 기술 스택에 대한 수요가 지속적으로 증가하고 있습니다.
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div className="prose max-w-none">
-                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
-                    <p>
-                      분석 기간 동안 총 <strong>{companyTrendData.reduce((sum, c) => sum + c.value, 0)}건</strong>의 공고가 발행되었습니다.
-                      주요 기업별 공고 발행 현황은 다음과 같습니다:
-                    </p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      {companyTrendData.slice(0, 5).map((company, index) => (
-                        <li key={index}>
-                          <strong>{company.name}</strong>: {company.value}건
-                        </li>
+                  </div>
+                )}
+
+                {/* 5. 스킬별 통계 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">5. 스킬별 통계</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {skillsData.slice(0, 12).map((skill, index) => (
+                        <div key={skill.name} className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-900">{skill.name}</span>
+                            <span className="text-xs text-gray-500">#{index + 1}</span>
+                          </div>
+                          <div className="text-2xl font-bold text-gray-900 mb-1">{skill.count}</div>
+                          <div className="text-xs text-gray-600">
+                            {skill.percentage.toFixed(1)}% · {skill.change > 0 ? '+' : ''}{skill.change.toFixed(1)}%
+                          </div>
+                        </div>
                       ))}
-                    </ul>
-                    <p>
-                      {timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'} 트렌드를 분석한 결과,
-                      공고 발행 수는 지속적으로 증가하는 추세를 보이고 있습니다.
-                    </p>
+                    </div>
+                  </div>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        상위 인기 스킬: {skillsData.slice(0, 5).map(s => s.name).join(', ')} 등이 높은 수요를 보이고 있습니다.
+                        프론트엔드와 백엔드 기술 스택이 균형있게 요구되며, 클라우드 및 DevOps 관련 스킬의 중요성이 증가하고 있습니다.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 2. 트렌드 분석 */}
-              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">2. 트렌드 분석</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {/* 회사별 트렌드 */}
-                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      회사별 트렌드
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={companyTrendData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
+                {/* 6. 직군별 통계 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">6. 직군별 통계 ({selectedExpertCategory === 'Tech' ? 'Tech 전문가' : selectedExpertCategory === 'Biz' ? 'Biz 전문가' : 'Biz.Supporting 전문가'})</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <ResponsiveContainer width="100%" height={380}>
+                      <PieChart>
+                        <Pie
+                          data={currentJobRoles}
+                          cx="50%"
+                          cy="42%"
+                          labelLine={false}
+                          label={({ name, percent }) =>
+                            percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''
+                          }
+                          outerRadius={100}
+                          innerRadius={40}
+                          fill="#6b7280"
+                          dataKey="value"
+                        >
+                          {currentJobRoles.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={pieColors[index % pieColors.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#1f2937',
+                            fontSize: '13px'
                           }}
+                          formatter={(value: number, name: string) => [
+                            `${value}건`,
+                            name
+                          ]}
                         />
-                        <Bar dataKey="value" fill="#6b7280" radius={[0, 4, 4, 0]} />
-                      </BarChart>
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={80}
+                          wrapperStyle={{ paddingTop: '20px' }}
+                          formatter={(value) => <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{value}</span>}
+                          iconType="circle"
+                        />
+                      </PieChart>
                     </ResponsiveContainer>
                   </div>
-
-                  {/* 직무별 트렌드 */}
-                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      직무별 트렌드
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={jobTrendData.slice(0, 5)} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                        <YAxis dataKey="name" type="category" width={120} tick={{ fill: '#6b7280', fontSize: 10 }} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                          }}
-                        />
-                        <Bar dataKey="value" fill="#C91A2A" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        {selectedExpertCategory === 'Tech' ? '기술' : selectedExpertCategory === 'Biz' ? '비즈니스' : '비즈니스 지원'} 분야에서 다양한 직무가 활발하게 채용되고 있습니다.
+                        주요 직무: {currentJobRoles.slice(0, 5).map(role => `${role.name}(${role.value}건)`).join(', ')} 등이 높은 비율을 차지하고 있습니다.
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <div className="prose max-w-none">
-                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
-                    <p>
-                      공고 트렌드를 분석한 결과, {timeframe === 'Daily' ? '일별' : timeframe === 'Weekly' ? '주별' : '월별'}로 지속적인 증가 추세를 보이고 있습니다.
-                      특히 주요 IT 기업들의 채용 공고가 활발하게 발행되고 있으며, 이는 IT 업계의 인력 수요가 크게 증가하고 있음을 시사합니다.
-                    </p>
-                    <p>
-                      직무별 트렌드에서도 동일한 패턴이 관찰되며, Software Development와 AI 분야에서 특히 높은 수요를 보이고 있습니다.
-                    </p>
+
+                {/* 7. 경쟁사 공고 자동 매칭 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">7. 경쟁사 공고 자동 매칭</h3>
+                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">
+                        {selectedCompanies.length > 0 ? `선택된 회사: ${selectedCompanies.join(', ')}` : '전체 회사'} · 
+                        총 <strong className="text-gray-900">{filteredJobPostings.length}개</strong>의 공고
+                      </p>
+                    </div>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {filteredJobPostings.slice(0, 5).map((job) => {
+                        const companyName = typeof job.company === 'string' ? job.company : '알 수 없음'
+                        return (
+                          <div key={job.id} className="bg-gray-50 p-4 border border-gray-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-900 mb-1">{companyName}</p>
+                                <p className="text-sm text-gray-700 mb-1">{job.title || '공고 제목 없음'}</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {job.employment_type && (
+                                    <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded">{job.employment_type}</span>
+                                  )}
+                                  {job.expired_date && (
+                                    <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded">
+                                      마감: {new Date(job.expired_date).toLocaleDateString('ko-KR')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {filteredJobPostings.length > 5 && (
+                      <p className="text-sm text-gray-500 mt-3 text-center">
+                        외 {filteredJobPostings.length - 5}개의 공고가 더 있습니다.
+                      </p>
+                    )}
+                  </div>
+                  <div className="prose max-w-none">
+                    <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                      <p>
+                        경쟁사 공고 자동 매칭을 통해 총 {filteredJobPostings.length}개의 공고를 확인할 수 있습니다.
+                        {selectedCompanies.length > 0 && (
+                          <> 선택된 회사({selectedCompanies.join(', ')})의 공고가 활발하게 발행되고 있습니다.</>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 3. 직무별 분석 */}
-              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">3. 직무별 분석</h3>
-                <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-6">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <PieChart>
-                      <Pie
-                        data={currentJobRoles.slice(0, 8)}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={120}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {currentJobRoles.slice(0, 8).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                {/* 8. 채용뉴스 */}
+                {newsItems && newsItems.length > 0 && (
+                  <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">8. 채용뉴스</h3>
+                    <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
+                      <div className="space-y-3">
+                        {newsItems.slice(0, 5).map((news, index) => (
+                          <div key={index} className="bg-gradient-to-r from-gray-50 to-white p-4 border border-gray-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
+                                {news.image}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-500 mb-1">{news.source}</p>
+                                <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                                  {news.headline}
+                                </h3>
+                                <p className="text-xs text-gray-600">{news.snippet}</p>
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="prose max-w-none">
-                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
-                    <p>
-                      직무별 분석 결과, {selectedExpertCategory === 'Tech' ? '기술' : selectedExpertCategory === 'Biz' ? '비즈니스' : '비즈니스 지원'} 분야에서
-                      다양한 직무가 활발하게 채용되고 있습니다.
-                    </p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      {currentJobRoles.slice(0, 5).map((role, index) => (
-                        <li key={index}>
-                          <strong>{role.name}</strong>: {role.value}%의 비율을 차지하고 있습니다.
-                        </li>
-                      ))}
-                    </ul>
+                      </div>
+                    </div>
+                    <div className="prose max-w-none">
+                      <div className="space-y-2 text-base leading-relaxed text-gray-700">
+                        <p>
+                          최신 채용 관련 뉴스 {newsItems.length}건을 확인할 수 있습니다. 채용 시장의 최신 동향과 트렌드를 파악하는 데 도움이 됩니다.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* 4. 비교 분석 */}
-              <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">4. 비교 분석</h3>
-                <div className="prose max-w-none">
-                  <div className="space-y-3 text-base leading-relaxed text-gray-700">
-                    <p>
-                      우리 회사(SK AX)의 포지셔닝을 경쟁사와 비교한 결과:
-                    </p>
-                    <ul className="list-disc pl-6 space-y-2">
-                      <li>
-                        <strong>공고 발행 수</strong>: 경쟁사 대비 중간 수준으로, 시장 점유율 확보를 위한 전략적 접근이 필요합니다.
-                      </li>
-                      <li>
-                        <strong>기술 스택</strong>: 최신 기술 트렌드를 잘 반영하고 있으며, 특히 클라우드 및 AI/ML 분야에서 강점을 보이고 있습니다.
-                      </li>
-                      <li>
-                        <strong>직무 분포</strong>: 다양한 직무 영역에서 균형잡힌 채용 전략을 수립하고 있어 경쟁력 있는 포지셔닝을 유지하고 있습니다.
-                      </li>
-                    </ul>
-                    <p>
-                      전반적으로 우리 회사는 기술 혁신과 시장 트렌드에 대한 이해도가 높으며,
-                      경쟁사 대비 차별화된 채용 전략을 수립할 수 있는 기반을 갖추고 있습니다.
-                    </p>
+                {/* 9. 종합 요약 */}
+                <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">9. 종합 요약</h3>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                    <div className="prose max-w-none">
+                      <div className="space-y-3 text-base leading-relaxed text-gray-700">
+                        <p>
+                          전체 대시보드 데이터를 종합 분석한 결과, 채용 시장이 활발하게 움직이고 있으며 특히 IT 분야에서 높은 수요를 보이고 있습니다.
+                        </p>
+                        <ul className="list-disc pl-6 space-y-2">
+                          <li>
+                            <strong>채용 공고 수</strong>: {jobPostingsTrendTimeframe === 'Daily' ? '일간' : jobPostingsTrendTimeframe === 'Weekly' ? '주간' : '월간'} 기준으로 지속적인 증가 추세
+                          </li>
+                          <li>
+                            <strong>주요 회사 채용 활동</strong>: 대형 IT 기업들의 지속적인 채용 확대
+                          </li>
+                          <li>
+                            <strong>기술 스택</strong>: 프론트엔드와 백엔드 기술 스택이 균형있게 요구되며, 클라우드 및 DevOps 관련 스킬의 중요성 증가
+                          </li>
+                        </ul>
+                        <p className="mt-4">
+                          <strong>추천사항:</strong> 상위 인기 스킬들을 우선적으로 학습하고, 지속적인 트렌드 모니터링으로 시장 변화에 대응하는 것이 중요합니다.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

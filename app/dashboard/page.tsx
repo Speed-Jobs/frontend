@@ -71,6 +71,41 @@ export default function Dashboard() {
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
   const [companiesError, setCompaniesError] = useState<string | null>(null)
 
+  // 기본 스킬 데이터 (백엔드 API 실패 시 fallback)
+  const defaultSkillsData = [
+    { name: 'spring', count: 286, percentage: 26.8, change: 3.5, relatedSkills: ['kotlin', 'java', 'maven', 'gradle'] },
+    { name: 'react', count: 245, percentage: 22.9, change: 5.2, relatedSkills: ['typescript', 'javascript', 'nextjs'] },
+    { name: 'python', count: 198, percentage: 18.5, change: 2.1, relatedSkills: ['django', 'flask', 'fastapi'] },
+    { name: 'typescript', count: 187, percentage: 17.5, change: 4.3, relatedSkills: ['react', 'nodejs', 'angular'] },
+    { name: 'aws', count: 156, percentage: 14.6, change: 1.8, relatedSkills: ['ec2', 's3', 'lambda'] },
+    { name: 'docker', count: 142, percentage: 13.3, change: 2.7, relatedSkills: ['kubernetes', 'jenkins', 'ci/cd'] },
+    { name: 'mysql', count: 128, percentage: 12.0, change: 1.5, relatedSkills: ['postgresql', 'mongodb', 'redis'] },
+    { name: 'kubernetes', count: 115, percentage: 10.8, change: 3.2, relatedSkills: ['docker', 'helm', 'istio'] },
+    { name: 'redis', count: 98, percentage: 9.2, change: 2.4, relatedSkills: ['cache', 'pub/sub', 'session'] },
+    { name: 'kafka', count: 87, percentage: 8.1, change: 1.9, relatedSkills: ['streaming', 'event-driven', 'messaging'] },
+    { name: 'nodejs', count: 165, percentage: 15.4, change: 2.8, relatedSkills: ['express', 'nestjs', 'graphql'] },
+    { name: 'vue', count: 134, percentage: 12.5, change: 1.6, relatedSkills: ['nuxt', 'vuex', 'pinia'] },
+    { name: 'java', count: 178, percentage: 16.7, change: 2.3, relatedSkills: ['spring', 'jpa', 'maven'] },
+    { name: 'go', count: 112, percentage: 10.5, change: 3.1, relatedSkills: ['gin', 'gorm', 'microservices'] },
+    { name: 'kotlin', count: 145, percentage: 13.6, change: 2.9, relatedSkills: ['spring', 'android', 'coroutines'] },
+    { name: 'postgresql', count: 98, percentage: 9.2, change: 1.4, relatedSkills: ['sql', 'database', 'orm'] },
+    { name: 'mongodb', count: 76, percentage: 7.1, change: 1.2, relatedSkills: ['nosql', 'database', 'aggregation'] },
+    { name: 'elasticsearch', count: 89, percentage: 8.3, change: 2.0, relatedSkills: ['search', 'logstash', 'kibana'] },
+    { name: 'graphql', count: 67, percentage: 6.3, change: 1.8, relatedSkills: ['apollo', 'relay', 'api'] },
+    { name: 'terraform', count: 92, percentage: 8.6, change: 2.5, relatedSkills: ['iac', 'aws', 'infrastructure'] },
+  ].sort((a, b) => b.count - a.count)
+
+  // 스킬 통계 관련 상태
+  const [skillsData, setSkillsData] = useState<Array<{
+    name: string
+    count: number
+    percentage: number
+    change: number
+    relatedSkills: string[]
+  }>>(defaultSkillsData) // 초기값으로 기본 데이터 사용
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false)
+  const [skillsError, setSkillsError] = useState<string | null>(null)
+
   // 회사 목록 API 호출
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -138,6 +173,110 @@ export default function Dashboard() {
     }
 
     fetchCompanies()
+  }, [])
+
+  // 스킬 통계 API 호출
+  useEffect(() => {
+    const fetchSkillsStatistics = async () => {
+      try {
+        setIsLoadingSkills(true)
+        setSkillsError(null)
+        
+        // 백엔드 API 엔드포인트 (전체 스킬 목록을 받아오는 API)
+        // 실제 API 엔드포인트로 변경 필요
+        const apiUrl = 'http://172.20.10.2:8080/api/v1/skills/statistics'
+        console.log('=== 스킬 통계 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 스킬 통계 데이터:', result)
+        
+        // 백엔드 응답 형식에 맞춰 데이터 변환
+        if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+          // 백엔드에서 여러 스킬의 통계를 배열로 제공한다고 가정
+          // 각 스킬마다 {top_skills: [{id, name}], top_skill_stat: {...}} 형태
+          if (Array.isArray(result.data)) {
+            // 배열 형태로 여러 스킬 통계를 받는 경우
+            const transformedData = result.data.map((item: any) => {
+              const skillName = item.top_skills?.[0]?.name?.toLowerCase() || 'unknown'
+              const stat = item.top_skill_stat || {}
+              
+              return {
+                name: skillName,
+                count: stat.count || 0,
+                percentage: stat.market_share || 0,
+                change: stat.weekly_change_rate || stat.monthly_change_rate || 0,
+                relatedSkills: [] // 백엔드에서 제공하지 않으면 빈 배열
+              }
+            }).sort((a: any, b: any) => b.count - a.count)
+            
+            setSkillsData(transformedData)
+          } else if (result.data.top_skills && Array.isArray(result.data.top_skills)) {
+            // 단일 응답에서 여러 스킬을 받는 경우
+            // top_skills 배열과 각각의 통계가 매핑되어 있다고 가정
+            // 실제 백엔드 구조에 맞게 수정 필요
+            const transformedData = result.data.top_skills.map((skill: any, index: number) => {
+              // 각 스킬의 통계를 가져오는 로직 (백엔드 구조에 따라 수정 필요)
+              const stat = result.data.top_skill_stat || {}
+              
+              return {
+                name: skill.name?.toLowerCase() || 'unknown',
+                count: stat.count || 0,
+                percentage: stat.market_share || 0,
+                change: stat.weekly_change_rate || stat.monthly_change_rate || 0,
+                relatedSkills: []
+              }
+            }).sort((a: any, b: any) => b.count - a.count)
+            
+            setSkillsData(transformedData)
+          } else if (result.data.top_skill_stat) {
+            // 단일 스킬 통계인 경우
+            const skillStat = result.data.top_skill_stat
+            const skillName = result.data.top_skills?.[0]?.name?.toLowerCase() || 'unknown'
+            
+            const transformedData = [{
+              name: skillName,
+              count: skillStat.count || 0,
+              percentage: skillStat.market_share || 0,
+              change: skillStat.weekly_change_rate || skillStat.monthly_change_rate || 0,
+              relatedSkills: []
+            }]
+            
+            setSkillsData(transformedData)
+          } else {
+            // 기본 데이터 사용
+            setSkillsData(defaultSkillsData)
+          }
+        } else {
+          console.warn('스킬 통계 데이터 형식이 올바르지 않습니다.')
+          setSkillsData(defaultSkillsData)
+        }
+      } catch (err) {
+        console.error('=== 스킬 통계 API 호출 에러 ===')
+        console.error('에러:', err)
+        setSkillsError(err instanceof Error ? err.message : '스킬 통계를 불러오는 중 오류가 발생했습니다.')
+        // 에러 발생 시 기본 데이터 사용
+        setSkillsData(defaultSkillsData)
+      } finally {
+        setIsLoadingSkills(false)
+      }
+    }
+
+    fetchSkillsStatistics()
   }, [])
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
@@ -331,7 +470,7 @@ export default function Dashboard() {
     setTimeout(() => {
       const trendPeriod = jobPostingsTrendTimeframe === 'Daily' ? '일간' : jobPostingsTrendTimeframe === 'Weekly' ? '주간' : '월간'
       const companyRecruitmentPeriod = companyRecruitmentTimeframe === 'Daily' ? '일간' : companyRecruitmentTimeframe === 'Weekly' ? '주간' : '월간'
-      const topSkills = skillsData.slice(0, 5).map(s => s.name).join(', ')
+      const topSkills = skillsDataToUse.slice(0, 5).map(s => s.name).join(', ')
       const selectedCompanies = selectedRecruitmentCompanies.length > 0 ? selectedRecruitmentCompanies.join(', ') : '전체 회사'
       
       const analysisContent = `## 전체 대시보드 종합 분석
@@ -728,29 +867,8 @@ export default function Dashboard() {
     },
   ]
 
-  // 스킬셋 데이터 (인기순으로 정렬, count는 공고 수) - 더 다양하게 추가
-  const skillsData = [
-    { name: 'spring', count: 286, percentage: 26.8, change: 3.5, relatedSkills: ['kotlin', 'java', 'maven', 'gradle'] },
-    { name: 'react', count: 245, percentage: 22.9, change: 5.2, relatedSkills: ['typescript', 'javascript', 'nextjs'] },
-    { name: 'python', count: 198, percentage: 18.5, change: 2.1, relatedSkills: ['django', 'flask', 'fastapi'] },
-    { name: 'typescript', count: 187, percentage: 17.5, change: 4.3, relatedSkills: ['react', 'nodejs', 'angular'] },
-    { name: 'aws', count: 156, percentage: 14.6, change: 1.8, relatedSkills: ['ec2', 's3', 'lambda'] },
-    { name: 'docker', count: 142, percentage: 13.3, change: 2.7, relatedSkills: ['kubernetes', 'jenkins', 'ci/cd'] },
-    { name: 'mysql', count: 128, percentage: 12.0, change: 1.5, relatedSkills: ['postgresql', 'mongodb', 'redis'] },
-    { name: 'kubernetes', count: 115, percentage: 10.8, change: 3.2, relatedSkills: ['docker', 'helm', 'istio'] },
-    { name: 'redis', count: 98, percentage: 9.2, change: 2.4, relatedSkills: ['cache', 'pub/sub', 'session'] },
-    { name: 'kafka', count: 87, percentage: 8.1, change: 1.9, relatedSkills: ['streaming', 'event-driven', 'messaging'] },
-    { name: 'nodejs', count: 165, percentage: 15.4, change: 2.8, relatedSkills: ['express', 'nestjs', 'graphql'] },
-    { name: 'vue', count: 134, percentage: 12.5, change: 1.6, relatedSkills: ['nuxt', 'vuex', 'pinia'] },
-    { name: 'java', count: 178, percentage: 16.7, change: 2.3, relatedSkills: ['spring', 'jpa', 'maven'] },
-    { name: 'go', count: 112, percentage: 10.5, change: 3.1, relatedSkills: ['gin', 'gorm', 'microservices'] },
-    { name: 'kotlin', count: 145, percentage: 13.6, change: 2.9, relatedSkills: ['spring', 'android', 'coroutines'] },
-    { name: 'postgresql', count: 98, percentage: 9.2, change: 1.4, relatedSkills: ['sql', 'database', 'orm'] },
-    { name: 'mongodb', count: 76, percentage: 7.1, change: 1.2, relatedSkills: ['nosql', 'database', 'aggregation'] },
-    { name: 'elasticsearch', count: 89, percentage: 8.3, change: 2.0, relatedSkills: ['search', 'logstash', 'kibana'] },
-    { name: 'graphql', count: 67, percentage: 6.3, change: 1.8, relatedSkills: ['apollo', 'relay', 'api'] },
-    { name: 'terraform', count: 92, percentage: 8.6, change: 2.5, relatedSkills: ['iac', 'aws', 'infrastructure'] },
-  ].sort((a, b) => b.count - a.count) // 인기순 정렬
+  // 백엔드에서 받은 데이터가 없으면 기본 데이터 사용
+  const skillsDataToUse = skillsData.length > 0 ? skillsData : defaultSkillsData
 
   // Tailwind 클래스를 픽셀 값으로 변환
   const getPixelWidth = (widthClass: string): number => {
@@ -835,11 +953,11 @@ export default function Dashboard() {
   const calculateSkillPositions = () => {
     const positions: Array<{ x: number; y: number }> = []
     const sizes: Array<{ pixelWidth: number; pixelHeight: number }> = []
-    const maxCount = skillsData[0]?.count || 1
+    const maxCount = skillsDataToUse[0]?.count || 1
     
     // 모든 스킬의 크기 계산
-    for (let i = 0; i < skillsData.length; i++) {
-      const size = getSkillSize(skillsData[i].count, i, maxCount)
+    for (let i = 0; i < skillsDataToUse.length; i++) {
+      const size = getSkillSize(skillsDataToUse[i].count, i, maxCount)
       sizes.push({ pixelWidth: size.pixelWidth, pixelHeight: size.pixelHeight })
     }
     
@@ -855,7 +973,7 @@ export default function Dashboard() {
     ]
     
     // 각 스킬의 위치 계산
-    for (let index = 1; index < skillsData.length; index++) {
+    for (let index = 1; index < skillsDataToUse.length; index++) {
       let currentIndex = index - 1
       let layerIndex = 0
       let layerStartIndex = 0
@@ -992,8 +1110,8 @@ export default function Dashboard() {
 
   // 스킬들의 실제 렌더링 위치 계산 (2개 원형 배치 - 겹침 없음 보장)
   const finalSkillPositions = useMemo(() => {
-    const maxCount = skillsData[0]?.count || 1
-    const skillCount = Math.min(13, skillsData.length)  // 13개 (중앙 1 + 내부원 6 + 외부원 6)
+    const maxCount = skillsDataToUse[0]?.count || 1
+    const skillCount = Math.min(13, skillsDataToUse.length)  // 13개 (중앙 1 + 내부원 6 + 외부원 6)
     
     const skills: Array<{
       x: number, 
@@ -1002,7 +1120,7 @@ export default function Dashboard() {
     }> = []
     
     for (let index = 0; index < skillCount; index++) {
-      const size = getSkillSize(skillsData[index].count, index, maxCount)
+      const size = getSkillSize(skillsDataToUse[index].count, index, maxCount)
       
       if (index === 0) {
         // 중앙
@@ -1043,7 +1161,7 @@ export default function Dashboard() {
   }
 
   // 선택된 스킬의 데이터
-  const selectedSkillData = skillsData.find(s => s.name === selectedSkill) || skillsData[0]
+  const selectedSkillData = skillsDataToUse.find(s => s.name === selectedSkill) || skillsDataToUse[0]
 
   // 월별 채용 공고 수 추이 데이터
   const monthlyJobPostingsData = [
@@ -1921,7 +2039,7 @@ export default function Dashboard() {
                     const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
                     if (!selectedSkillData) return null
                     
-                    const selectedIndex = skillsData.slice(0, 13).findIndex(s => s.name === selectedSkill)
+                    const selectedIndex = skillsDataToUse.slice(0, 13).findIndex(s => s.name === selectedSkill)
                     if (selectedIndex === -1) return null
                     
                     const selectedPosition = getFinalSkillPosition(selectedIndex)
@@ -1975,8 +2093,8 @@ export default function Dashboard() {
                   })()}
                   
                   {/* 메인 스킬들 */}
-                  {skillsData.slice(0, 13).map((skill, index) => {
-                    const maxCount = skillsData[0]?.count || 1
+                  {skillsDataToUse.slice(0, 13).map((skill, index) => {
+                    const maxCount = skillsDataToUse[0]?.count || 1
                     const size = getSkillSize(skill.count, index, maxCount)
                     const finalPosition = getFinalSkillPosition(index)
                     const isMain = index === 0
@@ -1987,7 +2105,7 @@ export default function Dashboard() {
                     let shouldHide = false
                     
                     if (selectedSkill) {
-                      const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
+                      const selectedSkillData = skillsDataToUse.find(s => s.name === selectedSkill)
                       if (selectedSkillData) {
                         // 선택된 스킬의 관련 스킬 목록
                         const relatedSkillsSet = new Set(selectedSkillData.relatedSkills)
@@ -2063,7 +2181,7 @@ export default function Dashboard() {
                     const selectedSkillData = skillsData.find(s => s.name === selectedSkill)
                     if (!selectedSkillData) return null
                     
-                    const selectedIndex = skillsData.slice(0, 13).findIndex(s => s.name === selectedSkill)
+                    const selectedIndex = skillsDataToUse.slice(0, 13).findIndex(s => s.name === selectedSkill)
                     if (selectedIndex === -1) return null
                     
                     const selectedPosition = getFinalSkillPosition(selectedIndex)
@@ -2082,8 +2200,8 @@ export default function Dashboard() {
                       const relatedX = Math.cos(adjustedAngle) * radius
                       const relatedY = Math.sin(adjustedAngle) * radius
                       
-                      // 관련 스킬이 화면에 보이는 스킬들(skillsData.slice(0, 13))에 있는지 확인
-                      const visibleSkills = skillsData.slice(0, 13)
+                      // 관련 스킬이 화면에 보이는 스킬들(skillsDataToUse.slice(0, 13))에 있는지 확인
+                      const visibleSkills = skillsDataToUse.slice(0, 13)
                       const relatedSkillData = visibleSkills.find(s => s.name === relatedSkillName)
                       const isRelatedSkillInData = !!relatedSkillData
                       
@@ -2183,14 +2301,18 @@ export default function Dashboard() {
                       <p className="text-xs font-semibold text-gray-700">관련 스킬</p>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {selectedSkillData.relatedSkills.slice(0, 4).map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 bg-gray-50 text-gray-700 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {selectedSkillData.relatedSkills && selectedSkillData.relatedSkills.length > 0 ? (
+                        selectedSkillData.relatedSkills.slice(0, 4).map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 bg-gray-50 text-gray-700 text-xs font-medium rounded-md border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                          >
+                            {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">관련 스킬 데이터가 없습니다</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3330,7 +3452,7 @@ export default function Dashboard() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">5. 스킬별 통계</h3>
                   <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {skillsData.slice(0, 12).map((skill, index) => (
+                      {skillsDataToUse.slice(0, 12).map((skill, index) => (
                         <div key={skill.name} className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-lg">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-gray-900">{skill.name}</span>
@@ -3347,7 +3469,7 @@ export default function Dashboard() {
                   <div className="prose max-w-none">
                     <div className="space-y-2 text-base leading-relaxed text-gray-700">
                       <p>
-                        상위 인기 스킬: {skillsData.slice(0, 5).map(s => s.name).join(', ')} 등이 높은 수요를 보이고 있습니다.
+                        상위 인기 스킬: {skillsDataToUse.slice(0, 5).map(s => s.name).join(', ')} 등이 높은 수요를 보이고 있습니다.
                         프론트엔드와 백엔드 기술 스택이 균형있게 요구되며, 클라우드 및 DevOps 관련 스킬의 중요성이 증가하고 있습니다.
                       </p>
                     </div>

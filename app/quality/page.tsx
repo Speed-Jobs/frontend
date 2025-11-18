@@ -65,6 +65,11 @@ export default function QualityPage() {
 
   // 우리 회사 공고 필터링
   const filteredOurJobs = useMemo(() => {
+    // 필터가 하나도 선택되지 않았으면 빈 배열 반환
+    if (experienceFilter.length === 0 && employmentTypeFilter.length === 0 && jobRoleInput === '') {
+      return []
+    }
+
     return skaxJobPostingsData.filter((job) => {
       const experienceMatch =
         experienceFilter.length === 0 ||
@@ -280,13 +285,16 @@ export default function QualityPage() {
         {/* Step 1: 공고 선택하기 */}
         {currentStep === 1 && (
           <div className="space-y-8">
-            {/* 우리 회사 공고 섹션 */}
-            <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">우리 회사 공고</h2>
-              <div className="grid grid-cols-2 gap-8">
-                {/* 왼쪽: 필터 및 업로드 */}
-                <div className="space-y-6">
+            {/* 우리 회사 공고와 경쟁사 공고를 좌우로 배치 */}
+            <div className="grid grid-cols-2 gap-8 items-stretch">
+              {/* 왼쪽: 우리 회사 공고 섹션 */}
+              <section className="flex flex-col h-full">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">우리 회사 공고</h2>
+                <div className="flex flex-col flex-1 space-y-6">
+                  {/* 필터 및 업로드 */}
+                  <div className="space-y-6 flex-shrink-0 min-h-[600px] flex flex-col justify-between">
                   {/* 구분 필터 */}
+                  <div className="space-y-6">
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-medium text-gray-700">구분</label>
@@ -353,54 +361,75 @@ export default function QualityPage() {
                       className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900"
                     />
                   </div>
+                  </div>
 
-                  {/* 이미지 업로드 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      우리 회사 공고 이미지 업로드
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition-colors">
-                      <input
-                        type="file"
-                        id="our-job-image"
-                        accept="image/*"
-                        onChange={handleOurJobImageUpload}
-                        className="hidden"
-                      />
-                      <label htmlFor="our-job-image" className="cursor-pointer">
-                        <svg
-                          className="w-12 h-12 mx-auto mb-3 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <p className="text-sm text-gray-600 mb-2">
-                          공고 이미지를 업로드하거나 공고를 선택하세요
-                        </p>
-                        <button className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-                          파일 선택
-                        </button>
-                        {ourJobImage && (
-                          <p className="mt-2 text-xs text-gray-500">{ourJobImage.name}</p>
-                        )}
+                  {/* 이미지 업로드 및 검색 버튼 영역 */}
+                  <div className="space-y-6">
+                    {/* 이미지 업로드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        우리 회사 공고 이미지 업로드
                       </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition-colors">
+                        <input
+                          type="file"
+                          id="our-job-image"
+                          accept="image/*"
+                          onChange={handleOurJobImageUpload}
+                          className="hidden"
+                        />
+                        <label htmlFor="our-job-image" className="cursor-pointer">
+                          <svg
+                            className="w-12 h-12 mx-auto mb-3 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                          <p className="text-sm text-gray-600 mb-2">
+                            공고 이미지를 업로드하거나 공고를 선택하세요
+                          </p>
+                          <button className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                            파일 선택
+                          </button>
+                          {ourJobImage && (
+                            <p className="mt-2 text-xs text-gray-500">{ourJobImage.name}</p>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 공고 검색 버튼 */}
+                    <div>
+                      <button
+                        onClick={() => {
+                          // 필터가 이미 적용되어 있으므로 단순히 포커스를 공고 목록으로 이동
+                          document.getElementById('our-job-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        공고 검색
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* 오른쪽: 우리 회사 공고 목록 */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {/* 우리 회사 공고 목록 */}
+                  <div id="our-job-list" className="flex-1 flex flex-col min-h-0">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
+                    <div className="space-y-3 flex-1 overflow-y-auto">
                     {filteredOurJobs.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">공고가 없습니다.</p>
+                      <p className="text-center text-gray-500 py-8">
+                        {experienceFilter.length === 0 && employmentTypeFilter.length === 0 && jobRoleInput === ''
+                          ? '필터를 선택하거나 직무를 입력한 후 공고 검색 버튼을 클릭하세요.'
+                          : '공고가 없습니다.'}
+                      </p>
                     ) : (
                       filteredOurJobs.map((job) => (
                       <div
@@ -431,17 +460,19 @@ export default function QualityPage() {
                       </div>
                     ))
                     )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* 경쟁사 공고 섹션 */}
-            <section>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">경쟁사 공고</h2>
-              <div className="grid grid-cols-2 gap-8">
-                {/* 왼쪽: 필터 및 업로드 */}
-                <div className="space-y-6">
+              {/* 오른쪽: 경쟁사 공고 섹션 */}
+              <section className="flex flex-col h-full">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">경쟁사 공고</h2>
+                <div className="flex flex-col flex-1 space-y-6">
+                  {/* 필터 및 업로드 */}
+                  <div className="space-y-6 flex-shrink-0 min-h-[600px] flex flex-col justify-between">
+                  {/* 선택 필터 영역 */}
+                  <div className="space-y-6">
                   {/* 회사 선택 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">회사 선택</label>
@@ -474,62 +505,66 @@ export default function QualityPage() {
                       ))}
                     </select>
                   </div>
-
-                  {/* 검색 버튼 */}
-                  <div>
-                    <button
-                      onClick={handleCompetitorSearch}
-                      className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
-                    >
-                      공고 검색
-                    </button>
                   </div>
 
-                  {/* 이미지 업로드 */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      경쟁사 공고 이미지 업로드
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition-colors">
-                      <input
-                        type="file"
-                        id="competitor-job-image"
-                        accept="image/*"
-                        onChange={handleCompetitorJobImageUpload}
-                        className="hidden"
-                      />
-                      <label htmlFor="competitor-job-image" className="cursor-pointer">
-                        <svg
-                          className="w-12 h-12 mx-auto mb-3 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <p className="text-sm text-gray-600 mb-2">
-                          공고 이미지를 업로드하거나 공고를 선택하세요
-                        </p>
-                        <button className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-                          파일 선택
-                        </button>
-                        {competitorJobImage && (
-                          <p className="mt-2 text-xs text-gray-500">{competitorJobImage.name}</p>
-                        )}
+                  {/* 이미지 업로드 및 검색 버튼 영역 */}
+                  <div className="space-y-6">
+                    {/* 이미지 업로드 */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        경쟁사 공고 이미지 업로드
                       </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-400 transition-colors">
+                        <input
+                          type="file"
+                          id="competitor-job-image"
+                          accept="image/*"
+                          onChange={handleCompetitorJobImageUpload}
+                          className="hidden"
+                        />
+                        <label htmlFor="competitor-job-image" className="cursor-pointer">
+                          <svg
+                            className="w-12 h-12 mx-auto mb-3 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                          <p className="text-sm text-gray-600 mb-2">
+                            공고 이미지를 업로드하거나 공고를 선택하세요
+                          </p>
+                          <button className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                            파일 선택
+                          </button>
+                          {competitorJobImage && (
+                            <p className="mt-2 text-xs text-gray-500">{competitorJobImage.name}</p>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 공고 검색 버튼 */}
+                    <div>
+                      <button
+                        onClick={handleCompetitorSearch}
+                        className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        공고 검색
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* 오른쪽: 경쟁사 공고 목록 */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {/* 경쟁사 공고 목록 */}
+                <div className="flex-1 flex flex-col min-h-0">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
+                    <div className="space-y-3 flex-1 overflow-y-auto">
                     {searchResults.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">회사와 직무를 선택한 후 검색 버튼을 클릭하세요.</p>
                     ) : (
@@ -564,10 +599,11 @@ export default function QualityPage() {
                         </div>
                       ))
                     )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
 
             {/* 다음 단계 버튼 */}
             <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">

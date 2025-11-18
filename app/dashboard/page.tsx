@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
-  const [selectedYear, setSelectedYear] = useState<'2023' | '2024' | '2025'>('2025')
+  const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1316,6 +1316,20 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
   // 회사별 스킬 다양성 데이터 - 연도별
   const companySkillDiversityDataByYear: Record<string, Array<{ company: string; skills: number }>> = {
+    '2021': [
+      { company: '토스', skills: 85 },
+      { company: '라인', skills: 60 },
+      { company: '한화', skills: 28 },
+      { company: '카카오', skills: 20 },
+      { company: '네이버', skills: 16 },
+    ],
+    '2022': [
+      { company: '토스', skills: 130 },
+      { company: '라인', skills: 90 },
+      { company: '한화', skills: 42 },
+      { company: '카카오', skills: 30 },
+      { company: '네이버', skills: 24 },
+    ],
     '2023': [
       { company: '토스', skills: 180 },
       { company: '라인', skills: 120 },
@@ -1352,6 +1366,10 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
   const skillDiversityYAxisMax = useMemo(() => {
     if (skillDiversityViewMode === 'all') {
       return 450
+    } else if (selectedYear === '2021') {
+      return 100
+    } else if (selectedYear === '2022') {
+      return 150
     } else if (selectedYear === '2023') {
       return 200
     } else if (selectedYear === '2024') {
@@ -1363,6 +1381,50 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
   // 회사별 상위 스킬 분기별 트렌드 데이터 - 연도별
   const companySkillTrendDataByYear: Record<string, Record<string, Array<{ month: string; python: number; sql: number; java: number; kubernetes: number; docker: number; react: number; typescript: number; aws: number; spring: number; nodejs: number }>>> = {
+    '2021': {
+      '토스': [
+        { month: '2021.09', python: 5, sql: 4, java: 3, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 2, nodejs: 2 },
+        { month: '2021.10', python: 6, sql: 5, java: 4, kubernetes: 2, docker: 3, react: 3, typescript: 2, aws: 2, spring: 3, nodejs: 3 },
+      ],
+      '라인': [
+        { month: '2021.09', python: 4, sql: 3, java: 2, kubernetes: 1, docker: 2, react: 1, typescript: 1, aws: 1, spring: 2, nodejs: 1 },
+        { month: '2021.10', python: 5, sql: 4, java: 3, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 2, nodejs: 2 },
+      ],
+      '한화': [
+        { month: '2021.09', python: 2, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 0, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2021.10', python: 3, sql: 3, java: 2, kubernetes: 1, docker: 1, react: 1, typescript: 1, aws: 1, spring: 2, nodejs: 1 },
+      ],
+      '카카오': [
+        { month: '2021.09', python: 3, sql: 2, java: 2, kubernetes: 1, docker: 1, react: 1, typescript: 1, aws: 1, spring: 1, nodejs: 1 },
+        { month: '2021.10', python: 4, sql: 3, java: 3, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 2, nodejs: 2 },
+      ],
+      '네이버': [
+        { month: '2021.09', python: 3, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 1, spring: 1, nodejs: 1 },
+        { month: '2021.10', python: 4, sql: 3, java: 2, kubernetes: 1, docker: 1, react: 1, typescript: 1, aws: 1, spring: 2, nodejs: 1 },
+      ],
+    },
+    '2022': {
+      '토스': [
+        { month: '2022.09', python: 8, sql: 6, java: 5, kubernetes: 2, docker: 4, react: 3, typescript: 2, aws: 2, spring: 4, nodejs: 3 },
+        { month: '2022.10', python: 10, sql: 8, java: 7, kubernetes: 3, docker: 5, react: 4, typescript: 3, aws: 3, spring: 5, nodejs: 4 },
+      ],
+      '라인': [
+        { month: '2022.09', python: 6, sql: 5, java: 4, kubernetes: 2, docker: 3, react: 2, typescript: 2, aws: 2, spring: 3, nodejs: 2 },
+        { month: '2022.10', python: 8, sql: 6, java: 5, kubernetes: 3, docker: 4, react: 3, typescript: 3, aws: 2, spring: 4, nodejs: 3 },
+      ],
+      '한화': [
+        { month: '2022.09', python: 4, sql: 3, java: 3, kubernetes: 1, docker: 2, react: 1, typescript: 1, aws: 1, spring: 2, nodejs: 1 },
+        { month: '2022.10', python: 5, sql: 4, java: 4, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 3, nodejs: 2 },
+      ],
+      '카카오': [
+        { month: '2022.09', python: 5, sql: 4, java: 3, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 2, nodejs: 2 },
+        { month: '2022.10', python: 6, sql: 5, java: 4, kubernetes: 2, docker: 3, react: 3, typescript: 2, aws: 2, spring: 3, nodejs: 3 },
+      ],
+      '네이버': [
+        { month: '2022.09', python: 5, sql: 4, java: 3, kubernetes: 1, docker: 2, react: 2, typescript: 1, aws: 1, spring: 2, nodejs: 2 },
+        { month: '2022.10', python: 6, sql: 5, java: 4, kubernetes: 2, docker: 2, react: 2, typescript: 2, aws: 1, spring: 3, nodejs: 2 },
+      ],
+    },
     '2023': {
       '토스': [
         { month: '2023.09', python: 15, sql: 12, java: 10, kubernetes: 5, docker: 8, react: 6, typescript: 5, aws: 4, spring: 7, nodejs: 6 },
@@ -1448,6 +1510,10 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
   const skillTrendYAxisMax = useMemo(() => {
     if (skillDiversityViewMode === 'all') {
       return 90
+    } else if (selectedYear === '2021') {
+      return 10
+    } else if (selectedYear === '2022') {
+      return 12
     } else if (selectedYear === '2023') {
       return 20
     } else if (selectedYear === '2024') {
@@ -1662,9 +1728,11 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 {skillDiversityViewMode === 'year' && (
                   <select
                     value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value as '2023' | '2024' | '2025')}
+                    onChange={(e) => setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')}
                     className="ml-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
                     <option value="2023">2023</option>
                     <option value="2024">2024</option>
                     <option value="2025">2025</option>

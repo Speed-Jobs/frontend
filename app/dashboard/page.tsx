@@ -29,6 +29,8 @@ import {
 
 export default function Dashboard() {
   const [timeframe, setTimeframe] = useState('Daily')
+  const [jobPostingsTrendTimeframe, setJobPostingsTrendTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily')
+  const [companyRecruitmentTimeframe, setCompanyRecruitmentTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily')
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([])
   const [companySearchQuery, setCompanySearchQuery] = useState('')
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
@@ -40,6 +42,8 @@ export default function Dashboard() {
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
+  const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
+  const [selectedYear, setSelectedYear] = useState<'2023' | '2024' | '2025'>('2025')
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1108,20 +1112,186 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
     { month: '2025-11', count: 5200 },
   ]
 
-  // 주요 회사별 채용 활동 데이터 (8개 경쟁사 - saramin 제외)
-  const companyRecruitmentData = [
-    { month: '2025-01', toss: 120, line: 80, hanwha: 100, kakao: 150, naver: 180, samsung: 140, lg: 90, sk: 110 },
-    { month: '2025-02', toss: 180, line: 120, hanwha: 150, kakao: 200, naver: 240, samsung: 190, lg: 130, sk: 160 },
-    { month: '2025-03', toss: 150, line: 100, hanwha: 130, kakao: 180, naver: 220, samsung: 170, lg: 110, sk: 140 },
-    { month: '2025-04', toss: 220, line: 160, hanwha: 190, kakao: 260, naver: 300, samsung: 240, lg: 180, sk: 200 },
-    { month: '2025-05', toss: 280, line: 220, hanwha: 250, kakao: 320, naver: 380, samsung: 300, lg: 240, sk: 260 },
-    { month: '2025-06', toss: 240, line: 200, hanwha: 220, kakao: 280, naver: 340, samsung: 260, lg: 200, sk: 230 },
-    { month: '2025-07', toss: 320, line: 260, hanwha: 290, kakao: 360, naver: 420, samsung: 340, lg: 280, sk: 300 },
-    { month: '2025-08', toss: 380, line: 320, hanwha: 350, kakao: 420, naver: 480, samsung: 400, lg: 340, sk: 360 },
-    { month: '2025-09', toss: 450, line: 380, hanwha: 400, kakao: 480, naver: 560, samsung: 450, lg: 390, sk: 410 },
-    { month: '2025-10', toss: 680, line: 520, hanwha: 580, kakao: 720, naver: 850, samsung: 680, lg: 600, sk: 640 },
-    { month: '2025-11', toss: 620, line: 480, hanwha: 540, kakao: 680, naver: 800, samsung: 620, lg: 550, sk: 580 },
+  // 주간 채용 공고 수 추이 데이터 (최근 12주)
+  const weeklyJobPostingsData = [
+    { week: '9월 1주', count: 850 },
+    { week: '9월 2주', count: 920 },
+    { week: '9월 3주', count: 1050 },
+    { week: '9월 4주', count: 1380 },
+    { week: '10월 1주', count: 1420 },
+    { week: '10월 2주', count: 1580 },
+    { week: '10월 3주', count: 1450 },
+    { week: '10월 4주', count: 1350 },
+    { week: '11월 1주', count: 1280 },
+    { week: '11월 2주', count: 1320 },
+    { week: '11월 3주', count: 1300 },
+    { week: '11월 4주', count: 1300 },
   ]
+
+  // 일간 채용 공고 수 추이 데이터 (최근 30일)
+  const dailyJobPostingsData = [
+    { day: '11/1', count: 180 },
+    { day: '11/2', count: 195 },
+    { day: '11/3', count: 210 },
+    { day: '11/4', count: 185 },
+    { day: '11/5', count: 200 },
+    { day: '11/6', count: 175 },
+    { day: '11/7', count: 190 },
+    { day: '11/8', count: 205 },
+    { day: '11/9', count: 220 },
+    { day: '11/10', count: 195 },
+    { day: '11/11', count: 210 },
+    { day: '11/12', count: 225 },
+    { day: '11/13', count: 200 },
+    { day: '11/14', count: 215 },
+    { day: '11/15', count: 230 },
+    { day: '11/16', count: 205 },
+    { day: '11/17', count: 220 },
+    { day: '11/18', count: 235 },
+    { day: '11/19', count: 210 },
+    { day: '11/20', count: 225 },
+    { day: '11/21', count: 240 },
+    { day: '11/22', count: 215 },
+    { day: '11/23', count: 230 },
+    { day: '11/24', count: 245 },
+    { day: '11/25', count: 220 },
+    { day: '11/26', count: 235 },
+    { day: '11/27', count: 250 },
+    { day: '11/28', count: 225 },
+    { day: '11/29', count: 240 },
+    { day: '11/30', count: 255 },
+  ]
+
+  // timeframe에 따른 채용 공고 수 추이 데이터 선택
+  const jobPostingsTrendData = useMemo(() => {
+    if (jobPostingsTrendTimeframe === 'Daily') {
+      return dailyJobPostingsData.map(item => ({ period: item.day, count: item.count }))
+    } else if (jobPostingsTrendTimeframe === 'Weekly') {
+      return weeklyJobPostingsData.map(item => ({ period: item.week, count: item.count }))
+    } else {
+      return monthlyJobPostingsData.map(item => ({ period: item.month, count: item.count }))
+    }
+  }, [jobPostingsTrendTimeframe])
+
+  // timeframe에 따른 차트 제목
+  const trendChartTitle = useMemo(() => {
+    if (jobPostingsTrendTimeframe === 'Daily') {
+      return '일간 채용 공고 수 추이'
+    } else if (jobPostingsTrendTimeframe === 'Weekly') {
+      return '주간 채용 공고 수 추이'
+    } else {
+      return '월간 채용 공고 수 추이'
+    }
+  }, [jobPostingsTrendTimeframe])
+
+  // timeframe에 따른 Y축 최대값
+  const trendYAxisMax = useMemo(() => {
+    if (jobPostingsTrendTimeframe === 'Daily') {
+      return 300
+    } else if (jobPostingsTrendTimeframe === 'Weekly') {
+      return 2000
+    } else {
+      return 7000
+    }
+  }, [jobPostingsTrendTimeframe])
+
+  // 주요 회사별 채용 활동 데이터 - 월간 (8개 경쟁사 - saramin 제외)
+  const companyRecruitmentDataMonthly = [
+    { period: '2025-01', toss: 120, line: 80, hanwha: 100, kakao: 150, naver: 180, samsung: 140, lg: 90, sk: 110 },
+    { period: '2025-02', toss: 180, line: 120, hanwha: 150, kakao: 200, naver: 240, samsung: 190, lg: 130, sk: 160 },
+    { period: '2025-03', toss: 150, line: 100, hanwha: 130, kakao: 180, naver: 220, samsung: 170, lg: 110, sk: 140 },
+    { period: '2025-04', toss: 220, line: 160, hanwha: 190, kakao: 260, naver: 300, samsung: 240, lg: 180, sk: 200 },
+    { period: '2025-05', toss: 280, line: 220, hanwha: 250, kakao: 320, naver: 380, samsung: 300, lg: 240, sk: 260 },
+    { period: '2025-06', toss: 240, line: 200, hanwha: 220, kakao: 280, naver: 340, samsung: 260, lg: 200, sk: 230 },
+    { period: '2025-07', toss: 320, line: 260, hanwha: 290, kakao: 360, naver: 420, samsung: 340, lg: 280, sk: 300 },
+    { period: '2025-08', toss: 380, line: 320, hanwha: 350, kakao: 420, naver: 480, samsung: 400, lg: 340, sk: 360 },
+    { period: '2025-09', toss: 450, line: 380, hanwha: 400, kakao: 480, naver: 560, samsung: 450, lg: 390, sk: 410 },
+    { period: '2025-10', toss: 680, line: 520, hanwha: 580, kakao: 720, naver: 850, samsung: 680, lg: 600, sk: 640 },
+    { period: '2025-11', toss: 620, line: 480, hanwha: 540, kakao: 680, naver: 800, samsung: 620, lg: 550, sk: 580 },
+  ]
+
+  // 주요 회사별 채용 활동 데이터 - 주간 (최근 12주)
+  const companyRecruitmentDataWeekly = [
+    { period: '9월 1주', toss: 95, line: 65, hanwha: 70, kakao: 85, naver: 100, samsung: 80, lg: 60, sk: 75 },
+    { period: '9월 2주', toss: 105, line: 75, hanwha: 80, kakao: 95, naver: 110, samsung: 90, lg: 70, sk: 85 },
+    { period: '9월 3주', toss: 115, line: 85, hanwha: 90, kakao: 105, naver: 120, samsung: 100, lg: 80, sk: 95 },
+    { period: '9월 4주', toss: 135, line: 105, hanwha: 110, kakao: 125, naver: 140, samsung: 120, lg: 100, sk: 115 },
+    { period: '10월 1주', toss: 140, line: 110, hanwha: 115, kakao: 130, naver: 145, samsung: 125, lg: 105, sk: 120 },
+    { period: '10월 2주', toss: 155, line: 125, hanwha: 130, kakao: 145, naver: 160, samsung: 140, lg: 120, sk: 135 },
+    { period: '10월 3주', toss: 145, line: 115, hanwha: 120, kakao: 135, naver: 150, samsung: 130, lg: 110, sk: 125 },
+    { period: '10월 4주', toss: 135, line: 105, hanwha: 110, kakao: 125, naver: 140, samsung: 120, lg: 100, sk: 115 },
+    { period: '11월 1주', toss: 130, line: 100, hanwha: 105, kakao: 120, naver: 135, samsung: 115, lg: 95, sk: 110 },
+    { period: '11월 2주', toss: 135, line: 105, hanwha: 110, kakao: 125, naver: 140, samsung: 120, lg: 100, sk: 115 },
+    { period: '11월 3주', toss: 130, line: 100, hanwha: 105, kakao: 120, naver: 135, samsung: 115, lg: 95, sk: 110 },
+    { period: '11월 4주', toss: 130, line: 100, hanwha: 105, kakao: 120, naver: 135, samsung: 115, lg: 95, sk: 110 },
+  ]
+
+  // 주요 회사별 채용 활동 데이터 - 일간 (최근 30일)
+  const companyRecruitmentDataDaily = [
+    { period: '11/1', toss: 18, line: 14, hanwha: 15, kakao: 17, naver: 19, samsung: 16, lg: 13, sk: 15 },
+    { period: '11/2', toss: 19, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/3', toss: 21, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/4', toss: 18, line: 14, hanwha: 15, kakao: 17, naver: 19, samsung: 16, lg: 13, sk: 15 },
+    { period: '11/5', toss: 20, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/6', toss: 17, line: 13, hanwha: 14, kakao: 16, naver: 18, samsung: 15, lg: 12, sk: 14 },
+    { period: '11/7', toss: 19, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/8', toss: 20, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/9', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/10', toss: 19, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/11', toss: 21, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/12', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/13', toss: 20, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/14', toss: 21, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/15', toss: 23, line: 18, hanwha: 19, kakao: 21, naver: 23, samsung: 20, lg: 17, sk: 19 },
+    { period: '11/16', toss: 20, line: 15, hanwha: 16, kakao: 18, naver: 20, samsung: 17, lg: 14, sk: 16 },
+    { period: '11/17', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/18', toss: 23, line: 18, hanwha: 19, kakao: 21, naver: 23, samsung: 20, lg: 17, sk: 19 },
+    { period: '11/19', toss: 21, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/20', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/21', toss: 24, line: 19, hanwha: 20, kakao: 22, naver: 24, samsung: 21, lg: 18, sk: 20 },
+    { period: '11/22', toss: 21, line: 16, hanwha: 17, kakao: 19, naver: 21, samsung: 18, lg: 15, sk: 17 },
+    { period: '11/23', toss: 23, line: 18, hanwha: 19, kakao: 21, naver: 23, samsung: 20, lg: 17, sk: 19 },
+    { period: '11/24', toss: 24, line: 19, hanwha: 20, kakao: 22, naver: 24, samsung: 21, lg: 18, sk: 20 },
+    { period: '11/25', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/26', toss: 23, line: 18, hanwha: 19, kakao: 21, naver: 23, samsung: 20, lg: 17, sk: 19 },
+    { period: '11/27', toss: 25, line: 20, hanwha: 21, kakao: 23, naver: 25, samsung: 22, lg: 19, sk: 21 },
+    { period: '11/28', toss: 22, line: 17, hanwha: 18, kakao: 20, naver: 22, samsung: 19, lg: 16, sk: 18 },
+    { period: '11/29', toss: 24, line: 19, hanwha: 20, kakao: 22, naver: 24, samsung: 21, lg: 18, sk: 20 },
+    { period: '11/30', toss: 25, line: 20, hanwha: 21, kakao: 23, naver: 25, samsung: 22, lg: 19, sk: 21 },
+  ]
+
+  // timeframe에 따른 회사별 채용 활동 데이터 선택
+  const companyRecruitmentData = useMemo(() => {
+    if (companyRecruitmentTimeframe === 'Daily') {
+      return companyRecruitmentDataDaily
+    } else if (companyRecruitmentTimeframe === 'Weekly') {
+      return companyRecruitmentDataWeekly
+    } else {
+      return companyRecruitmentDataMonthly
+    }
+  }, [companyRecruitmentTimeframe])
+
+  // timeframe에 따른 회사별 채용 활동 차트 제목
+  const companyRecruitmentTitle = useMemo(() => {
+    if (companyRecruitmentTimeframe === 'Daily') {
+      return '일간 주요 회사별 채용 활동'
+    } else if (companyRecruitmentTimeframe === 'Weekly') {
+      return '주간 주요 회사별 채용 활동'
+    } else {
+      return '월간 주요 회사별 채용 활동'
+    }
+  }, [companyRecruitmentTimeframe])
+
+  // timeframe에 따른 회사별 채용 활동 Y축 최대값
+  const companyRecruitmentYAxisMax = useMemo(() => {
+    if (companyRecruitmentTimeframe === 'Daily') {
+      return 30
+    } else if (companyRecruitmentTimeframe === 'Weekly') {
+      return 200
+    } else {
+      return 1200
+    }
+  }, [companyRecruitmentTimeframe])
 
   const companyColors = {
     saramin: '#3b82f6', // blue
@@ -1135,8 +1305,8 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
     sk: '#14b8a6', // teal
   }
 
-  // 회사별 스킬 다양성 데이터
-  const companySkillDiversityData = [
+  // 회사별 스킬 다양성 데이터 - 전체보기 (누적)
+  const companySkillDiversityDataAll = [
     { company: '토스', skills: 415 },
     { company: '라인', skills: 285 },
     { company: '한화', skills: 125 },
@@ -1144,29 +1314,148 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
     { company: '네이버', skills: 75 },
   ]
 
-  // 회사별 상위 스킬 분기별 트렌드 데이터
-  const companySkillTrendData: Record<string, Array<{ month: string; python: number; sql: number; java: number; kubernetes: number; docker: number; react: number; typescript: number; aws: number; spring: number; nodejs: number }>> = {
-    '토스': [
-      { month: '2025.09', python: 2, sql: 3, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
-      { month: '2025.10', python: 87, sql: 65, java: 60, kubernetes: 54, docker: 44, react: 38, typescript: 35, aws: 32, spring: 28, nodejs: 25 },
+  // 회사별 스킬 다양성 데이터 - 연도별
+  const companySkillDiversityDataByYear: Record<string, Array<{ company: string; skills: number }>> = {
+    '2023': [
+      { company: '토스', skills: 180 },
+      { company: '라인', skills: 120 },
+      { company: '한화', skills: 55 },
+      { company: '카카오', skills: 40 },
+      { company: '네이버', skills: 32 },
     ],
-    '라인': [
-      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
-      { month: '2025.10', python: 75, sql: 55, java: 50, kubernetes: 45, docker: 38, react: 32, typescript: 30, aws: 28, spring: 25, nodejs: 22 },
+    '2024': [
+      { company: '토스', skills: 320 },
+      { company: '라인', skills: 220 },
+      { company: '한화', skills: 95 },
+      { company: '카카오', skills: 70 },
+      { company: '네이버', skills: 58 },
     ],
-    '한화': [
-      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
-      { month: '2025.10', python: 65, sql: 48, java: 45, kubernetes: 38, docker: 32, react: 28, typescript: 25, aws: 22, spring: 20, nodejs: 18 },
-    ],
-    '카카오': [
-      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
-      { month: '2025.10', python: 70, sql: 52, java: 48, kubernetes: 42, docker: 35, react: 30, typescript: 28, aws: 25, spring: 22, nodejs: 20 },
-    ],
-    '네이버': [
-      { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
-      { month: '2025.10', python: 68, sql: 50, java: 46, kubernetes: 40, docker: 33, react: 29, typescript: 26, aws: 24, spring: 21, nodejs: 19 },
+    '2025': [
+      { company: '토스', skills: 415 },
+      { company: '라인', skills: 285 },
+      { company: '한화', skills: 125 },
+      { company: '카카오', skills: 90 },
+      { company: '네이버', skills: 75 },
     ],
   }
+
+  // 선택된 모드에 따른 회사별 스킬 다양성 데이터
+  const companySkillDiversityData = useMemo(() => {
+    if (skillDiversityViewMode === 'all') {
+      return companySkillDiversityDataAll
+    } else {
+      return companySkillDiversityDataByYear[selectedYear] || companySkillDiversityDataAll
+    }
+  }, [skillDiversityViewMode, selectedYear])
+
+  // 선택된 모드에 따른 Y축 최대값
+  const skillDiversityYAxisMax = useMemo(() => {
+    if (skillDiversityViewMode === 'all') {
+      return 450
+    } else if (selectedYear === '2023') {
+      return 200
+    } else if (selectedYear === '2024') {
+      return 350
+    } else {
+      return 450
+    }
+  }, [skillDiversityViewMode, selectedYear])
+
+  // 회사별 상위 스킬 분기별 트렌드 데이터 - 연도별
+  const companySkillTrendDataByYear: Record<string, Record<string, Array<{ month: string; python: number; sql: number; java: number; kubernetes: number; docker: number; react: number; typescript: number; aws: number; spring: number; nodejs: number }>>> = {
+    '2023': {
+      '토스': [
+        { month: '2023.09', python: 15, sql: 12, java: 10, kubernetes: 5, docker: 8, react: 6, typescript: 5, aws: 4, spring: 7, nodejs: 6 },
+        { month: '2023.10', python: 18, sql: 15, java: 12, kubernetes: 7, docker: 10, react: 8, typescript: 7, aws: 6, spring: 9, nodejs: 8 },
+      ],
+      '라인': [
+        { month: '2023.09', python: 12, sql: 10, java: 8, kubernetes: 4, docker: 6, react: 5, typescript: 4, aws: 3, spring: 6, nodejs: 5 },
+        { month: '2023.10', python: 15, sql: 12, java: 10, kubernetes: 6, docker: 8, react: 7, typescript: 6, aws: 5, spring: 8, nodejs: 7 },
+      ],
+      '한화': [
+        { month: '2023.09', python: 8, sql: 7, java: 6, kubernetes: 2, docker: 4, react: 3, typescript: 2, aws: 2, spring: 4, nodejs: 3 },
+        { month: '2023.10', python: 10, sql: 9, java: 8, kubernetes: 3, docker: 5, react: 4, typescript: 3, aws: 3, spring: 5, nodejs: 4 },
+      ],
+      '카카오': [
+        { month: '2023.09', python: 10, sql: 8, java: 7, kubernetes: 3, docker: 5, react: 4, typescript: 3, aws: 3, spring: 5, nodejs: 4 },
+        { month: '2023.10', python: 12, sql: 10, java: 9, kubernetes: 4, docker: 6, react: 5, typescript: 4, aws: 4, spring: 6, nodejs: 5 },
+      ],
+      '네이버': [
+        { month: '2023.09', python: 9, sql: 7, java: 6, kubernetes: 2, docker: 4, react: 3, typescript: 2, aws: 2, spring: 4, nodejs: 3 },
+        { month: '2023.10', python: 11, sql: 9, java: 8, kubernetes: 3, docker: 5, react: 4, typescript: 3, aws: 3, spring: 5, nodejs: 4 },
+      ],
+    },
+    '2024': {
+      '토스': [
+        { month: '2024.09', python: 35, sql: 28, java: 25, kubernetes: 20, docker: 18, react: 15, typescript: 14, aws: 12, spring: 16, nodejs: 14 },
+        { month: '2024.10', python: 45, sql: 38, java: 35, kubernetes: 28, docker: 25, react: 22, typescript: 20, aws: 18, spring: 20, nodejs: 18 },
+      ],
+      '라인': [
+        { month: '2024.09', python: 30, sql: 24, java: 22, kubernetes: 18, docker: 16, react: 13, typescript: 12, aws: 10, spring: 14, nodejs: 12 },
+        { month: '2024.10', python: 40, sql: 32, java: 30, kubernetes: 24, docker: 22, react: 19, typescript: 17, aws: 15, spring: 18, nodejs: 16 },
+      ],
+      '한화': [
+        { month: '2024.09', python: 20, sql: 18, java: 16, kubernetes: 12, docker: 10, react: 8, typescript: 7, aws: 6, spring: 9, nodejs: 8 },
+        { month: '2024.10', python: 28, sql: 24, java: 22, kubernetes: 18, docker: 15, react: 12, typescript: 11, aws: 9, spring: 12, nodejs: 11 },
+      ],
+      '카카오': [
+        { month: '2024.09', python: 25, sql: 20, java: 18, kubernetes: 14, docker: 12, react: 10, typescript: 9, aws: 8, spring: 11, nodejs: 10 },
+        { month: '2024.10', python: 35, sql: 28, java: 26, kubernetes: 20, docker: 18, react: 15, typescript: 14, aws: 12, spring: 15, nodejs: 14 },
+      ],
+      '네이버': [
+        { month: '2024.09', python: 24, sql: 19, java: 17, kubernetes: 13, docker: 11, react: 9, typescript: 8, aws: 7, spring: 10, nodejs: 9 },
+        { month: '2024.10', python: 32, sql: 26, java: 24, kubernetes: 18, docker: 16, react: 13, typescript: 12, aws: 10, spring: 13, nodejs: 12 },
+      ],
+    },
+    '2025': {
+      '토스': [
+        { month: '2025.09', python: 2, sql: 3, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2025.10', python: 87, sql: 65, java: 60, kubernetes: 54, docker: 44, react: 38, typescript: 35, aws: 32, spring: 28, nodejs: 25 },
+      ],
+      '라인': [
+        { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2025.10', python: 75, sql: 55, java: 50, kubernetes: 45, docker: 38, react: 32, typescript: 30, aws: 28, spring: 25, nodejs: 22 },
+      ],
+      '한화': [
+        { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2025.10', python: 65, sql: 48, java: 45, kubernetes: 38, docker: 32, react: 28, typescript: 25, aws: 22, spring: 20, nodejs: 18 },
+      ],
+      '카카오': [
+        { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2025.10', python: 70, sql: 52, java: 48, kubernetes: 42, docker: 35, react: 30, typescript: 28, aws: 25, spring: 22, nodejs: 20 },
+      ],
+      '네이버': [
+        { month: '2025.09', python: 1, sql: 2, java: 2, kubernetes: 0, docker: 1, react: 1, typescript: 1, aws: 0, spring: 1, nodejs: 1 },
+        { month: '2025.10', python: 68, sql: 50, java: 46, kubernetes: 40, docker: 33, react: 29, typescript: 26, aws: 24, spring: 21, nodejs: 19 },
+      ],
+    },
+  }
+
+  // 선택된 모드와 연도에 따른 회사별 상위 스킬 분기별 트렌드 데이터
+  const companySkillTrendData = useMemo(() => {
+    if (!selectedCompanyForSkills) return null
+    
+    if (skillDiversityViewMode === 'all') {
+      // 전체보기일 때는 2025년 데이터 사용
+      return companySkillTrendDataByYear['2025'][selectedCompanyForSkills] || null
+    } else {
+      // 연도별일 때는 선택된 연도 데이터 사용
+      return companySkillTrendDataByYear[selectedYear]?.[selectedCompanyForSkills] || null
+    }
+  }, [selectedCompanyForSkills, skillDiversityViewMode, selectedYear])
+
+  // 선택된 연도에 따른 스킬 트렌드 Y축 최대값
+  const skillTrendYAxisMax = useMemo(() => {
+    if (skillDiversityViewMode === 'all') {
+      return 90
+    } else if (selectedYear === '2023') {
+      return 20
+    } else if (selectedYear === '2024') {
+      return 50
+    } else {
+      return 90
+    }
+  }, [skillDiversityViewMode, selectedYear])
 
   const skillColors = {
     python: '#3b82f6', // light blue
@@ -1192,11 +1481,45 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
       <div className="px-8 py-6 max-w-[95%] mx-auto">
         {/* 상단 그래프 섹션 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* 월별 채용 공고 수 추이 */}
+          {/* 채용 공고 수 추이 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">월별 채용 공고 수 추이</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">{trendChartTitle}</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setJobPostingsTrendTimeframe('Daily')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    jobPostingsTrendTimeframe === 'Daily'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  일간
+                </button>
+                <button
+                  onClick={() => setJobPostingsTrendTimeframe('Weekly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    jobPostingsTrendTimeframe === 'Weekly'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  주간
+                </button>
+                <button
+                  onClick={() => setJobPostingsTrendTimeframe('Monthly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    jobPostingsTrendTimeframe === 'Monthly'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  월간
+                </button>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyJobPostingsData}>
+              <AreaChart data={jobPostingsTrendData}>
                 <defs>
                   <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -1205,7 +1528,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
-                  dataKey="month" 
+                  dataKey="period" 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   angle={-45}
                   textAnchor="end"
@@ -1213,7 +1536,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 />
                 <YAxis 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
-                  domain={[0, 7000]}
+                  domain={[0, trendYAxisMax]}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1239,12 +1562,46 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
 
           {/* 주요 회사별 채용 활동 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">주요 회사별 채용 활동</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">{companyRecruitmentTitle}</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCompanyRecruitmentTimeframe('Daily')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    companyRecruitmentTimeframe === 'Daily'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  일간
+                </button>
+                <button
+                  onClick={() => setCompanyRecruitmentTimeframe('Weekly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    companyRecruitmentTimeframe === 'Weekly'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  주간
+                </button>
+                <button
+                  onClick={() => setCompanyRecruitmentTimeframe('Monthly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    companyRecruitmentTimeframe === 'Monthly'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  월간
+                </button>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={companyRecruitmentData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
-                  dataKey="month" 
+                  dataKey="period" 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   angle={-45}
                   textAnchor="end"
@@ -1252,7 +1609,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                 />
                 <YAxis 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
-                  domain={[0, 1200]}
+                  domain={[0, companyRecruitmentYAxisMax]}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1285,13 +1642,42 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* 회사별 스킬 다양성 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">회사별 스킬 다양성</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">회사별 스킬 다양성</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">전체보기</span>
+                <button
+                  onClick={() => setSkillDiversityViewMode(skillDiversityViewMode === 'all' ? 'year' : 'all')}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${
+                    skillDiversityViewMode === 'year' ? 'bg-black' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      skillDiversityViewMode === 'year' ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-gray-600">연도별</span>
+                {skillDiversityViewMode === 'year' && (
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value as '2023' | '2024' | '2025')}
+                    className="ml-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                )}
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={companySkillDiversityData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   type="number" 
-                  domain={[0, 450]}
+                  domain={[0, skillDiversityYAxisMax]}
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                 />
                 <YAxis 
@@ -1328,9 +1714,9 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               {selectedCompanyForSkills ? `${selectedCompanyForSkills} 상위 스킬 분기별 트렌드` : '회사를 선택하세요'}
             </h2>
-            {selectedCompanyForSkills && companySkillTrendData[selectedCompanyForSkills] ? (
+            {selectedCompanyForSkills && companySkillTrendData ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={companySkillTrendData[selectedCompanyForSkills]}>
+                <BarChart data={companySkillTrendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="month" 
@@ -1341,7 +1727,7 @@ ${selectedSkillInfo ? `**선택된 스킬: ${selectedSkillInfo.name}**
                   />
                   <YAxis 
                     tick={{ fill: '#6b7280', fontSize: 12 }}
-                    domain={[0, 90]}
+                    domain={[0, skillTrendYAxisMax]}
                     label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
                   />
                   <Tooltip 

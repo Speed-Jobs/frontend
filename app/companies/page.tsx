@@ -44,6 +44,10 @@ export default function CompaniesPage() {
   const [chatInput, setChatInput] = useState('')
   const [isChatbotLoading, setIsChatbotLoading] = useState(false)
 
+  // 공고 리스트 필터링 상태
+  const [jobListFilter, setJobListFilter] = useState('')
+  const [sortOrder, setSortOrder] = useState<'name' | 'date-asc' | 'date-desc'>('date-desc')
+
 
   // 회사별 공고 통계 계산
   const companyStats = useMemo(() => {
@@ -240,17 +244,39 @@ export default function CompaniesPage() {
       })
   }, [selectedJobRole])
 
-  // 선택된 회사의 공고 목록
+  // 선택된 회사의 공고 목록 (필터링 및 정렬 적용)
   const selectedCompanyJobs = useMemo(() => {
     if (!selectedCompany) return []
     const companyStat = companyStats.find((stat) => stat.company === selectedCompany)
     if (!companyStat) return []
-    return companyStat.jobs.sort((a, b) => {
-      const dateA = new Date(a.posted_date).getTime()
-      const dateB = new Date(b.posted_date).getTime()
-      return dateB - dateA // 최신순
+    
+    // 필터링
+    let filtered = companyStat.jobs
+    if (jobListFilter.trim()) {
+      const filterLower = jobListFilter.toLowerCase()
+      filtered = filtered.filter((job) => 
+        job.title.toLowerCase().includes(filterLower) ||
+        new Date(job.posted_date).toLocaleDateString('ko-KR').includes(filterLower)
+      )
+    }
+    
+    // 정렬
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortOrder === 'name') {
+        return a.title.localeCompare(b.title, 'ko')
+      } else if (sortOrder === 'date-asc') {
+        const dateA = new Date(a.posted_date).getTime()
+        const dateB = new Date(b.posted_date).getTime()
+        return dateA - dateB
+      } else { // date-desc
+        const dateA = new Date(a.posted_date).getTime()
+        const dateB = new Date(b.posted_date).getTime()
+        return dateB - dateA
+      }
     })
-  }, [selectedCompany, companyStats])
+    
+    return sorted
+  }, [selectedCompany, companyStats, jobListFilter, sortOrder])
 
   // 검색 핸들러
   const handleSearch = () => {
@@ -475,131 +501,111 @@ export default function CompaniesPage() {
                     초기화
                   </button>
                 </div>
+                
+                {/* 필터 및 정렬 */}
+                <div className="flex items-center gap-4 mt-4">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={jobListFilter}
+                      onChange={(e) => setJobListFilter(e.target.value)}
+                      placeholder="공고 이름 또는 등록일로 검색..."
+                      className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                    />
+                    <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'name' | 'date-asc' | 'date-desc')}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                  >
+                    <option value="date-desc">최신순</option>
+                    <option value="date-asc">오래된순</option>
+                    <option value="name">이름순</option>
+                  </select>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {selectedCompanyJobs.map((job, index) => {
-                  // 회사명을 파일명으로 변환하는 매핑
-                  const companyNameMap: Record<string, string> = {
-                    '토스': 'toss',
-                    '(주)토스': 'toss',
-                    '카카오': 'kakao',
-                    '(주)카카오': 'kakao',
-                    '네이버': 'naver',
-                    '(주)네이버': 'naver',
-                    'LG전자': 'lg',
-                    '(주)LG전자': 'lg',
-                    'LG': 'lg',
-                    'LGCNS': 'lg',
-                    '라인': 'line',
-                    '(주)라인': 'line',
-                    'LINE': 'line',
-                    '당근마켓': 'daangn',
-                    '(주)당근마켓': 'daangn',
-                    '삼성전자': 'samsung-electronics',
-                    '(주)삼성전자': 'samsung-electronics',
-                    '삼성SDS': 'samsung-sds',
-                    '현대자동차': 'hyundai-motor',
-                    '(주)현대자동차': 'hyundai-motor',
-                    '현대 오토에버': 'hyundai-autoever',
-                    '쿠팡': 'coupang',
-                    '배민': 'baemin',
-                    '한화 시스템': 'hanwha-system',
-                    'KT': 'kt',
-                    'KPMG': 'kpmg',
-                  }
-                  
-                  const normalizedCompany = selectedCompany.replace('(주)', '').trim()
-                  let companySlug = companyNameMap[selectedCompany] || companyNameMap[normalizedCompany]
-                  
-                  if (!companySlug) {
-                    companySlug = normalizedCompany
-                      .toLowerCase()
-                      .replace(/\s+/g, '-')
-                      .replace(/[^a-z0-9-]/g, '')
-                  }
-                  
-                  // 이미지 ID는 순서대로 1, 2, 3... 형식
-                  const imageId = index + 1
-                  const imagePath = `/job-postings/${companySlug}/${imageId}.png`
-                  
-                  return (
-                    <div
-                      key={job.id}
-                      className="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-400 cursor-pointer transition-all hover:shadow-lg bg-white"
-                      onClick={() => setSelectedJobDetail(job)}
-                    >
-                      {/* 공고 이미지 */}
-                      <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
-                        <img
-                          src={imagePath}
-                          alt={job.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                            const placeholder = target.parentElement?.querySelector('.image-placeholder')
-                            if (placeholder) {
-                              (placeholder as HTMLElement).style.display = 'flex'
-                            }
-                          }}
-                        />
-                        {/* 플레이스홀더 */}
-                        <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
-                          <svg className="w-12 h-12 text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <p className="text-xs text-gray-400 text-center">이미지 없음</p>
-                        </div>
-                      </div>
+              {/* 파일 탐색기 스타일 리스트 */}
+              <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
+                {/* 헤더 */}
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 grid grid-cols-[40px_1fr_100px_140px_140px] gap-4 text-sm font-semibold text-gray-700">
+                  <div></div>
+                  <div>공고 이름</div>
+                  <div className="text-center">고용 형태</div>
+                  <div className="text-center">등록일</div>
+                  <div className="text-center">마감일</div>
+                </div>
+                
+                {/* 리스트 아이템 */}
+                <div className="divide-y divide-gray-200">
+                  {selectedCompanyJobs.length > 0 ? (
+                    selectedCompanyJobs.map((job, index) => {
+                      const expiredDate = job.expired_date ? new Date(job.expired_date) : null
+                      const isExpired = expiredDate ? expiredDate < new Date() : false
                       
-                      {/* 공고 정보 */}
-                      <div className="p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{job.title}</h3>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                      return (
+                        <div
+                          key={job.id}
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_100px_140px_140px] gap-4 items-center group"
+                          onClick={() => setSelectedJobDetail(job)}
+                        >
+                          {/* 파일 아이콘 */}
+                          <div className="flex items-center justify-center">
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          
+                          {/* 공고 이름 */}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                              {job.title}
+                            </p>
+                          </div>
+                          
+                          {/* 고용 형태 */}
+                          <div className="text-sm text-gray-600 text-center">
                             {job.employment_type}
-                          </span>
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.experience}
-                          </span>
-                          {job.location && (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                              {job.location}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          등록일: {new Date(job.posted_date).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </p>
-                        {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {job.meta_data.tech_stack.slice(0, 5).map((tech, idx) => (
-                              <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
-                                {tech}
+                          </div>
+                          
+                          {/* 등록일 */}
+                          <div className="text-sm text-gray-600 text-center">
+                            {(() => {
+                              const date = new Date(job.posted_date)
+                              const year = date.getFullYear()
+                              const month = String(date.getMonth() + 1).padStart(2, '0')
+                              const day = String(date.getDate()).padStart(2, '0')
+                              return `${year}. ${month}. ${day}.`
+                            })()}
+                          </div>
+                          
+                          {/* 마감일 */}
+                          <div className="text-sm text-center">
+                            {expiredDate ? (
+                              <span className={isExpired ? 'text-red-600' : 'text-gray-600'}>
+                                {(() => {
+                                  const year = expiredDate.getFullYear()
+                                  const month = String(expiredDate.getMonth() + 1).padStart(2, '0')
+                                  const day = String(expiredDate.getDate()).padStart(2, '0')
+                                  return `${year}. ${month}. ${day}.`
+                                })()}
                               </span>
-                            ))}
-                            {job.meta_data.tech_stack.length > 5 && (
-                              <span className="px-2 py-0.5 text-gray-500 text-xs">
-                                +{job.meta_data.tech_stack.length - 5}
-                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
                           </div>
-                        )}
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">클릭하여 상세 정보 보기</span>
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
                         </div>
-                      </div>
+                      )
+                    })
+                  ) : (
+                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                      검색 결과가 없습니다.
                     </div>
-                  )
-                })}
+                  )}
+                </div>
               </div>
             </>
           ) : (
@@ -969,7 +975,7 @@ export default function CompaniesPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">AI 공고 검색 챗봇</h3>
+                  <h3 className="font-semibold">공고 검색 AI Agent</h3>
                   <p className="text-xs text-blue-100">공고를 검색해드립니다</p>
                 </div>
               </div>
@@ -992,7 +998,7 @@ export default function CompaniesPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
                   </div>
-                  <p className="text-gray-600 text-sm mb-2">안녕하세요! AI 공고 검색 챗봇입니다.</p>
+                  <p className="text-gray-600 text-sm mb-2">안녕하세요! 공고 검색 AI Agent입니다.</p>
                   <p className="text-gray-500 text-xs">원하는 공고를 검색해보세요.</p>
                   <div className="mt-4 space-y-2">
                     <p className="text-xs text-gray-500 font-semibold">예시 질문:</p>

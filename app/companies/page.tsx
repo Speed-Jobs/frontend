@@ -262,6 +262,9 @@ export default function CompaniesPage() {
     }
   }
 
+  // 선택된 공고 상세 정보 상태
+  const [selectedJobDetail, setSelectedJobDetail] = useState<any>(null)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -378,9 +381,9 @@ export default function CompaniesPage() {
           )}
         </div>
 
-        {/* 검색 안내 */}
-        {!selectedCompany && (
-          <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm">
+        {/* 검색 안내 및 공고 목록 */}
+        <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm">
+          {!selectedCompany ? (
             <div className="text-center py-12">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -388,220 +391,218 @@ export default function CompaniesPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">회사명과 직무를 검색하세요</h3>
               <p className="text-gray-600 text-sm">
                 위 검색창에 회사명을 입력하고 직무를 선택한 후 검색 버튼을 클릭하면<br />
-                해당 회사의 옛날 공고 이미지를 확인할 수 있습니다.
+                해당 회사의 공고 목록을 확인할 수 있습니다.
               </p>
             </div>
-          </div>
-        )}
-        
-        {/* 회사별 공고 이미지 갤러리 모달 */}
-        {selectedCompany && (() => {
-          // 회사명을 파일명으로 변환하는 매핑
-          const companyNameMap: Record<string, string> = {
-            '토스': 'toss',
-            '(주)토스': 'toss',
-            '카카오': 'kakao',
-            '(주)카카오': 'kakao',
-            '네이버': 'naver',
-            '(주)네이버': 'naver',
-            'LG전자': 'lg',
-            '(주)LG전자': 'lg',
-            'LG': 'lg',
-            'LGCNS': 'lg',
-            '라인': 'line',
-            '(주)라인': 'line',
-            'LINE': 'line',
-            '당근마켓': 'daangn',
-            '(주)당근마켓': 'daangn',
-            '삼성전자': 'samsung-electronics',
-            '(주)삼성전자': 'samsung-electronics',
-            '삼성SDS': 'samsung-sds',
-            '현대자동차': 'hyundai-motor',
-            '(주)현대자동차': 'hyundai-motor',
-            '현대 오토에버': 'hyundai-autoever',
-            '쿠팡': 'coupang',
-            '배민': 'baemin',
-            '한화 시스템': 'hanwha-system',
-            'KT': 'kt',
-            'KPMG': 'kpmg',
-          }
-          
-          const normalizedCompany = selectedCompany.replace('(주)', '').trim()
-          let companySlug = companyNameMap[selectedCompany] || companyNameMap[normalizedCompany]
-          
-          if (!companySlug) {
-            companySlug = normalizedCompany
-              .toLowerCase()
-              .replace(/\s+/g, '-')
-              .replace(/[^a-z0-9-]/g, '')
-          }
-          
-          // 이미지 ID 범위 설정 (예: 1부터 100까지, 필요에 따라 조정)
-          const maxImageId = 100
-          const imageIds = Array.from({ length: maxImageId }, (_, i) => i + 1)
-          
-          // 페이지네이션 계산
-          const totalImagePages = Math.ceil(imageIds.length / imagesPerPage)
-          const startIndex = (imageGalleryPage - 1) * imagesPerPage
-          const endIndex = startIndex + imagesPerPage
-          const currentPageImages = imageIds.slice(startIndex, endIndex)
-          
-          return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          ) : selectedCompanyJobs.length > 0 ? (
+            <>
+              <div className="mb-6 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
                       <CompanyLogo name={selectedCompany} className="w-full h-full" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
-                      <p className="text-sm text-gray-600">
-                        옛날 공고 이미지 ({startIndex + 1}-{Math.min(endIndex, imageIds.length)} / 총 {imageIds.length}개)
+                      <p className="text-sm text-gray-600 mt-1">
+                        총 {selectedCompanyJobs.length}개의 공고
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => {
                       setSelectedCompany(null)
-                      setImageGalleryPage(1)
+                      setSearchQuery('')
+                      setSelectedJobRole('전체')
+                      setSelectedJobDetail(null)
                     }}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    초기화
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    {currentPageImages.map((imageId) => {
-                      const imagePath = `/job-postings/${companySlug}/${imageId}.png`
-                      const altText = `${selectedCompany} - 공고 이미지 ${imageId}`
-                      const relatedJob = selectedCompanyJobs.find(job => job.id === imageId) || selectedCompanyJobs[0]
-                      
-                      return (
-                        <div
-                          key={imageId}
-                          className="group relative border-2 border-gray-200 rounded-xl overflow-hidden hover:border-gray-400 bg-white cursor-pointer transition-all hover:shadow-lg"
-                          onClick={() => {
-                            setSelectedImage({
-                              src: imagePath,
-                              title: relatedJob?.title || `${selectedCompany} 공고 ${imageId}`,
-                              date: relatedJob?.posted_date || ''
-                            })
-                            setImageZoom(1)
-                          }}
-                        >
-                          {/* 공고 이미지 */}
-                          <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
-                            <img
-                              src={imagePath}
-                              alt={altText}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                const placeholder = target.parentElement?.querySelector('.image-placeholder')
-                                if (placeholder) {
-                                  (placeholder as HTMLElement).style.display = 'flex'
-                                }
-                              }}
-                            />
-                            {/* 플레이스홀더 */}
-                            <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
-                              <svg className="w-12 h-12 text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <p className="text-xs text-gray-400 text-center">이미지 없음</p>
-                            </div>
-                            
-                            {/* 호버 시 정보 오버레이 */}
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                              <div className="text-white text-center px-3">
-                                <p className="text-xs font-medium mb-1 line-clamp-2">{relatedJob?.title || `공고 ${imageId}`}</p>
-                                <p className="text-xs text-gray-200">
-                                  {relatedJob?.posted_date ? new Date(relatedJob.posted_date).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  }) : `ID: ${imageId}`}
-                                </p>
-                                <p className="text-xs text-gray-300 mt-1">클릭하여 확대</p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* 하단 정보 */}
-                          <div className="p-3 bg-white">
-                            <p className="text-xs font-semibold text-gray-900 mb-1 line-clamp-1">
-                              {relatedJob?.title || `공고 ${imageId}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {relatedJob?.posted_date ? new Date(relatedJob.posted_date).toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              }) : `이미지 ID: ${imageId}`}
-                            </p>
-                          </div>
+              </div>
+              
+              <div className="space-y-4">
+                {selectedCompanyJobs.map((job) => (
+                  <div
+                    key={job.id}
+                    onClick={() => setSelectedJobDetail(job)}
+                    className="border-2 border-gray-200 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{job.title}</h3>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {job.employment_type}
+                          </span>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {job.experience}
+                          </span>
+                          {job.location && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                              {job.location}
+                            </span>
+                          )}
                         </div>
-                      )
-                    })}
-                  </div>
-                  
-                  {/* 페이지네이션 */}
-                  {totalImagePages > 1 && (
-                    <div className="mt-6 flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setImageGalleryPage(prev => Math.max(1, prev - 1))}
-                        disabled={imageGalleryPage === 1}
-                        className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        이전
-                      </button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalImagePages) }, (_, i) => {
-                          let pageNum
-                          if (totalImagePages <= 5) {
-                            pageNum = i + 1
-                          } else if (imageGalleryPage <= 3) {
-                            pageNum = i + 1
-                          } else if (imageGalleryPage >= totalImagePages - 2) {
-                            pageNum = totalImagePages - 4 + i
-                          } else {
-                            pageNum = imageGalleryPage - 2 + i
-                          }
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setImageGalleryPage(pageNum)}
-                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                imageGalleryPage === pageNum
-                                  ? 'bg-gray-900 text-white'
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          )
-                        })}
+                        <p className="text-sm text-gray-600">
+                          등록일: {new Date(job.posted_date).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </p>
+                        {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {job.meta_data.tech_stack.slice(0, 5).map((tech, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">
+                                {tech}
+                              </span>
+                            ))}
+                            {job.meta_data.tech_stack.length > 5 && (
+                              <span className="px-2 py-0.5 text-gray-500 text-xs">
+                                +{job.meta_data.tech_stack.length - 5}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={() => setImageGalleryPage(prev => Math.min(totalImagePages, prev + 1))}
-                        disabled={imageGalleryPage === totalImagePages}
-                        className="px-4 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        다음
-                      </button>
+                      <div className="text-gray-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">공고가 없습니다</h3>
+              <p className="text-gray-600 text-sm">
+                {selectedCompany}의 {selectedJobRole !== '전체' ? selectedJobRole + ' ' : ''}공고가 없습니다.
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* 공고 상세 정보 모달 */}
+        {selectedJobDetail && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedJobDetail(null)}
+          >
+            <div 
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b-2 border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">공고 상세 정보</h2>
+                <button
+                  onClick={() => setSelectedJobDetail(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* 공고 제목 및 기본 정보 */}
+                <div className="border-b-2 border-gray-200 pb-4">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">{selectedJobDetail.title}</h3>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                      <CompanyLogo name={selectedJobDetail.company} className="w-full h-full" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-semibold text-gray-900">{selectedJobDetail.company}</p>
+                      <p className="text-sm text-gray-600">{selectedJobDetail.location}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                      {selectedJobDetail.employment_type}
+                    </span>
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                      {selectedJobDetail.experience}
+                    </span>
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                      등록일: {new Date(selectedJobDetail.posted_date).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </span>
+                    {selectedJobDetail.expired_date && (
+                      <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm">
+                        마감일: {new Date(selectedJobDetail.expired_date).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {/* 기술 스택 */}
+                {selectedJobDetail.meta_data?.tech_stack && selectedJobDetail.meta_data.tech_stack.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">기술 스택</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJobDetail.meta_data.tech_stack.map((tech: string, idx: number) => (
+                        <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 공고 내용 */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3">공고 내용</h4>
+                  <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+                      {selectedJobDetail.description}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* 복리후생 */}
+                {selectedJobDetail.meta_data?.benefits && selectedJobDetail.meta_data.benefits.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">복리후생</h4>
+                    <ul className="space-y-2">
+                      {selectedJobDetail.meta_data.benefits.map((benefit: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-1">•</span>
+                          <span className="text-gray-700">{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 급여 정보 */}
+                {selectedJobDetail.meta_data?.salary && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">급여</h4>
+                    <p className="text-gray-700">{selectedJobDetail.meta_data.salary}</p>
+                  </div>
+                )}
               </div>
             </div>
-          )
-        })()}
+          </div>
+        )}
+
         
         {/* 이미지 확대 모달 */}
         {selectedImage && (

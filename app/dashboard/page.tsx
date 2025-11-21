@@ -46,6 +46,11 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
   const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
   
+  // 채용 공고 수 추이 API 데이터 상태
+  const [jobPostingsTrendApiData, setJobPostingsTrendApiData] = useState<Array<{ period: string; count: number }>>([])
+  const [isLoadingJobPostingsTrend, setIsLoadingJobPostingsTrend] = useState(false)
+  const [jobPostingsTrendError, setJobPostingsTrendError] = useState<string | null>(null)
+  
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
   const [matchedJobsMap, setMatchedJobsMap] = useState<Record<number, Array<{
@@ -1228,8 +1233,145 @@ export default function Dashboard() {
     { day: '11/30', count: 255 },
   ]
 
+  // API에서 채용 공고 수 추이 데이터 가져오기
+  useEffect(() => {
+    const fetchJobPostingsTrend = async () => {
+      setIsLoadingJobPostingsTrend(true)
+      setJobPostingsTrendError(null)
+      
+      try {
+        // API endpoint에 timeframe 파라미터 전달
+        // Swagger UI 테스트: https://speedjobs-backend.skala25a.project.skala-ai.com/docs 에서 확인 가능
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${jobPostingsTrendTimeframe.toLowerCase()}`
+        console.log('=== 채용 공고 수 추이 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('호출 시각:', new Date().toISOString())
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        console.log('응답 상태:', response.status)
+        console.log('응답 OK:', response.ok)
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 채용 공고 수 추이 데이터:', result)
+        console.log('응답 타입:', typeof result)
+        console.log('result.data 타입:', typeof result.data)
+        console.log('result.data가 배열인가?', Array.isArray(result.data))
+        
+        // API 응답 형식 확인 및 데이터 추출
+        let data: Array<{ period: string; count: number }> = []
+        
+        // 공통 응답 형식: { status, code, message, data }
+        if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+          if (Array.isArray(result.data)) {
+            data = result.data
+          } 
+          // data가 객체이고 내부에 배열이 있는 경우 (예: { trends: [...] })
+          else if (typeof result.data === 'object' && result.data !== null) {
+            // 가능한 필드명들 확인
+            const possibleArrayFields = ['trends', 'data', 'items', 'results', 'list']
+            for (const field of possibleArrayFields) {
+              if (Array.isArray(result.data[field])) {
+                console.log(`데이터를 ${field} 필드에서 찾았습니다.`)
+                data = result.data[field]
+                break
+              }
+            }
+            
+            // 배열 필드를 찾지 못한 경우, 객체의 모든 값 중 배열인 것을 찾기
+            if (data.length === 0) {
+              const values = Object.values(result.data)
+              for (const value of values) {
+                if (Array.isArray(value)) {
+                  console.log('객체 내부에서 배열을 찾았습니다:', value)
+                  data = value as Array<{ period: string; count: number }>
+                  break
+                }
+              }
+            }
+            
+            if (data.length === 0) {
+              console.error('응답 data 객체 구조:', result.data)
+              console.error('객체의 키들:', Object.keys(result.data))
+              throw new Error(`Invalid data format: data is an object but no array found. Keys: ${Object.keys(result.data).join(', ')}`)
+            }
+          } else {
+            console.warn('응답 data가 배열도 객체도 아닙니다:', result.data)
+            throw new Error(`Invalid data format: data is not an array or object. Type: ${typeof result.data}`)
+          }
+        } 
+        // 직접 배열 형식: [{ period: "2025-11-01", count: 180 }, ...]
+        else if (Array.isArray(result)) {
+          data = result
+        } 
+        else {
+          console.error('예상하지 못한 응답 형식:', result)
+          console.error('응답의 키들:', Object.keys(result))
+          throw new Error(`Invalid data format: expected array or {status, code, data}, got ${typeof result}. Keys: ${Object.keys(result).join(', ')}`)
+        }
+        
+        // period 형식을 화면 표시용으로 변환
+        const formattedData = data.map(item => {
+          const date = new Date(item.period)
+          let formattedPeriod = item.period
+          
+          if (jobPostingsTrendTimeframe === 'Daily') {
+            // 일간: "11/1" 형식으로 변환
+            const month = date.getMonth() + 1
+            const day = date.getDate()
+            formattedPeriod = `${month}/${day}`
+          } else if (jobPostingsTrendTimeframe === 'Weekly') {
+            // 주간: API에서 주차 정보를 제공하면 그대로 사용, 아니면 period 그대로 사용
+            formattedPeriod = item.period
+          } else {
+            // 월간: "2025-11" 형식으로 변환
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            formattedPeriod = `${year}-${month}`
+          }
+          
+          return {
+            period: formattedPeriod,
+            count: item.count
+          }
+        })
+        
+        console.log('변환된 데이터:', formattedData)
+        setJobPostingsTrendApiData(formattedData)
+      } catch (error) {
+        console.error('Error fetching job postings trend:', error)
+        setJobPostingsTrendError(error instanceof Error ? error.message : '데이터를 불러오는 중 오류가 발생했습니다.')
+        // 에러 발생 시 빈 배열로 설정하여 fallback 데이터 사용
+        setJobPostingsTrendApiData([])
+      } finally {
+        setIsLoadingJobPostingsTrend(false)
+      }
+    }
+    
+    fetchJobPostingsTrend()
+  }, [jobPostingsTrendTimeframe])
+
   // timeframe에 따른 채용 공고 수 추이 데이터 선택
+  // API 데이터가 있으면 사용하고, 없으면 fallback 데이터 사용
   const jobPostingsTrendData = useMemo(() => {
+    // API 데이터가 있으면 사용
+    if (jobPostingsTrendApiData.length > 0) {
+      return jobPostingsTrendApiData
+    }
+    
+    // Fallback 데이터 사용
     if (jobPostingsTrendTimeframe === 'Daily') {
       return dailyJobPostingsData.map(item => ({ period: item.day, count: item.count }))
     } else if (jobPostingsTrendTimeframe === 'Weekly') {
@@ -1237,7 +1379,7 @@ export default function Dashboard() {
     } else {
       return monthlyJobPostingsData.map(item => ({ period: item.month, count: item.count }))
     }
-  }, [jobPostingsTrendTimeframe])
+  }, [jobPostingsTrendTimeframe, jobPostingsTrendApiData])
 
   // timeframe에 따른 차트 제목
   const trendChartTitle = useMemo(() => {
@@ -1920,46 +2062,56 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={jobPostingsTrendData}>
-                <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="period" 
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  tick={{ fill: '#6b7280', fontSize: 12 }}
-                  domain={[0, trendYAxisMax]}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '8px', 
-                    color: '#1f2937',
-                    fontSize: '13px'
-                  }}
-                  formatter={(value: number) => [`${value}건`, '공고 수']}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorCount)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isLoadingJobPostingsTrend ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="text-gray-500">데이터를 불러오는 중...</div>
+              </div>
+            ) : jobPostingsTrendError ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="text-red-500 text-sm">{jobPostingsTrendError}</div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={jobPostingsTrendData}>
+                  <defs>
+                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="period" 
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                    domain={[0, trendYAxisMax]}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#1f2937',
+                      fontSize: '13px'
+                    }}
+                    formatter={(value: number) => [`${value}건`, '공고 수']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorCount)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </section>
 
           {/* 주요 회사별 채용 활동 */}

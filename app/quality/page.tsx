@@ -843,7 +843,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
+                          <span className="text-xs font-medium text-gray-600">25/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -864,7 +867,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
+                          <span className="text-xs font-medium text-gray-600">28/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -885,7 +891,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
+                          <span className="text-xs font-medium text-gray-600">15/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -923,7 +932,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
+                          <span className="text-xs font-medium text-gray-600">28/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -944,7 +956,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
+                          <span className="text-xs font-medium text-gray-600">27/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -965,7 +980,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
+                          <span className="text-xs font-medium text-gray-600">22/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1014,7 +1032,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">18/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1035,7 +1056,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">20/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1056,7 +1080,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">26/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1077,7 +1104,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
+                          <span className="text-xs font-medium text-gray-600">24/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1115,7 +1145,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">27/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1136,7 +1169,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">26/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1157,7 +1193,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
+                          <span className="text-xs font-medium text-gray-600">29/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1178,7 +1217,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
+                          <span className="text-xs font-medium text-gray-600">19/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1227,7 +1269,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
+                          <span className="text-xs font-medium text-gray-600">16/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1248,7 +1293,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
+                          <span className="text-xs font-medium text-gray-600">18/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1286,7 +1334,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
+                          <span className="text-xs font-medium text-gray-600">28/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">
@@ -1307,7 +1358,10 @@ export default function QualityPage() {
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
+                          <span className="text-xs font-medium text-gray-600">26/30</span>
+                        </div>
                         <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                       </div>
                       <div className="space-y-1">

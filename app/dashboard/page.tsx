@@ -44,7 +44,7 @@ export default function Dashboard() {
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
-  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
+  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1391,12 +1391,26 @@ export default function Dashboard() {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`
   }, [])
 
-  // 회사 선택 토글 함수
+  // 회사 선택 함수
+  // 처음에는 모든 회사가 선택되어 있고, 첫 클릭 시 해당 회사만 선택
+  // 이후에는 토글 방식으로 동작
   const toggleRecruitmentCompany = (companyKey: string) => {
     setSelectedRecruitmentCompanies(prev => {
+      const allCompanyKeys = recruitmentCompanies.map(c => c.key)
+      const isAllSelected = prev.length === allCompanyKeys.length && 
+                            allCompanyKeys.every(key => prev.includes(key))
+      
+      // 처음 상태 (모든 회사 선택)에서 클릭하면 해당 회사만 선택
+      if (isAllSelected) {
+        return [companyKey]
+      }
+      
+      // 이후에는 토글 방식
       if (prev.includes(companyKey)) {
+        // 이미 선택된 회사를 클릭하면 선택 해제
         return prev.filter(c => c !== companyKey)
       } else {
+        // 선택되지 않은 회사를 클릭하면 선택 추가
         return [...prev, companyKey]
       }
     })

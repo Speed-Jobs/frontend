@@ -1633,13 +1633,69 @@ export default function Dashboard() {
     return `${year} Q${quarter}`
   }
 
-  // 선택된 모드와 연도에 따른 회사별 상위 스킬 분기별 트렌드 데이터
+  // 전체보기 모드일 때 최근 5년 스킬별 스태킹 데이터
+  const companySkillTrendDataAll = useMemo(() => {
+    if (!selectedCompanyForSkills || skillDiversityViewMode !== 'all') return null
+    
+    const years = ['2021', '2022', '2023', '2024', '2025']
+    const result: Array<{
+      year: string;
+      python: number;
+      sql: number;
+      java: number;
+      kubernetes: number;
+      docker: number;
+      react: number;
+      typescript: number;
+      aws: number;
+      spring: number;
+      nodejs: number;
+    }> = []
+    
+    years.forEach(year => {
+      const yearData = companySkillTrendDataByYear[year]?.[selectedCompanyForSkills] || []
+      if (yearData.length === 0) return
+      
+      // 해당 연도의 모든 월 데이터 합계
+      const aggregated = yearData.reduce((acc, item) => ({
+        year,
+        python: acc.python + item.python,
+        sql: acc.sql + item.sql,
+        java: acc.java + item.java,
+        kubernetes: acc.kubernetes + item.kubernetes,
+        docker: acc.docker + item.docker,
+        react: acc.react + item.react,
+        typescript: acc.typescript + item.typescript,
+        aws: acc.aws + item.aws,
+        spring: acc.spring + item.spring,
+        nodejs: acc.nodejs + item.nodejs,
+      }), {
+        year,
+        python: 0,
+        sql: 0,
+        java: 0,
+        kubernetes: 0,
+        docker: 0,
+        react: 0,
+        typescript: 0,
+        aws: 0,
+        spring: 0,
+        nodejs: 0,
+      })
+      
+      result.push(aggregated)
+    })
+    
+    return result.length > 0 ? result : null
+  }, [selectedCompanyForSkills, skillDiversityViewMode])
+
+  // 선택된 모드와 연도에 따른 회사별 상위 스킬 분기별 트렌드 데이터 (연도별 모드용)
   const companySkillTrendData = useMemo(() => {
-    if (!selectedCompanyForSkills) return null
+    if (!selectedCompanyForSkills || skillDiversityViewMode === 'all') return null
     
     // 현재 분기와 이전 분기 정보 가져오기
     const { currentYear, currentQuarterMonths, previousYear, previousQuarterMonths } = getCurrentAndPreviousQuarters()
-    const targetYear = skillDiversityViewMode === 'all' ? currentYear : parseInt(selectedYear)
+    const targetYear = parseInt(selectedYear)
     
     // 현재 연도와 이전 연도 데이터 가져오기
     const currentYearData = companySkillTrendDataByYear[targetYear.toString()]?.[selectedCompanyForSkills] || []
@@ -1753,7 +1809,8 @@ export default function Dashboard() {
   // 선택된 연도에 따른 스킬 트렌드 Y축 최대값
   const skillTrendYAxisMax = useMemo(() => {
     if (skillDiversityViewMode === 'all') {
-      return 90
+      // 전체보기 모드: 최근 5년 합계이므로 더 큰 값 필요
+      return 500
     } else if (selectedYear === '2021') {
       return 10
     } else if (selectedYear === '2022') {
@@ -2082,50 +2139,99 @@ export default function Dashboard() {
           {/* 선택된 회사의 상위 스킬 분기별 트렌드 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
-              {selectedCompanyForSkills ? `${selectedCompanyForSkills} 상위 스킬 분기별 트렌드` : '회사를 선택하세요'}
+              {selectedCompanyForSkills 
+                ? skillDiversityViewMode === 'all' 
+                  ? `${selectedCompanyForSkills} 상위 스킬 연도별 트렌드 (최근 5년)`
+                  : `${selectedCompanyForSkills} 상위 스킬 분기별 트렌드`
+                : '회사를 선택하세요'}
             </h2>
-            {selectedCompanyForSkills && companySkillTrendData ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={companySkillTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="quarter" 
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis 
-                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                    domain={[0, skillTrendYAxisMax]}
-                    label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#1f2937',
-                      fontSize: '13px'
-                    }}
-                    formatter={(value: number, name: string) => [`${value}회`, name]}
-                  />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
-                    iconType="square"
-                  />
-                  <Bar dataKey="python" fill={skillColors.python} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="sql" fill={skillColors.sql} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="java" fill={skillColors.java} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="kubernetes" fill={skillColors.kubernetes} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="docker" fill={skillColors.docker} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="react" fill={skillColors.react} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="typescript" fill={skillColors.typescript} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="aws" fill={skillColors.aws} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="spring" fill={skillColors.spring} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="nodejs" fill={skillColors.nodejs} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            {selectedCompanyForSkills ? (
+              skillDiversityViewMode === 'all' && companySkillTrendDataAll ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={companySkillTrendDataAll}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="year" 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      domain={[0, skillTrendYAxisMax]}
+                      label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e5e7eb', 
+                        borderRadius: '8px', 
+                        color: '#1f2937',
+                        fontSize: '13px'
+                      }}
+                      formatter={(value: number, name: string) => [`${value}회`, name]}
+                    />
+                    <Legend 
+                      wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                      iconType="square"
+                    />
+                    <Bar dataKey="python" stackId="1" fill={skillColors.python} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="sql" stackId="1" fill={skillColors.sql} />
+                    <Bar dataKey="java" stackId="1" fill={skillColors.java} />
+                    <Bar dataKey="kubernetes" stackId="1" fill={skillColors.kubernetes} />
+                    <Bar dataKey="docker" stackId="1" fill={skillColors.docker} />
+                    <Bar dataKey="react" stackId="1" fill={skillColors.react} />
+                    <Bar dataKey="typescript" stackId="1" fill={skillColors.typescript} />
+                    <Bar dataKey="aws" stackId="1" fill={skillColors.aws} />
+                    <Bar dataKey="spring" stackId="1" fill={skillColors.spring} />
+                    <Bar dataKey="nodejs" stackId="1" fill={skillColors.nodejs} radius={[0, 0, 4, 4]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : skillDiversityViewMode === 'year' && companySkillTrendData ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={companySkillTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="quarter" 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      domain={[0, skillTrendYAxisMax]}
+                      label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280', fontSize: 12 } }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e5e7eb', 
+                        borderRadius: '8px', 
+                        color: '#1f2937',
+                        fontSize: '13px'
+                      }}
+                      formatter={(value: number, name: string) => [`${value}회`, name]}
+                    />
+                    <Legend 
+                      wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                      iconType="square"
+                    />
+                    <Bar dataKey="python" fill={skillColors.python} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="sql" fill={skillColors.sql} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="java" fill={skillColors.java} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="kubernetes" fill={skillColors.kubernetes} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="docker" fill={skillColors.docker} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="react" fill={skillColors.react} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="typescript" fill={skillColors.typescript} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="aws" fill={skillColors.aws} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="spring" fill={skillColors.spring} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="nodejs" fill={skillColors.nodejs} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                  <p className="text-sm">데이터를 불러오는 중...</p>
+                </div>
+              )
             ) : (
               <div className="flex items-center justify-center h-[300px] text-gray-400">
                 <p className="text-sm">왼쪽 그래프에서 회사를 클릭하여 상세 정보를 확인하세요</p>

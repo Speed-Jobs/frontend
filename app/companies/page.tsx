@@ -509,7 +509,7 @@ export default function CompaniesPage() {
                       type="text"
                       value={jobListFilter}
                       onChange={(e) => setJobListFilter(e.target.value)}
-                      placeholder="공고 이름 또는 등록일로 검색..."
+                      placeholder="공고 이름 또는 수집일로 검색..."
                       className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
                     />
                     <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,25 +531,21 @@ export default function CompaniesPage() {
               {/* 파일 탐색기 스타일 리스트 */}
               <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
                 {/* 헤더 */}
-                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 grid grid-cols-[40px_1fr_100px_140px_140px] gap-4 text-sm font-semibold text-gray-700">
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 grid grid-cols-[40px_1fr_100px_140px] gap-4 text-sm font-semibold text-gray-700">
                   <div></div>
                   <div>공고 이름</div>
                   <div className="text-center">고용 형태</div>
-                  <div className="text-center">등록일</div>
-                  <div className="text-center">마감일</div>
+                  <div className="text-center">수집일</div>
                 </div>
                 
                 {/* 리스트 아이템 */}
                 <div className="divide-y divide-gray-200">
                   {selectedCompanyJobs.length > 0 ? (
                     selectedCompanyJobs.map((job, index) => {
-                      const expiredDate = job.expired_date ? new Date(job.expired_date) : null
-                      const isExpired = expiredDate ? expiredDate < new Date() : false
-                      
                       return (
                         <div
                           key={job.id}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_100px_140px_140px] gap-4 items-center group"
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_100px_140px] gap-4 items-center group"
                           onClick={() => setSelectedJobDetail(job)}
                         >
                           {/* 파일 아이콘 */}
@@ -571,7 +567,7 @@ export default function CompaniesPage() {
                             {job.employment_type}
                           </div>
                           
-                          {/* 등록일 */}
+                          {/* 수집일 (크롤링 날짜) */}
                           <div className="text-sm text-gray-600 text-center">
                             {(() => {
                               const date = new Date(job.posted_date)
@@ -580,22 +576,6 @@ export default function CompaniesPage() {
                               const day = String(date.getDate()).padStart(2, '0')
                               return `${year}. ${month}. ${day}.`
                             })()}
-                          </div>
-                          
-                          {/* 마감일 */}
-                          <div className="text-sm text-center">
-                            {expiredDate ? (
-                              <span className={isExpired ? 'text-red-600' : 'text-gray-600'}>
-                                {(() => {
-                                  const year = expiredDate.getFullYear()
-                                  const month = String(expiredDate.getMonth() + 1).padStart(2, '0')
-                                  const day = String(expiredDate.getDate()).padStart(2, '0')
-                                  return `${year}. ${month}. ${day}.`
-                                })()}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
                           </div>
                         </div>
                       )

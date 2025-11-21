@@ -44,7 +44,7 @@ export default function Dashboard() {
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
-  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
+  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
   
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
@@ -1978,28 +1978,28 @@ export default function Dashboard() {
                   iconType="line"
                 />
                 {selectedRecruitmentCompanies.includes('toss') && (
-                  <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('line') && (
-                  <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('hanwha') && (
-                  <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('kakao') && (
-                  <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('naver') && (
-                  <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('samsung') && (
-                  <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('lg') && (
-                  <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={false} />
                 )}
                 {selectedRecruitmentCompanies.includes('sk') && (
-                  <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={false} />
                 )}
               </LineChart>
             </ResponsiveContainer>
@@ -3452,28 +3452,28 @@ export default function Dashboard() {
                           iconType="line"
                         />
                         {selectedRecruitmentCompanies.includes('toss') && (
-                          <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('line') && (
-                          <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('hanwha') && (
-                          <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('kakao') && (
-                          <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('naver') && (
-                          <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('samsung') && (
-                          <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('lg') && (
-                          <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={false} />
                         )}
                         {selectedRecruitmentCompanies.includes('sk') && (
-                          <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={false} />
                         )}
                       </LineChart>
                     </ResponsiveContainer>

@@ -3597,15 +3597,67 @@ export default function Dashboard() {
                 {/* 5. 스킬별 통계 */}
                 <div className="pdf-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">5. 스킬별 통계</h3>
-                  <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm mb-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {skillsDataToUse.slice(0, 12).map((skill, index) => (
-                        <div key={skill.name} className="bg-gradient-to-br from-gray-50 to-white p-4 border border-gray-200 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-900">{skill.name}</span>
+                  <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 p-6 border border-gray-200 rounded-xl shadow-md mb-4 relative">
+                    {/* 배경 장식 */}
+                    <div className="absolute inset-0 opacity-5 pointer-events-none overflow-hidden rounded-xl">
+                      <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
+                      <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gray-900 rounded-full blur-2xl"></div>
+                    </div>
+                    
+                    {/* 헤더 */}
+                    <div className="relative mb-4 z-10">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-1">스킬 클라우드</h4>
+                      <p className="text-sm text-gray-500">인기 스킬을 시각화한 클라우드</p>
+                    </div>
+                    
+                    {/* 스킬 클라우드 */}
+                    <div 
+                      className="relative w-full flex items-center justify-center overflow-visible"
+                      style={{ 
+                        height: '500px',
+                        maxWidth: '100%',
+                        margin: '0 auto',
+                        padding: '20px',
+                        borderRadius: '0.75rem',
+                      }}
+                    >
+                      {/* 메인 스킬들 */}
+                      {skillsDataToUse.slice(0, 13).map((skill, index) => {
+                        const maxCount = skillsDataToUse[0]?.count || 1
+                        const size = getSkillSize(skill.count, index, maxCount)
+                        const finalPosition = getFinalSkillPosition(index)
+                        const isMain = index === 0
+                        
+                        return (
+                          <div
+                            key={skill.name}
+                            className={`absolute ${size.padding} ${size.height} rounded-full flex items-center justify-center ${size.text} font-bold whitespace-nowrap ${
+                              isMain
+                                ? 'bg-gray-900 text-white shadow-2xl border-2 border-gray-700/30'
+                                : 'bg-white text-gray-700 border-2 border-gray-200 shadow-lg'
+                            }`}
+                            style={{
+                              left: `calc(50% + ${finalPosition.x}px)`,
+                              top: `calc(50% + ${finalPosition.y}px)`,
+                              transform: `translate(-50%, -50%)`,
+                              minWidth: size.width,
+                            }}
+                          >
+                            {skill.name}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    
+                    {/* 스킬 통계 요약 */}
+                    <div className="relative mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 z-10">
+                      {skillsDataToUse.slice(0, 4).map((skill, index) => (
+                        <div key={skill.name} className="bg-white p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-900 capitalize">{skill.name}</span>
                             <span className="text-xs text-gray-500">#{index + 1}</span>
                           </div>
-                          <div className="text-2xl font-bold text-gray-900 mb-1">{skill.count}</div>
+                          <div className="text-xl font-bold text-gray-900 mb-0.5">{skill.count}</div>
                           <div className="text-xs text-gray-600">
                             {skill.percentage.toFixed(1)}% · {skill.change > 0 ? '+' : ''}{skill.change.toFixed(1)}%
                           </div>

@@ -38,6 +38,12 @@ export default function CompaniesPage() {
   const [imageGalleryPage, setImageGalleryPage] = useState(1)
   const imagesPerPage = 2 // 갤러리에서 한 페이지에 표시할 이미지 수
 
+  // AI 챗봇 상태
+  const [showChatbot, setShowChatbot] = useState(false)
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, jobs?: any[] }>>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatbotLoading, setIsChatbotLoading] = useState(false)
+
 
   // 회사별 공고 통계 계산
   const companyStats = useMemo(() => {
@@ -262,6 +268,54 @@ export default function CompaniesPage() {
     }
   }
 
+  // AI 챗봇 메시지 전송 핸들러
+  const handleChatbotSend = async () => {
+    if (!chatInput.trim() || isChatbotLoading) return
+
+    const userMessage = chatInput.trim()
+    setChatInput('')
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setIsChatbotLoading(true)
+
+    // 공고 검색 로직
+    const searchKeywords = userMessage.toLowerCase()
+    const matchedJobs: any[] = []
+
+    // 전체 공고 데이터에서 검색
+    jobPostingsData.forEach((job) => {
+      const titleMatch = job.title.toLowerCase().includes(searchKeywords)
+      const descriptionMatch = job.description.toLowerCase().includes(searchKeywords)
+      const companyMatch = job.company.toLowerCase().includes(searchKeywords)
+      const techStackMatch = job.meta_data?.tech_stack?.some((tech: string) => 
+        tech.toLowerCase().includes(searchKeywords)
+      ) || false
+
+      if (titleMatch || descriptionMatch || companyMatch || techStackMatch) {
+        matchedJobs.push(job)
+      }
+    })
+
+    // 최대 5개까지만 표시
+    const topJobs = matchedJobs.slice(0, 5)
+
+    // AI 응답 생성
+    let assistantMessage = ''
+    if (topJobs.length > 0) {
+      assistantMessage = `검색 결과 ${matchedJobs.length}개의 공고를 찾았습니다. 관련 공고 ${topJobs.length}개를 추천드립니다:`
+    } else {
+      assistantMessage = `죄송합니다. "${userMessage}"와 관련된 공고를 찾지 못했습니다. 다른 키워드로 검색해보시겠어요?\n\n예: "React 개발자", "카카오", "백엔드", "Python" 등`
+    }
+
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: assistantMessage,
+        jobs: topJobs.length > 0 ? topJobs : undefined
+      }])
+      setIsChatbotLoading(false)
+    }, 500)
+  }
+
   // 선택된 공고 상세 정보 상태
   const [selectedJobDetail, setSelectedJobDetail] = useState<any>(null)
 
@@ -423,16 +477,85 @@ export default function CompaniesPage() {
                 </div>
               </div>
               
-              <div className="space-y-4">
-                {selectedCompanyJobs.map((job) => (
-                  <div
-                    key={job.id}
-                    onClick={() => setSelectedJobDetail(job)}
-                    className="border-2 border-gray-200 rounded-lg p-4 hover:border-gray-400 cursor-pointer transition-all hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{job.title}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {selectedCompanyJobs.map((job, index) => {
+                  // 회사명을 파일명으로 변환하는 매핑
+                  const companyNameMap: Record<string, string> = {
+                    '토스': 'toss',
+                    '(주)토스': 'toss',
+                    '카카오': 'kakao',
+                    '(주)카카오': 'kakao',
+                    '네이버': 'naver',
+                    '(주)네이버': 'naver',
+                    'LG전자': 'lg',
+                    '(주)LG전자': 'lg',
+                    'LG': 'lg',
+                    'LGCNS': 'lg',
+                    '라인': 'line',
+                    '(주)라인': 'line',
+                    'LINE': 'line',
+                    '당근마켓': 'daangn',
+                    '(주)당근마켓': 'daangn',
+                    '삼성전자': 'samsung-electronics',
+                    '(주)삼성전자': 'samsung-electronics',
+                    '삼성SDS': 'samsung-sds',
+                    '현대자동차': 'hyundai-motor',
+                    '(주)현대자동차': 'hyundai-motor',
+                    '현대 오토에버': 'hyundai-autoever',
+                    '쿠팡': 'coupang',
+                    '배민': 'baemin',
+                    '한화 시스템': 'hanwha-system',
+                    'KT': 'kt',
+                    'KPMG': 'kpmg',
+                  }
+                  
+                  const normalizedCompany = selectedCompany.replace('(주)', '').trim()
+                  let companySlug = companyNameMap[selectedCompany] || companyNameMap[normalizedCompany]
+                  
+                  if (!companySlug) {
+                    companySlug = normalizedCompany
+                      .toLowerCase()
+                      .replace(/\s+/g, '-')
+                      .replace(/[^a-z0-9-]/g, '')
+                  }
+                  
+                  // 이미지 ID는 순서대로 1, 2, 3... 형식
+                  const imageId = index + 1
+                  const imagePath = `/job-postings/${companySlug}/${imageId}.png`
+                  
+                  return (
+                    <div
+                      key={job.id}
+                      className="border-2 border-gray-200 rounded-lg overflow-hidden hover:border-gray-400 cursor-pointer transition-all hover:shadow-lg bg-white"
+                      onClick={() => setSelectedJobDetail(job)}
+                    >
+                      {/* 공고 이미지 */}
+                      <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
+                        <img
+                          src={imagePath}
+                          alt={job.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            const placeholder = target.parentElement?.querySelector('.image-placeholder')
+                            if (placeholder) {
+                              (placeholder as HTMLElement).style.display = 'flex'
+                            }
+                          }}
+                        />
+                        {/* 플레이스홀더 */}
+                        <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                          <svg className="w-12 h-12 text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-xs text-gray-400 text-center">이미지 없음</p>
+                        </div>
+                      </div>
+                      
+                      {/* 공고 정보 */}
+                      <div className="p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{job.title}</h3>
                         <div className="flex flex-wrap gap-2 mb-2">
                           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                             {job.employment_type}
@@ -446,7 +569,7 @@ export default function CompaniesPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 mb-2">
                           등록일: {new Date(job.posted_date).toLocaleDateString('ko-KR', {
                             year: 'numeric',
                             month: 'long',
@@ -467,15 +590,16 @@ export default function CompaniesPage() {
                             )}
                           </div>
                         )}
-                      </div>
-                      <div className="text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">클릭하여 상세 정보 보기</span>
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           ) : (
@@ -492,28 +616,116 @@ export default function CompaniesPage() {
         </div>
         
         {/* 공고 상세 정보 모달 */}
-        {selectedJobDetail && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setSelectedJobDetail(null)}
-          >
+        {selectedJobDetail && (() => {
+          // 회사명을 파일명으로 변환하는 매핑
+          const companyNameMap: Record<string, string> = {
+            '토스': 'toss',
+            '(주)토스': 'toss',
+            '카카오': 'kakao',
+            '(주)카카오': 'kakao',
+            '네이버': 'naver',
+            '(주)네이버': 'naver',
+            'LG전자': 'lg',
+            '(주)LG전자': 'lg',
+            'LG': 'lg',
+            'LGCNS': 'lg',
+            '라인': 'line',
+            '(주)라인': 'line',
+            'LINE': 'line',
+            '당근마켓': 'daangn',
+            '(주)당근마켓': 'daangn',
+            '삼성전자': 'samsung-electronics',
+            '(주)삼성전자': 'samsung-electronics',
+            '삼성SDS': 'samsung-sds',
+            '현대자동차': 'hyundai-motor',
+            '(주)현대자동차': 'hyundai-motor',
+            '현대 오토에버': 'hyundai-autoever',
+            '쿠팡': 'coupang',
+            '배민': 'baemin',
+            '한화 시스템': 'hanwha-system',
+            'KT': 'kt',
+            'KPMG': 'kpmg',
+          }
+          
+          const normalizedCompany = selectedJobDetail.company.replace('(주)', '').trim()
+          let companySlug = companyNameMap[selectedJobDetail.company] || companyNameMap[normalizedCompany]
+          
+          if (!companySlug) {
+            companySlug = normalizedCompany
+              .toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+          }
+          
+          // 공고의 인덱스 찾기
+          const jobIndex = selectedCompanyJobs.findIndex(job => job.id === selectedJobDetail.id)
+          const imageId = jobIndex >= 0 ? jobIndex + 1 : 1
+          const imagePath = `/job-postings/${companySlug}/${imageId}.png`
+          
+          return (
             <div 
-              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={() => setSelectedJobDetail(null)}
             >
-              <div className="sticky top-0 bg-white border-b-2 border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">공고 상세 정보</h2>
-                <button
-                  onClick={() => setSelectedJobDetail(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="p-6 space-y-6">
+              <div 
+                className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sticky top-0 bg-white border-b-2 border-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900">공고 상세 정보</h2>
+                  <button
+                    onClick={() => setSelectedJobDetail(null)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* 공고 이미지 */}
+                    <div className="space-y-4">
+                      <div className="aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200 relative">
+                        <img
+                          src={imagePath}
+                          alt={selectedJobDetail.title}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            const placeholder = target.parentElement?.querySelector('.image-placeholder')
+                            if (placeholder) {
+                              (placeholder as HTMLElement).style.display = 'flex'
+                            }
+                          }}
+                        />
+                        {/* 플레이스홀더 */}
+                        <div className="image-placeholder hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                          <svg className="w-16 h-16 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-sm text-gray-400">이미지 없음</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedImage({
+                            src: imagePath,
+                            title: selectedJobDetail.title,
+                            date: selectedJobDetail.posted_date
+                          })
+                          setImageZoom(1)
+                        }}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        이미지 확대 보기
+                      </button>
+                    </div>
+                    
+                    {/* 공고 정보 */}
+                    <div className="space-y-6">
                 {/* 공고 제목 및 기본 정보 */}
                 <div className="border-b-2 border-gray-200 pb-4">
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">{selectedJobDetail.title}</h3>
@@ -591,17 +803,20 @@ export default function CompaniesPage() {
                   </div>
                 )}
 
-                {/* 급여 정보 */}
-                {selectedJobDetail.meta_data?.salary && (
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">급여</h4>
-                    <p className="text-gray-700">{selectedJobDetail.meta_data.salary}</p>
+                      {/* 급여 정보 */}
+                      {selectedJobDetail.meta_data?.salary && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3">급여</h4>
+                          <p className="text-gray-700">{selectedJobDetail.meta_data.salary}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         
         {/* 이미지 확대 모달 */}
@@ -721,6 +936,168 @@ export default function CompaniesPage() {
                   <p className="text-gray-400 text-lg">이미지를 불러올 수 없습니다</p>
                   <p className="text-gray-300 text-sm mt-2">{selectedImage.src}</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI 챗봇 버튼 */}
+        <button
+          onClick={() => setShowChatbot(!showChatbot)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 z-40"
+        >
+          {showChatbot ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+          )}
+        </button>
+
+        {/* AI 챗봇 패널 */}
+        {showChatbot && (
+          <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-xl shadow-2xl border-2 border-gray-200 flex flex-col z-50">
+            {/* 챗봇 헤더 */}
+            <div className="bg-blue-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold">AI 공고 검색 챗봇</h3>
+                  <p className="text-xs text-blue-100">공고를 검색해드립니다</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowChatbot(false)}
+                className="text-white hover:text-blue-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 채팅 메시지 영역 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-2">안녕하세요! AI 공고 검색 챗봇입니다.</p>
+                  <p className="text-gray-500 text-xs">원하는 공고를 검색해보세요.</p>
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs text-gray-500 font-semibold">예시 질문:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <button
+                        onClick={() => {
+                          setChatInput('React 개발자')
+                          setTimeout(() => handleChatbotSend(), 100)
+                        }}
+                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
+                      >
+                        React 개발자
+                      </button>
+                      <button
+                        onClick={() => {
+                          setChatInput('카카오')
+                          setTimeout(() => handleChatbotSend(), 100)
+                        }}
+                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
+                      >
+                        카카오
+                      </button>
+                      <button
+                        onClick={() => {
+                          setChatInput('백엔드')
+                          setTimeout(() => handleChatbotSend(), 100)
+                        }}
+                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
+                      >
+                        백엔드
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((message, idx) => (
+                  <div key={idx} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-lg p-3`}>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.jobs && message.jobs.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {message.jobs.map((job, jobIdx) => (
+                            <div
+                              key={jobIdx}
+                              onClick={() => setSelectedJobDetail(job)}
+                              className="bg-gray-50 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              <p className="text-xs font-semibold text-gray-900 mb-1">{job.title}</p>
+                              <p className="text-xs text-gray-600">{job.company}</p>
+                              {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {job.meta_data.tech_stack.slice(0, 3).map((tech: string, techIdx: number) => (
+                                    <span key={techIdx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                      {tech}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              {isChatbotLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 입력 영역 */}
+            <div className="border-t border-gray-200 p-4 bg-white rounded-b-xl">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleChatbotSend()
+                    }
+                  }}
+                  placeholder="공고를 검색해보세요..."
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                  disabled={isChatbotLoading}
+                />
+                <button
+                  onClick={handleChatbotSend}
+                  disabled={!chatInput.trim() || isChatbotLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>

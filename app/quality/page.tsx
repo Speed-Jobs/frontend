@@ -25,6 +25,43 @@ interface JobPosting {
   }
 }
 
+// FastAPI 응답 구조 타입 정의
+interface BaseEvaluationResult {
+  original_text: string
+  keywords: string[]
+  keyword_count: number
+  reasoning: string
+}
+
+interface ReadabilityModuleResult {
+  jargon: BaseEvaluationResult
+  consistency: BaseEvaluationResult
+  grammar: BaseEvaluationResult
+}
+
+interface SpecificityModuleResult {
+  responsibility: BaseEvaluationResult
+  qualification: BaseEvaluationResult
+  keyword_relevance: BaseEvaluationResult
+  required_fields: BaseEvaluationResult
+}
+
+interface AttractivenessModuleResult {
+  content_count: BaseEvaluationResult
+  content_quality: BaseEvaluationResult
+}
+
+interface EvaluationResponse {
+  readability: ReadabilityModuleResult
+  specificity: SpecificityModuleResult
+  attractiveness: AttractivenessModuleResult
+}
+
+interface EvaluationApiResponse {
+  sk_ax: EvaluationResponse
+  competitor: EvaluationResponse
+}
+
 export default function QualityPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedOurJob, setSelectedOurJob] = useState<JobPosting | null>(null)
@@ -51,10 +88,15 @@ export default function QualityPage() {
 
   // 상세 평가 결과 모달 상태
   const [selectedDetailItem, setSelectedDetailItem] = useState<{
-    category: string // 'readability' | 'specificity' | 'appeal'
-    item: string // '사전 정보 안내', '명확한 문장' 등
+    category: string // 'readability' | 'specificity' | 'attractiveness'
+    item: string // 'jargon', 'consistency', 'grammar' 등
     company: 'our' | 'competitor'
   } | null>(null)
+
+  // 평가 결과 상태
+  const [evaluationData, setEvaluationData] = useState<EvaluationApiResponse | null>(null)
+  const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false)
+  const [evaluationError, setEvaluationError] = useState<string | null>(null)
 
   // 회사 목록 (중복 제거)
   const companies = Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
@@ -188,8 +230,57 @@ export default function QualityPage() {
     return true
   }
 
-  const handleNextStep = () => {
+  // 평가 API 호출 함수
+  const fetchEvaluationData = async () => {
+    if (!selectedOurJob && !ourJobImage) return
+    if (!selectedCompetitorJob && !competitorJobImage) return
+
+    try {
+      setIsLoadingEvaluation(true)
+      setEvaluationError(null)
+
+      // API 엔드포인트 (실제 백엔드 URL로 변경 필요)
+      const apiUrl = 'http://172.20.10.2:8080/api/v1/evaluation/compare'
+      
+      // 쿼리 파라미터 구성
+      const params = new URLSearchParams()
+      if (selectedOurJob) {
+        params.append('sk_ax_post', selectedOurJob.id.toString())
+      }
+      if (selectedCompetitorJob) {
+        params.append('competitor_post', selectedCompetitorJob.id.toString())
+      }
+
+      const response = await fetch(`${apiUrl}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'omit',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data: EvaluationApiResponse = await response.json()
+      setEvaluationData(data)
+    } catch (error) {
+      console.error('평가 데이터 가져오기 실패:', error)
+      setEvaluationError(error instanceof Error ? error.message : '평가 데이터를 가져오는데 실패했습니다.')
+    } finally {
+      setIsLoadingEvaluation(false)
+    }
+  }
+
+  const handleNextStep = async () => {
     if (canProceedToNextStep() && currentStep < 3) {
+      // Step 2로 이동할 때 평가 데이터 가져오기
+      if (currentStep === 1) {
+        await fetchEvaluationData()
+      }
       setCurrentStep(currentStep + 1)
     }
   }
@@ -804,6 +895,19 @@ export default function QualityPage() {
               </div>
             </div>
 
+            {/* 로딩 및 에러 상태 */}
+            {isLoadingEvaluation && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
+                <p className="text-blue-700">평가 데이터를 불러오는 중...</p>
+              </div>
+            )}
+
+            {evaluationError && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+                <p className="text-red-700">에러: {evaluationError}</p>
+              </div>
+            )}
+
             {/* 상단 설명 텍스트 */}
             <div className="bg-gray-50 p-6 rounded-xl">
               <p className="text-gray-700 leading-relaxed">
@@ -813,572 +917,524 @@ export default function QualityPage() {
             </div>
 
             {/* 가독성 분석 */}
-            <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">가독성 분석</h3>
-                </div>
-              </div>
-
-              {/* 비교 그리드 */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-gray-900 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      <CompanyLogo name="SK AX" className="w-full h-full" />
-                    </div>
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+            {evaluationData && (
+              <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
-
-                  <div className="space-y-4">
-                    {/* 1. 사전 정보 안내 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '사전 정보 안내', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
-                          <span className="text-xs font-medium text-gray-600">25/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">지원자에게 필요한 정보가 명확하게 안내되어 있습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 2. 명확한 문장 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '명확한 문장', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
-                          <span className="text-xs font-medium text-gray-600">28/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">문장이 간결하고 명확하게 작성되어 있습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 3. 문단 구성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '문단 구성', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
-                          <span className="text-xs font-medium text-gray-600">15/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">문단이 너무 길어 가독성이 떨어집니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900">가독성 분석</h3>
                   </div>
                 </div>
 
-                {/* 경쟁사 공고 평가 */}
-                <div className="border-2 border-blue-500 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      {selectedCompetitorJob ? (
-                        <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full bg-blue-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-xs">경쟁</span>
-                        </div>
-                      )}
+                {/* 비교 그리드 */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 우리 회사 공고 평가 */}
+                  <div className="border-2 border-gray-900 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
+                      </div>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
                     </div>
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
+
+                    <div className="space-y-4">
+                      {/* 1. 사내 전문 용어 빈도수 (jargon) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'jargon', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 사내 전문 용어 빈도수</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.readability.jargon.keyword_count}개 발견
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.readability.jargon.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 2. 문단 일관성 (consistency) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'consistency', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 문단 일관성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.readability.consistency.keyword_count}개 발견
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.readability.consistency.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 3. 문법 정확성 (grammar) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'grammar', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">3. 문법 정확성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.readability.grammar.keyword_count}개 발견
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.readability.grammar.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-4">
-                    {/* 1. 사전 정보 안내 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '사전 정보 안내', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 사전 정보 안내</h4>
-                          <span className="text-xs font-medium text-gray-600">28/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2, 3].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">지원자에게 필요한 정보가 명확하게 안내되어 있습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* 2. 명확한 문장 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '명확한 문장', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 명확한 문장</h4>
-                          <span className="text-xs font-medium text-gray-600">27/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2, 3].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">문장이 간결하고 명확하게 작성되어 있습니다.</p>
+                  {/* 경쟁사 공고 평가 */}
+                  <div className="border-2 border-blue-500 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
                           </div>
-                        ))}
+                        )}
                       </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
                     </div>
-
-                    {/* 3. 문단 구성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'readability', item: '문단 구성', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">3. 문단 구성</h4>
-                          <span className="text-xs font-medium text-gray-600">22/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">일부 문단이 길어 가독성을 개선할 여지가 있습니다.</p>
+                    <div className="space-y-4">
+                      {/* 1. 사내 전문 용어 빈도수 (jargon) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'jargon', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 사내 전문 용어 빈도수</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.readability.jargon.keyword_count}개 발견
+                            </span>
                           </div>
-                        ))}
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.readability.jargon.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 2. 문단 일관성 (consistency) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'consistency', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 문단 일관성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.readability.consistency.keyword_count}개 발견
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.readability.consistency.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 3. 문법 정확성 (grammar) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'readability', item: 'grammar', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">3. 문법 정확성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.readability.grammar.keyword_count}개 발견
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.readability.grammar.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* 구체성 분석 */}
-            <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">구체성 분석</h3>
-                </div>
-              </div>
-
-              {/* 비교 그리드 */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-gray-900 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      <CompanyLogo name="SK AX" className="w-full h-full" />
-                    </div>
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+            {evaluationData && (
+              <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
-                  <div className="space-y-4">
-                    {/* 1. 담당 업무 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '담당 업무 구체성', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">18/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">담당 업무에 대한 설명이 부족하여 지원자가 업무 내용을 파악하기 어렵습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 2. 필요 역량 및 경험 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '필요 역량 및 경험 구체성', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">20/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">필요 역량에 대한 설명이 부족하여 지원자가 업무 내용을 파악하기 어렵습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 3. 직무 관련 기술 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '직무 관련 기술 구체성', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">26/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">직무 관련 기술에 대한 설명이 구체적입니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 4. 보상 정책 상세도 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '보상 정책 상세도', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
-                          <span className="text-xs font-medium text-gray-600">24/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">보상 정책에 대한 설명이 구체적입니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900">구체성 분석</h3>
                   </div>
                 </div>
 
-                {/* 경쟁사 공고 평가 */}
-                <div className="border-2 border-blue-500 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      {selectedCompetitorJob ? (
-                        <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full bg-blue-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-xs">경쟁</span>
-                        </div>
-                      )}
+                {/* 비교 그리드 */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 우리 회사 공고 평가 */}
+                  <div className="border-2 border-gray-900 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
+                      </div>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
                     </div>
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    <div className="space-y-4">
+                      {/* 1. 담당 업무 구체성 (responsibility) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'responsibility', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.specificity.responsibility.keyword_count}개 키워드
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.specificity.responsibility.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 2. 자격요건 구체성 (qualification) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'qualification', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 자격요건 구체성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.specificity.qualification.keyword_count}개 키워드
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.specificity.qualification.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 3. 직군 키워드 적합성 (keyword_relevance) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'keyword_relevance', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">3. 직군 키워드 적합성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.specificity.keyword_relevance.keyword_count}개 키워드
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.specificity.keyword_relevance.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 4. 필수 항목 포함 여부 (required_fields) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'required_fields', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">4. 필수 항목 포함 여부</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.specificity.required_fields.keyword_count}개 항목
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.specificity.required_fields.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-4">
-                    {/* 1. 담당 업무 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '담당 업무 구체성', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">27/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">담당 업무에 대한 설명이 상세하고 구체적입니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* 2. 필요 역량 및 경험 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '필요 역량 및 경험 구체성', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 필요 역량 및 경험 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">26/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">필요 역량에 대한 설명이 구체적입니다.</p>
+                  {/* 경쟁사 공고 평가 */}
+                  <div className="border-2 border-blue-500 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
                           </div>
-                        ))}
+                        )}
                       </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
                     </div>
-
-                    {/* 3. 직무 관련 기술 구체성 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '직무 관련 기술 구체성', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">3. 직무 관련 기술 구체성</h4>
-                          <span className="text-xs font-medium text-gray-600">29/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2, 3].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">직무 관련 기술에 대한 설명이 구체적입니다.</p>
+                    <div className="space-y-4">
+                      {/* 1. 담당 업무 구체성 (responsibility) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'responsibility', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 담당 업무 구체성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.specificity.responsibility.keyword_count}개 키워드
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 4. 보상 정책 상세도 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'specificity', item: '보상 정책 상세도', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">4. 보상 정책 상세도</h4>
-                          <span className="text-xs font-medium text-gray-600">19/30</span>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
                         </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.specificity.responsibility.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        {[1].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">보상 정책에 대한 설명이 부족합니다.</p>
+
+                      {/* 2. 자격요건 구체성 (qualification) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'qualification', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 자격요건 구체성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.specificity.qualification.keyword_count}개 키워드
+                            </span>
                           </div>
-                        ))}
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.specificity.qualification.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 3. 직군 키워드 적합성 (keyword_relevance) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'keyword_relevance', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">3. 직군 키워드 적합성</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.specificity.keyword_relevance.keyword_count}개 키워드
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.specificity.keyword_relevance.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 4. 필수 항목 포함 여부 (required_fields) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'specificity', item: 'required_fields', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">4. 필수 항목 포함 여부</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.specificity.required_fields.keyword_count}개 항목
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.specificity.required_fields.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* 매력도 분석 */}
-            <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">매력도 분석</h3>
-                </div>
-              </div>
-
-              {/* 비교 그리드 */}
-              <div className="grid grid-cols-2 gap-6">
-                {/* 우리 회사 공고 평가 */}
-                <div className="border-2 border-gray-900 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      <CompanyLogo name="SK AX" className="w-full h-full" />
-                    </div>
-                    <span className="font-semibold text-gray-900">우리 회사 공고</span>
+            {evaluationData && (
+              <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
                   </div>
-                  <div className="space-y-4">
-                    {/* 1. 매력적인 콘텐츠 여부 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'appeal', item: '매력적인 콘텐츠 여부', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
-                          <span className="text-xs font-medium text-gray-600">16/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">매력적인 콘텐츠가 부족하여 지원자의 흥미를 유발하기 어렵습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 2. 매력적인 콘텐츠 활용도 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'appeal', item: '매력적인 콘텐츠 활용도', company: 'our' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
-                          <span className="text-xs font-medium text-gray-600">18/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1, 2].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">매력적인 콘텐츠 활용도가 낮아 지원자의 흥미를 유발하기 어렵습니다.</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900">매력도 분석</h3>
                   </div>
                 </div>
 
-                {/* 경쟁사 공고 평가 */}
-                <div className="border-2 border-blue-500 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      {selectedCompetitorJob ? (
-                        <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full bg-blue-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-xs">경쟁</span>
-                        </div>
-                      )}
-                    </div>
-                    <span className="font-semibold text-gray-900">경쟁사 공고</span>
-                  </div>
-                  <div className="space-y-4">
-                    {/* 1. 매력적인 콘텐츠 여부 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'appeal', item: '매력적인 콘텐츠 여부', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">1. 매력적인 콘텐츠 여부</h4>
-                          <span className="text-xs font-medium text-gray-600">28/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                {/* 비교 그리드 */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 우리 회사 공고 평가 */}
+                  <div className="border-2 border-gray-900 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        <CompanyLogo name="SK AX" className="w-full h-full" />
                       </div>
-                      <div className="space-y-1">
-                        {[1, 2, 3].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">현직자 인터뷰, 비전 제시 등 매력적인 콘텐츠가 포함되어 있습니다.</p>
+                      <span className="font-semibold text-gray-900">우리 회사 공고</span>
+                    </div>
+                    <div className="space-y-4">
+                      {/* 1. 특별 콘텐츠 포함 여부 (content_count) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'attractiveness', item: 'content_count', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 특별 콘텐츠 포함 여부</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.attractiveness.content_count.keyword_count}개 유형
+                            </span>
                           </div>
-                        ))}
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.attractiveness.content_count.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* 2. 매력적인 콘텐츠 활용도 */}
-                    <div 
-                      onClick={() => setSelectedDetailItem({ category: 'appeal', item: '매력적인 콘텐츠 활용도', company: 'competitor' })}
-                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900">2. 매력적인 콘텐츠 활용도</h4>
-                          <span className="text-xs font-medium text-gray-600">26/30</span>
-                        </div>
-                        <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
-                      </div>
-                      <div className="space-y-1">
-                        {[1].map((idx) => (
-                          <div key={idx} className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-xs text-gray-700">매력적인 콘텐츠 활용도가 낮아 지원자의 흥미를 유발하기 어렵습니다.</p>
+                      {/* 2. 특별 콘텐츠 충실도 (content_quality) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'attractiveness', item: 'content_quality', company: 'our' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 특별 콘텐츠 충실도</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.sk_ax.attractiveness.content_quality.keyword_count}개 키워드
+                            </span>
                           </div>
-                        ))}
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.sk_ax.attractiveness.content_quality.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 경쟁사 공고 평가 */}
+                  <div className="border-2 border-blue-500 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                        {selectedCompetitorJob ? (
+                          <CompanyLogo name={selectedCompetitorJob.company.replace('(주)', '').trim()} className="w-full h-full" />
+                        ) : (
+                          <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs">경쟁</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">경쟁사 공고</span>
+                    </div>
+                    <div className="space-y-4">
+                      {/* 1. 특별 콘텐츠 포함 여부 (content_count) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'attractiveness', item: 'content_count', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">1. 특별 콘텐츠 포함 여부</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.attractiveness.content_count.keyword_count}개 유형
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.attractiveness.content_count.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 2. 특별 콘텐츠 충실도 (content_quality) */}
+                      <div 
+                        onClick={() => setSelectedDetailItem({ category: 'attractiveness', item: 'content_quality', company: 'competitor' })}
+                        className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-gray-900">2. 특별 콘텐츠 충실도</h4>
+                            <span className="text-xs font-medium text-gray-600">
+                              {evaluationData.competitor.attractiveness.content_quality.keyword_count}개 키워드
+                            </span>
+                          </div>
+                          <span className="text-xs text-blue-600 hover:text-blue-800">상세 보기 →</span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-700 line-clamp-2">
+                            {evaluationData.competitor.attractiveness.content_quality.reasoning.substring(0, 100)}...
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* 하단 설명 텍스트 */}
             <div className="bg-gray-50 p-6 rounded-xl">
@@ -1625,7 +1681,26 @@ export default function QualityPage() {
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b-2 border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
-                {selectedDetailItem.item} - 상세 평가 결과
+                {(() => {
+                  const itemNames: Record<string, Record<string, string>> = {
+                    'readability': {
+                      'jargon': '사내 전문 용어 빈도수',
+                      'consistency': '문단 일관성',
+                      'grammar': '문법 정확성'
+                    },
+                    'specificity': {
+                      'responsibility': '담당 업무 구체성',
+                      'qualification': '자격요건 구체성',
+                      'keyword_relevance': '직군 키워드 적합성',
+                      'required_fields': '필수 항목 포함 여부'
+                    },
+                    'attractiveness': {
+                      'content_count': '특별 콘텐츠 포함 여부',
+                      'content_quality': '특별 콘텐츠 충실도'
+                    }
+                  }
+                  return itemNames[selectedDetailItem.category]?.[selectedDetailItem.item] || selectedDetailItem.item
+                })()} - 상세 평가 결과
               </h2>
               <button
                 onClick={() => setSelectedDetailItem(null)}
@@ -1651,125 +1726,121 @@ export default function QualityPage() {
                   <span className="text-sm text-gray-600">
                     {selectedDetailItem.category === 'readability' && '가독성 분석'}
                     {selectedDetailItem.category === 'specificity' && '구체성 분석'}
-                    {selectedDetailItem.category === 'appeal' && '매력도 분석'}
+                    {selectedDetailItem.category === 'attractiveness' && '매력도 분석'}
                   </span>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">{selectedDetailItem.item}</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {(() => {
+                    const itemNames: Record<string, Record<string, string>> = {
+                      'readability': {
+                        'jargon': '사내 전문 용어 빈도수',
+                        'consistency': '문단 일관성',
+                        'grammar': '문법 정확성'
+                      },
+                      'specificity': {
+                        'responsibility': '담당 업무 구체성',
+                        'qualification': '자격요건 구체성',
+                        'keyword_relevance': '직군 키워드 적합성',
+                        'required_fields': '필수 항목 포함 여부'
+                      },
+                      'attractiveness': {
+                        'content_count': '특별 콘텐츠 포함 여부',
+                        'content_quality': '특별 콘텐츠 충실도'
+                      }
+                    }
+                    return itemNames[selectedDetailItem.category]?.[selectedDetailItem.item] || selectedDetailItem.item
+                  })()}
+                </h3>
               </div>
 
               {/* 점수 명확한 이유 제시 */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                  점수 명확한 이유 제시
-                </h4>
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {selectedDetailItem.category === 'readability' && selectedDetailItem.item === '사전 정보 안내' && 
-                      '가독성 도구 결과: 사내 전문 용어 빈도수 평가를 통해 공고 내 전문 용어 사용 빈도를 분석했습니다.'}
-                    {selectedDetailItem.category === 'readability' && selectedDetailItem.item === '명확한 문장' && 
-                      '문장 구조 분석: 문장의 길이, 복잡도, 명확성을 종합적으로 평가했습니다.'}
-                    {selectedDetailItem.category === 'readability' && selectedDetailItem.item === '문단 구성' && 
-                      '문단 구조 분석: 문단의 길이와 구성이 가독성에 미치는 영향을 평가했습니다.'}
-                    {selectedDetailItem.category === 'specificity' && selectedDetailItem.item === '담당 업무 구체성' && 
-                      '업무 구체성 분석: 담당 업무에 대한 설명의 상세도와 구체성을 평가했습니다.'}
-                    {selectedDetailItem.category === 'specificity' && selectedDetailItem.item === '필요 역량 및 경험 구체성' && 
-                      '역량 구체성 분석: 필요 역량과 경험에 대한 설명의 구체성을 평가했습니다.'}
-                    {selectedDetailItem.category === 'specificity' && selectedDetailItem.item === '직무 관련 기술 구체성' && 
-                      '기술 구체성 분석: 직무 관련 기술에 대한 설명의 구체성을 평가했습니다.'}
-                    {selectedDetailItem.category === 'specificity' && selectedDetailItem.item === '보상 정책 상세도' && 
-                      '보상 정책 분석: 보상 정책에 대한 설명의 상세도를 평가했습니다.'}
-                    {selectedDetailItem.category === 'appeal' && selectedDetailItem.item === '매력적인 콘텐츠 여부' && 
-                      '콘텐츠 매력도 분석: 공고 내 매력적인 콘텐츠의 포함 여부를 평가했습니다.'}
-                    {selectedDetailItem.category === 'appeal' && selectedDetailItem.item === '매력적인 콘텐츠 활용도' && 
-                      '콘텐츠 활용도 분석: 매력적인 콘텐츠의 활용 정도를 평가했습니다.'}
-                  </p>
-                </div>
-              </div>
+              {evaluationData && (() => {
+                const getEvaluationResult = () => {
+                  const data = selectedDetailItem.company === 'our' ? evaluationData.sk_ax : evaluationData.competitor
+                  if (selectedDetailItem.category === 'readability') {
+                    if (selectedDetailItem.item === 'jargon') return data.readability.jargon
+                    if (selectedDetailItem.item === 'consistency') return data.readability.consistency
+                    if (selectedDetailItem.item === 'grammar') return data.readability.grammar
+                  }
+                  if (selectedDetailItem.category === 'specificity') {
+                    if (selectedDetailItem.item === 'responsibility') return data.specificity.responsibility
+                    if (selectedDetailItem.item === 'qualification') return data.specificity.qualification
+                    if (selectedDetailItem.item === 'keyword_relevance') return data.specificity.keyword_relevance
+                    if (selectedDetailItem.item === 'required_fields') return data.specificity.required_fields
+                  }
+                  if (selectedDetailItem.category === 'attractiveness') {
+                    if (selectedDetailItem.item === 'content_count') return data.attractiveness.content_count
+                    if (selectedDetailItem.item === 'content_quality') return data.attractiveness.content_quality
+                  }
+                  return null
+                }
+                const result = getEvaluationResult()
+                if (!result) return null
 
-              {/* 원문 텍스트 */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                  원문 텍스트
-                </h4>
-                <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {selectedDetailItem.company === 'our' && selectedOurJob 
-                      ? selectedOurJob.description.substring(0, 500) + '...'
-                      : selectedDetailItem.company === 'competitor' && selectedCompetitorJob
-                      ? selectedCompetitorJob.description.substring(0, 500) + '...'
-                      : '공고 텍스트를 불러올 수 없습니다.'}
-                  </p>
-                </div>
-              </div>
-
-              {/* 발견된 키워드 */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                  발견된 키워드
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {(() => {
-                    // 예시 키워드 데이터 (실제로는 API에서 받아올 데이터)
-                    const exampleKeywords: Record<string, Record<string, string[]>> = {
-                      'readability': {
-                        '사전 정보 안내': ['SAP', 'ERP', 'S/4HANA', '엔터프라이즈', '솔루션', '비즈니스', '혁신'],
-                        '명확한 문장': ['문장', '구조', '명확성', '간결', '이해'],
-                        '문단 구성': ['문단', '구성', '가독성', '길이', '구조']
-                      },
-                      'specificity': {
-                        '담당 업무 구체성': ['업무', '담당', '구체', '상세', '설명'],
-                        '필요 역량 및 경험 구체성': ['역량', '경험', '필요', '구체', '상세'],
-                        '직무 관련 기술 구체성': ['기술', '직무', '관련', '구체', '상세'],
-                        '보상 정책 상세도': ['보상', '정책', '상세', '설명', '제시']
-                      },
-                      'appeal': {
-                        '매력적인 콘텐츠 여부': ['콘텐츠', '매력', '인터뷰', '비전', '문화'],
-                        '매력적인 콘텐츠 활용도': ['활용', '콘텐츠', '매력', '효과', '영향']
-                      }
-                    };
-                    const keywords = exampleKeywords[selectedDetailItem.category]?.[selectedDetailItem.item] || ['키워드1', '키워드2', '키워드3'];
-                    return keywords.map((keyword: string, idx: number) => (
-                      <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
-                        {keyword}
-                      </span>
-                    ));
-                  })()}
-                </div>
-              </div>
-
-              {/* 키워드 개수 */}
-              <div className="space-y-4">
-                <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                  키워드 개수
-                </h4>
-                <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="text-3xl font-bold text-blue-600">
-                      {(() => {
-                        const exampleKeywords: Record<string, Record<string, number>> = {
-                          'readability': {
-                            '사전 정보 안내': 7,
-                            '명확한 문장': 5,
-                            '문단 구성': 5
-                          },
-                          'specificity': {
-                            '담당 업무 구체성': 5,
-                            '필요 역량 및 경험 구체성': 5,
-                            '직무 관련 기술 구체성': 5,
-                            '보상 정책 상세도': 5
-                          },
-                          'appeal': {
-                            '매력적인 콘텐츠 여부': 5,
-                            '매력적인 콘텐츠 활용도': 5
-                          }
-                        };
-                        return exampleKeywords[selectedDetailItem.category]?.[selectedDetailItem.item] || 0;
-                      })()}
+                return (
+                  <>
+                    <div className="space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
+                        평가 근거
+                      </h4>
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                          {result.reasoning}
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-lg text-gray-600">개</span>
-                  </div>
-                </div>
-              </div>
+
+                    {/* 원문 텍스트 */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
+                        원문 텍스트
+                      </h4>
+                      <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {result.original_text || (selectedDetailItem.company === 'our' && selectedOurJob 
+                            ? selectedOurJob.description.substring(0, 500) + '...'
+                            : selectedDetailItem.company === 'competitor' && selectedCompetitorJob
+                            ? selectedCompetitorJob.description.substring(0, 500) + '...'
+                            : '원문 텍스트가 없습니다.')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 발견된 키워드 */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
+                        발견된 키워드
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {result.keywords && result.keywords.length > 0 ? (
+                          result.keywords.map((keyword: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+                              {keyword}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">키워드가 없습니다.</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 키워드 개수 */}
+                    <div className="space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
+                        키워드 개수
+                      </h4>
+                      <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="text-3xl font-bold text-blue-600">
+                            {result.keyword_count}
+                          </div>
+                          <span className="text-lg text-gray-600">개</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>

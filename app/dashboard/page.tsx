@@ -51,6 +51,11 @@ export default function Dashboard() {
   const [isLoadingJobPostingsTrend, setIsLoadingJobPostingsTrend] = useState(false)
   const [jobPostingsTrendError, setJobPostingsTrendError] = useState<string | null>(null)
   
+  // 회사별 스킬 다양성 API 데이터 상태
+  const [companySkillDiversityApiData, setCompanySkillDiversityApiData] = useState<Array<{ company: string; skills: number }>>([])
+  const [isLoadingSkillDiversity, setIsLoadingSkillDiversity] = useState(false)
+  const [skillDiversityError, setSkillDiversityError] = useState<string | null>(null)
+  
   // 자동매칭 관련 상태
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
   const [matchedJobsMap, setMatchedJobsMap] = useState<Record<number, Array<{
@@ -283,6 +288,92 @@ export default function Dashboard() {
 
     fetchSkillsStatistics()
   }, [])
+
+  // 회사별 스킬 다양성 API 호출
+  useEffect(() => {
+    const fetchSkillDiversity = async () => {
+      try {
+        setIsLoadingSkillDiversity(true)
+        setSkillDiversityError(null)
+        
+        // view_mode와 year 파라미터 구성
+        const params = new URLSearchParams()
+        params.append('view_mode', skillDiversityViewMode)
+        if (skillDiversityViewMode === 'year' && selectedYear) {
+          params.append('year', selectedYear)
+        }
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skills/diversity?${params.toString()}`
+        console.log('=== 회사별 스킬 다양성 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('view_mode:', skillDiversityViewMode, 'year:', selectedYear)
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('HTTP 에러 발생! 상태 코드:', response.status)
+          console.error('에러 응답 내용:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 회사별 스킬 다양성 데이터:', result)
+        
+        // 백엔드 응답 형식에 맞춰 데이터 변환
+        // 응답 형식: { status: 200, code: "SUCCESS", message: "...", data: {...} }
+        let data: any = result.data
+        
+        // data가 문자열인 경우 JSON 파싱 시도
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+            console.log('파싱된 data:', data)
+          } catch (parseError) {
+            console.error('data JSON 파싱 실패:', parseError)
+            throw new Error('응답 데이터 형식이 올바르지 않습니다.')
+          }
+        }
+        
+        // status가 0이거나 200이고 code가 SUCCESS인 경우 성공으로 처리
+        if ((result.status === 0 || result.status === 200) && result.code === 'SUCCESS' && data) {
+          const { diversity } = data
+          
+          if (Array.isArray(diversity)) {
+            // API 응답 형식: [{ company: "토스", skills: 438 }, ...]
+            // 현재 코드 형식과 동일하므로 그대로 사용
+            console.log('변환된 회사별 스킬 다양성 데이터:', diversity)
+            setCompanySkillDiversityApiData(diversity)
+          } else {
+            console.warn('회사별 스킬 다양성 데이터 형식이 올바르지 않습니다. diversity가 배열이 아닙니다.')
+            console.warn('받은 data:', data)
+            setCompanySkillDiversityApiData([])
+          }
+        } else {
+          console.warn('회사별 스킬 다양성 응답 형식이 올바르지 않습니다.')
+          console.warn('status:', result.status, 'code:', result.code, 'data:', result.data)
+          setCompanySkillDiversityApiData([])
+        }
+      } catch (err) {
+        console.error('=== 회사별 스킬 다양성 API 호출 에러 ===')
+        console.error('에러:', err)
+        setSkillDiversityError(err instanceof Error ? err.message : '회사별 스킬 다양성을 불러오는 중 오류가 발생했습니다.')
+        setCompanySkillDiversityApiData([])
+      } finally {
+        setIsLoadingSkillDiversity(false)
+      }
+    }
+
+    fetchSkillDiversity()
+  }, [skillDiversityViewMode, selectedYear])
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
@@ -1607,30 +1698,61 @@ export default function Dashboard() {
   }
 
   // 선택된 모드에 따른 회사별 스킬 다양성 데이터
+  // API 데이터가 있으면 사용하고, 없으면 기본 데이터 사용 (fallback)
   const companySkillDiversityData = useMemo(() => {
+    // API 데이터가 있고 에러가 없으면 API 데이터 사용
+    if (companySkillDiversityApiData.length > 0 && !skillDiversityError) {
+      return companySkillDiversityApiData
+    }
+    
+    // API 데이터가 없으면 기본 데이터 사용
     if (skillDiversityViewMode === 'all') {
       return companySkillDiversityDataAll
     } else {
       return companySkillDiversityDataByYear[selectedYear] || companySkillDiversityDataAll
     }
-  }, [skillDiversityViewMode, selectedYear])
+  }, [skillDiversityViewMode, selectedYear, companySkillDiversityApiData, skillDiversityError])
 
-  // 선택된 모드에 따른 Y축 최대값
+  // 선택된 모드에 따른 Y축 최대값 (데이터 기반으로 동적 계산)
   const skillDiversityYAxisMax = useMemo(() => {
-    if (skillDiversityViewMode === 'all') {
-      return 450
-    } else if (selectedYear === '2021') {
-      return 100
-    } else if (selectedYear === '2022') {
-      return 150
-    } else if (selectedYear === '2023') {
-      return 200
-    } else if (selectedYear === '2024') {
-      return 350
-    } else {
-      return 450
+    if (companySkillDiversityData.length === 0) {
+      // 기본값
+      if (skillDiversityViewMode === 'all') {
+        return 450
+      } else if (selectedYear === '2021') {
+        return 100
+      } else if (selectedYear === '2022') {
+        return 150
+      } else if (selectedYear === '2023') {
+        return 200
+      } else if (selectedYear === '2024') {
+        return 350
+      } else {
+        return 450
+      }
     }
-  }, [skillDiversityViewMode, selectedYear])
+    
+    // 데이터에서 최대값 찾기
+    const maxSkills = Math.max(...companySkillDiversityData.map(item => item.skills))
+    
+    // 최대값의 1.2배로 설정 (여유 공간)
+    const calculatedMax = Math.ceil(maxSkills * 1.2)
+    
+    // 최소값 보장
+    if (skillDiversityViewMode === 'all') {
+      return Math.max(calculatedMax, 450)
+    } else if (selectedYear === '2021') {
+      return Math.max(calculatedMax, 100)
+    } else if (selectedYear === '2022') {
+      return Math.max(calculatedMax, 150)
+    } else if (selectedYear === '2023') {
+      return Math.max(calculatedMax, 200)
+    } else if (selectedYear === '2024') {
+      return Math.max(calculatedMax, 350)
+    } else {
+      return Math.max(calculatedMax, 450)
+    }
+  }, [skillDiversityViewMode, selectedYear, companySkillDiversityData])
 
   // 회사별 상위 스킬 분기별 트렌드 데이터 - 연도별
   const companySkillTrendDataByYear: Record<string, Record<string, Array<{ month: string; python: number; sql: number; java: number; kubernetes: number; docker: number; react: number; typescript: number; aws: number; spring: number; nodejs: number }>>> = {
@@ -2264,9 +2386,25 @@ export default function Dashboard() {
                   </select>
                 )}
               </div>
+              {/* 로딩 및 에러 상태 표시 */}
+              {isLoadingSkillDiversity && (
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="text-gray-500">데이터를 불러오는 중...</div>
+                </div>
+              )}
+              {skillDiversityError && !isLoadingSkillDiversity && (
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="text-red-500 text-sm">
+                    {skillDiversityError}
+                    <br />
+                    <span className="text-gray-400">기본 데이터를 표시합니다.</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={companySkillDiversityData} layout="vertical">
+            {!isLoadingSkillDiversity && (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={companySkillDiversityData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   type="number" 
@@ -2299,7 +2437,8 @@ export default function Dashboard() {
                   style={{ cursor: 'pointer' }}
                 />
               </BarChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </section>
 
           {/* 선택된 회사의 상위 스킬 분기별 트렌드 */}

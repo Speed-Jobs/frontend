@@ -47,6 +47,8 @@ export default function CompaniesPage() {
   // 공고 리스트 필터링 상태
   const [jobListFilter, setJobListFilter] = useState('')
   const [sortOrder, setSortOrder] = useState<'name' | 'date-asc' | 'date-desc'>('date-desc')
+  const [selectedJobYear, setSelectedJobYear] = useState<string>('') // 년 필터
+  const [selectedJobMonth, setSelectedJobMonth] = useState<string>('') // 월 필터
 
 
   // 회사별 공고 통계 계산
@@ -247,8 +249,54 @@ export default function CompaniesPage() {
   // 선택된 회사의 공고 목록 (필터링 및 정렬 적용)
   const selectedCompanyJobs = useMemo(() => {
     if (!selectedCompany) return []
-    const companyStat = companyStats.find((stat) => stat.company === selectedCompany)
-    if (!companyStat) return []
+    
+    // companyStats에서 찾기
+    let companyStat = companyStats.find((stat) => stat.company === selectedCompany)
+    
+    // companyStats에서 찾지 못하면 원본 데이터에서 직접 찾기
+    if (!companyStat) {
+      const companyJobs = jobPostingsData.filter((job) => {
+        const companyName = job.company.replace('(주)', '').trim()
+        return companyName === selectedCompany
+      })
+      
+      if (companyJobs.length === 0) return []
+      
+      // 직무 필터 적용 (companyStats의 로직과 동일)
+      let filteredJobs = companyJobs
+      if (selectedJobRole !== '전체') {
+        filteredJobs = companyJobs.filter((job) => {
+          const title = job.title.toLowerCase()
+          const normalizedJobRole = selectedJobRole.toLowerCase()
+          const jobCategory = job.meta_data?.job_category?.toLowerCase() || ''
+          
+          if (title.includes(normalizedJobRole) || job.title.includes(selectedJobRole)) {
+            return true
+          }
+          if (jobCategory && (
+            jobCategory.includes(normalizedJobRole) ||
+            normalizedJobRole.includes(jobCategory)
+          )) {
+            return true
+          }
+          return false
+        })
+      }
+      
+      if (filteredJobs.length === 0) return []
+      
+      // 임시 companyStat 생성
+      companyStat = {
+        company: selectedCompany,
+        count: filteredJobs.length,
+        percentage: 0,
+        trend: 0,
+        recentJobs: 0,
+        oldestDate: new Date(),
+        newestDate: new Date(),
+        jobs: filteredJobs,
+      }
+    }
     
     // 필터링
     let filtered = companyStat.jobs
@@ -258,6 +306,71 @@ export default function CompaniesPage() {
         job.title.toLowerCase().includes(filterLower) ||
         new Date(job.posted_date).toLocaleDateString('ko-KR').includes(filterLower)
       )
+    }
+    
+    // 년/월 필터 적용
+    if (selectedJobYear || selectedJobMonth) {
+      const beforeFilterCount = filtered.length
+      
+      // 디버깅: 필터링 전 공고들의 연도 분포 확인
+      if (beforeFilterCount > 0 && selectedJobYear) {
+        const yearDistribution: Record<string, number> = {}
+        filtered.forEach((job) => {
+          if (job.posted_date) {
+            try {
+              const jobDate = new Date(job.posted_date)
+              if (!isNaN(jobDate.getTime())) {
+                const year = jobDate.getFullYear().toString()
+                yearDistribution[year] = (yearDistribution[year] || 0) + 1
+              }
+            } catch (e) {
+              // 무시
+            }
+          }
+        })
+        console.log('Available years in filtered jobs:', yearDistribution)
+        console.log('Looking for year:', selectedJobYear)
+      }
+      
+      filtered = filtered.filter((job) => {
+        if (!job.posted_date) {
+          return false
+        }
+        
+        try {
+          const jobDate = new Date(job.posted_date)
+          
+          // 유효한 날짜인지 확인
+          if (isNaN(jobDate.getTime())) {
+            console.warn('Invalid date:', job.posted_date, 'for job:', job.id)
+            return false
+          }
+          
+          const jobYear = jobDate.getFullYear().toString()
+          const jobMonth = String(jobDate.getMonth() + 1).padStart(2, '0')
+          
+          // 연도 필터: 선택된 연도가 있으면 매칭 확인
+          if (selectedJobYear && jobYear !== selectedJobYear) {
+            return false
+          }
+          
+          // 월 필터: 선택된 월이 있으면 매칭 확인 (연도가 선택된 경우에만 의미 있음)
+          if (selectedJobMonth && jobMonth !== selectedJobMonth) {
+            return false
+          }
+          
+          return true
+        } catch (error) {
+          console.warn('Error parsing date:', job.posted_date, 'for job:', job.id, error)
+          return false
+        }
+      })
+      
+      console.log(`Year/Month filter: ${beforeFilterCount} -> ${filtered.length} jobs (Year: ${selectedJobYear || 'all'}, Month: ${selectedJobMonth || 'all'})`)
+      
+      if (filtered.length === 0 && beforeFilterCount > 0) {
+        console.warn(`No jobs found for selected filters. Before filter: ${beforeFilterCount} jobs`)
+      }
     }
     
     // 정렬
@@ -276,21 +389,41 @@ export default function CompaniesPage() {
     })
     
     return sorted
-  }, [selectedCompany, companyStats, jobListFilter, sortOrder])
+  }, [selectedCompany, companyStats, jobListFilter, sortOrder, selectedJobYear, selectedJobMonth])
 
   // 검색 핸들러
   const handleSearch = () => {
     if (!searchQuery.trim()) return
     
-    const filtered = companyStats.filter((stat) => 
+    // 먼저 companyStats에서 검색 (직무 필터가 적용된 결과)
+    let filtered = companyStats.filter((stat) => 
       stat.company.toLowerCase().includes(searchQuery.toLowerCase())
     )
+    
+    // companyStats에서 찾지 못하면 원본 데이터에서 모든 회사 검색
+    if (filtered.length === 0) {
+      const allCompanies = new Set<string>()
+      jobPostingsData.forEach((job) => {
+        const companyName = job.company.replace('(주)', '').trim()
+        if (companyName.toLowerCase().includes(searchQuery.toLowerCase())) {
+          allCompanies.add(companyName)
+        }
+      })
+      
+      if (allCompanies.size > 0) {
+        // 첫 번째 매칭되는 회사 선택
+        const matchedCompany = Array.from(allCompanies)[0]
+        setSelectedCompany(matchedCompany)
+        setImageGalleryPage(1)
+        return
+      }
+    }
     
     if (filtered.length > 0) {
       setSelectedCompany(filtered[0].company)
       setImageGalleryPage(1)
     } else {
-      alert('검색 결과가 없습니다.')
+      alert('검색 결과가 없습니다. 다른 회사명을 시도해보세요.')
     }
   }
 
@@ -495,6 +628,9 @@ export default function CompaniesPage() {
                       setSearchQuery('')
                       setSelectedJobRole('전체')
                       setSelectedJobDetail(null)
+                      setJobListFilter('')
+                      setSelectedJobYear('')
+                      setSelectedJobMonth('')
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                   >
@@ -503,28 +639,84 @@ export default function CompaniesPage() {
                 </div>
                 
                 {/* 필터 및 정렬 */}
-                <div className="flex items-center gap-4 mt-4">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      value={jobListFilter}
-                      onChange={(e) => setJobListFilter(e.target.value)}
-                      placeholder="공고 이름 또는 수집일로 검색..."
-                      className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-                    />
-                    <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                <div className="space-y-3 mt-4">
+                  {/* 검색 및 정렬 */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        value={jobListFilter}
+                        onChange={(e) => setJobListFilter(e.target.value)}
+                        placeholder="공고 이름 또는 수집일로 검색..."
+                        className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                      />
+                      <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as 'name' | 'date-asc' | 'date-desc')}
+                      className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+                    >
+                      <option value="date-desc">최신순</option>
+                      <option value="date-asc">오래된순</option>
+                      <option value="name">이름순</option>
+                    </select>
                   </div>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'name' | 'date-asc' | 'date-desc')}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-                  >
-                    <option value="date-desc">최신순</option>
-                    <option value="date-asc">오래된순</option>
-                    <option value="name">이름순</option>
-                  </select>
+                  
+                  {/* 년/월 필터 */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">기간 필터:</label>
+                    <select
+                      value={selectedJobYear}
+                      onChange={(e) => {
+                        setSelectedJobYear(e.target.value)
+                        if (!e.target.value) {
+                          setSelectedJobMonth('')
+                        }
+                      }}
+                      className="px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-700"
+                    >
+                      <option value="">전체</option>
+                      <option value="2021">2021</option>
+                      <option value="2022">2022</option>
+                      <option value="2023">2023</option>
+                      <option value="2024">2024</option>
+                      <option value="2025">2025</option>
+                    </select>
+                    <select
+                      value={selectedJobMonth}
+                      onChange={(e) => setSelectedJobMonth(e.target.value)}
+                      disabled={!selectedJobYear}
+                      className="px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">전체</option>
+                      <option value="01">1월</option>
+                      <option value="02">2월</option>
+                      <option value="03">3월</option>
+                      <option value="04">4월</option>
+                      <option value="05">5월</option>
+                      <option value="06">6월</option>
+                      <option value="07">7월</option>
+                      <option value="08">8월</option>
+                      <option value="09">9월</option>
+                      <option value="10">10월</option>
+                      <option value="11">11월</option>
+                      <option value="12">12월</option>
+                    </select>
+                    {(selectedJobYear || selectedJobMonth) && (
+                      <button
+                        onClick={() => {
+                          setSelectedJobYear('')
+                          setSelectedJobMonth('')
+                        }}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        필터 초기화
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               

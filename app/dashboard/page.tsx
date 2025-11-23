@@ -44,6 +44,22 @@ export default function Dashboard() {
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
+  const [skillStatisticsViewMode, setSkillStatisticsViewMode] = useState<'all' | 'year'>('all') // 스킬별 통계 시간 필터
+  const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'all' | 'year' | 'month'>('all') // 직군별 통계 시간 필터
+  const [selectedJobRoleCompany, setSelectedJobRoleCompany] = useState<string | null>(null) // 직군별 통계 회사 필터 (null이면 전체)
+  const [selectedJobRoleMonth, setSelectedJobRoleMonth] = useState<string>('') // 직군별 통계 월 필터 (YYYY-MM 형식)
+  
+  // 직군별 통계용 회사 목록
+  const jobRoleCompanies = [
+    { key: 'toss', name: '토스' },
+    { key: 'line', name: '라인' },
+    { key: 'hanwha', name: '한화 시스템' },
+    { key: 'kakao', name: '카카오' },
+    { key: 'naver', name: '네이버' },
+    { key: 'samsung', name: '삼성 SDS' },
+    { key: 'lg', name: 'LG CNS' },
+    { key: 'sk', name: 'SK AX' },
+  ]
   const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
   
   // 채용 공고 수 추이 API 데이터 상태
@@ -192,13 +208,25 @@ export default function Dashboard() {
         setIsLoadingSkills(true)
         setSkillsError(null)
         
-        // 백엔드 API 엔드포인트 (전체 스킬 목록을 받아오는 API)
-        // 실제 API 엔드포인트로 변경 필요
-        const apiUrl = 'http://172.20.10.2:8080/api/v1/skills/statistics'
-        console.log('=== 스킬 통계 API 호출 ===')
-        console.log('호출 URL:', apiUrl)
+        // 백엔드 API 엔드포인트
+        // GET /api/v1/dashboard/skills/statistics?start_date={start_date}&end_date={end_date}
+        const apiUrl = 'https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skills/statistics'
         
-        const response = await fetch(apiUrl, {
+        // 쿼리 파라미터 구성
+        const params = new URLSearchParams()
+        if (skillStatisticsViewMode === 'year' && selectedYear) {
+          // 연도별 모드인 경우 해당 연도의 시작일과 종료일 설정
+          params.append('start_date', `${selectedYear}-01-01`)
+          params.append('end_date', `${selectedYear}-12-31`)
+        }
+        // 전체보기 모드인 경우 날짜 파라미터 없이 호출 (전체 기간)
+        
+        const fullUrl = params.toString() ? `${apiUrl}?${params.toString()}` : apiUrl
+        console.log('=== 스킬 통계 API 호출 ===')
+        console.log('호출 URL:', fullUrl)
+        console.log('view_mode:', skillStatisticsViewMode, 'year:', selectedYear)
+        
+        const response = await fetch(fullUrl, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -287,7 +315,7 @@ export default function Dashboard() {
     }
 
     fetchSkillsStatistics()
-  }, [])
+  }, [skillStatisticsViewMode, selectedYear])
 
   // 회사별 스킬 다양성 API 호출
   useEffect(() => {
@@ -1608,12 +1636,12 @@ export default function Dashboard() {
   const recruitmentCompanies = [
     { key: 'toss', name: '토스', color: companyColors.toss },
     { key: 'line', name: '라인', color: companyColors.line },
-    { key: 'hanwha', name: '한화', color: companyColors.hanwha },
+    { key: 'hanwha', name: '한화 시스템', color: companyColors.hanwha },
     { key: 'kakao', name: '카카오', color: companyColors.kakao },
     { key: 'naver', name: '네이버', color: companyColors.naver },
-    { key: 'samsung', name: '삼성', color: companyColors.samsung },
-    { key: 'lg', name: 'LG', color: companyColors.lg },
-    { key: 'sk', name: 'SK', color: companyColors.sk },
+    { key: 'samsung', name: '삼성 SDS', color: companyColors.samsung },
+    { key: 'lg', name: 'LG CNS', color: companyColors.lg },
+    { key: 'sk', name: 'SK AX', color: companyColors.sk },
   ]
 
   // hex 색상을 rgba로 변환하는 헬퍼 함수
@@ -2553,6 +2581,35 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-gray-900">
                 스킬별 통계
               </h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">전체</span>
+                <button
+                  onClick={() => setSkillStatisticsViewMode(skillStatisticsViewMode === 'all' ? 'year' : 'all')}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${
+                    skillStatisticsViewMode === 'year' ? 'bg-black' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      skillStatisticsViewMode === 'year' ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-gray-600">연도</span>
+                {skillStatisticsViewMode === 'year' && (
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')}
+                    className="ml-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                )}
+              </div>
             </div>
             <div className="flex flex-col gap-4">
                 {/* 스킬 클라우드 - 컴팩트 버전 */}
@@ -2884,6 +2941,122 @@ export default function Dashboard() {
               <h2 className="text-xl font-bold text-gray-900">
                 직군별 통계
               </h2>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setJobRoleStatisticsViewMode('all')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      jobRoleStatisticsViewMode === 'all'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    전체
+                  </button>
+                  <button
+                    onClick={() => setJobRoleStatisticsViewMode('year')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      jobRoleStatisticsViewMode === 'year'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    연도
+                  </button>
+                  <button
+                    onClick={() => setJobRoleStatisticsViewMode('month')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      jobRoleStatisticsViewMode === 'month'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    월별
+                  </button>
+                </div>
+                {jobRoleStatisticsViewMode === 'year' && (
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                )}
+                {jobRoleStatisticsViewMode === 'month' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => {
+                        setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')
+                        setSelectedJobRoleMonth('')
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="2021">2021</option>
+                      <option value="2022">2022</option>
+                      <option value="2023">2023</option>
+                      <option value="2024">2024</option>
+                      <option value="2025">2025</option>
+                    </select>
+                    <select
+                      value={selectedJobRoleMonth}
+                      onChange={(e) => setSelectedJobRoleMonth(e.target.value)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">월 선택</option>
+                      <option value="01">1월</option>
+                      <option value="02">2월</option>
+                      <option value="03">3월</option>
+                      <option value="04">4월</option>
+                      <option value="05">5월</option>
+                      <option value="06">6월</option>
+                      <option value="07">7월</option>
+                      <option value="08">8월</option>
+                      <option value="09">9월</option>
+                      <option value="10">10월</option>
+                      <option value="11">11월</option>
+                      <option value="12">12월</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* 회사 필터 */}
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-4 items-center">
+                <button
+                  onClick={() => setSelectedJobRoleCompany(null)}
+                  className={`text-sm font-medium transition-all duration-200 cursor-pointer ${
+                    selectedJobRoleCompany === null
+                      ? 'text-gray-900 font-semibold'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  전체
+                </button>
+                {jobRoleCompanies.map((company) => {
+                  const isSelected = selectedJobRoleCompany === company.name
+                  return (
+                    <button
+                      key={company.key}
+                      onClick={() => setSelectedJobRoleCompany(isSelected ? null : company.name)}
+                      className={`text-sm font-medium transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? 'text-gray-900 font-semibold'
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      {company.name}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             
             {/* 전문가 카테고리 탭 */}

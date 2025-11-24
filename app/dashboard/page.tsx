@@ -60,7 +60,15 @@ export default function Dashboard() {
     { key: 'lg', name: 'LG CNS' },
     { key: 'sk', name: 'SK AX' },
   ]
-  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>(['toss', 'line', 'hanwha', 'kakao', 'naver', 'samsung', 'lg', 'sk'])
+  const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
+  
+  // 회사별 채용 활동 API 데이터 상태
+  const [companyRecruitmentApiData, setCompanyRecruitmentApiData] = useState<{
+    companies: Array<{ id: number; name: string; key: string }>
+    activities: Array<{ period: string; counts: Record<string, number> }>
+  } | null>(null)
+  const [isLoadingCompanyRecruitment, setIsLoadingCompanyRecruitment] = useState(false)
+  const [companyRecruitmentError, setCompanyRecruitmentError] = useState<string | null>(null)
   
   // 채용 공고 수 추이 API 데이터 상태
   const [jobPostingsTrendApiData, setJobPostingsTrendApiData] = useState<Array<{ period: string; count: number }>>([])
@@ -402,6 +410,84 @@ export default function Dashboard() {
 
     fetchSkillDiversity()
   }, [skillDiversityViewMode, selectedYear])
+
+  // 회사별 채용 활동 API 호출
+  useEffect(() => {
+    const fetchCompanyRecruitment = async () => {
+      try {
+        setIsLoadingCompanyRecruitment(true)
+        setCompanyRecruitmentError(null)
+        
+        // timeframe에 따른 파라미터 설정
+        const timeframeMap: Record<string, string> = {
+          'Daily': 'daily',
+          'Weekly': 'weekly',
+          'Monthly': 'monthly'
+        }
+        const timeframeParam = timeframeMap[companyRecruitmentTimeframe] || 'daily'
+        
+        // 회사 키워드 (기본값: 토스,한화,라인,네이버,카카오,LG,현대오토에버,우아한)
+        const companyKeywords = '토스,한화,라인,네이버,카카오,LG,현대오토에버,우아한'
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/recruitment-activity?timeframe=${timeframeParam}&company_keywords=${encodeURIComponent(companyKeywords)}`
+        console.log('=== 회사별 채용 활동 API 호출 ===')
+        console.log('호출 URL:', apiUrl)
+        console.log('timeframe:', companyRecruitmentTimeframe)
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('HTTP 에러 발생! 상태 코드:', response.status)
+          console.error('에러 응답 내용:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+        
+        const result = await response.json()
+        console.log('백엔드에서 받은 회사별 채용 활동 데이터:', result)
+        
+        // 백엔드 응답 형식에 맞춰 데이터 저장
+        if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+          setCompanyRecruitmentApiData({
+            companies: result.data.companies || [],
+            activities: result.data.activities || []
+          })
+        } else {
+          console.warn('회사별 채용 활동 응답 형식이 올바르지 않습니다.')
+          console.warn('status:', result.status, 'code:', result.code, 'data:', result.data)
+          setCompanyRecruitmentApiData(null)
+        }
+      } catch (err) {
+        console.error('=== 회사별 채용 활동 API 호출 에러 ===')
+        console.error('에러:', err)
+        setCompanyRecruitmentError(err instanceof Error ? err.message : '회사별 채용 활동을 불러오는 중 오류가 발생했습니다.')
+        setCompanyRecruitmentApiData(null)
+      } finally {
+        setIsLoadingCompanyRecruitment(false)
+      }
+    }
+
+    fetchCompanyRecruitment()
+  }, [companyRecruitmentTimeframe])
+
+  // API 데이터가 로드되면 초기 선택 회사 목록 설정
+  useEffect(() => {
+    if (companyRecruitmentApiData && companyRecruitmentApiData.companies.length > 0) {
+      // API에서 받은 모든 회사의 key를 초기 선택 목록으로 설정
+      const allCompanyKeys = companyRecruitmentApiData.companies.map(c => c.key)
+      if (selectedRecruitmentCompanies.length === 0) {
+        setSelectedRecruitmentCompanies(allCompanyKeys)
+      }
+    }
+  }, [companyRecruitmentApiData, selectedRecruitmentCompanies.length])
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])
@@ -1587,8 +1673,119 @@ export default function Dashboard() {
     { period: '11/30', toss: 25, line: 20, hanwha: 21, kakao: 23, naver: 25, samsung: 22, lg: 19, sk: 21 },
   ]
 
+  // API 응답 데이터를 차트 형식으로 변환
+  const transformApiDataToChartFormat = useCallback((
+    activities: Array<{ period: string; counts: Record<string, number> }>,
+    companies: Array<{ id: number; name: string; key: string }>
+  ) => {
+    // 회사 이름을 key로 매핑하는 맵 생성
+    const nameToKeyMap: Record<string, string> = {}
+    companies.forEach(company => {
+      // 정확한 이름 매핑
+      nameToKeyMap[company.name] = company.key
+      
+      // 다양한 이름 변형도 매핑
+      if (company.name === 'LG_CNS') {
+        nameToKeyMap['lg_cns'] = company.key
+        nameToKeyMap['LG_CNS'] = company.key
+      }
+      if (company.name === '네이버') {
+        nameToKeyMap['네이버'] = company.key
+      }
+      if (company.name === '토스') {
+        nameToKeyMap['토스'] = company.key
+      }
+      if (company.name === '한화시스템') {
+        nameToKeyMap['한화시스템'] = company.key
+        nameToKeyMap['한화 시스템'] = company.key
+      }
+      if (company.name === '현대오토에버') {
+        nameToKeyMap['현대오토에버'] = company.key
+      }
+      if (company.name === '카카오') {
+        nameToKeyMap['카카오'] = company.key
+      }
+      if (company.name === 'LINE') {
+        nameToKeyMap['LINE'] = company.key
+        nameToKeyMap['line'] = company.key
+        nameToKeyMap['라인'] = company.key
+      }
+      if (company.name === '우아한형제들') {
+        nameToKeyMap['우아한형제들'] = company.key
+        nameToKeyMap['우아한'] = company.key
+      }
+    })
+
+    // 모든 회사의 key 목록
+    const allCompanyKeys = companies.map(c => c.key)
+
+    // activities를 차트 형식으로 변환
+    return activities.map(activity => {
+      const chartData: Record<string, any> = {
+        period: activity.period
+      }
+
+      // 모든 회사에 대해 초기값 0 설정
+      allCompanyKeys.forEach(key => {
+        chartData[key] = 0
+      })
+
+      // counts 객체의 값을 차트 데이터에 매핑
+      Object.entries(activity.counts).forEach(([companyName, count]) => {
+        // 회사 이름을 key로 변환
+        const companyKey = nameToKeyMap[companyName] || companyName.toLowerCase().replace(/\s+/g, '_')
+        if (allCompanyKeys.includes(companyKey)) {
+          chartData[companyKey] = count
+        }
+      })
+
+      return chartData
+    })
+  }, [])
+
   // timeframe에 따른 회사별 채용 활동 데이터 선택
   const companyRecruitmentData = useMemo(() => {
+    // API 데이터가 있고 에러가 없으면 API 데이터 사용
+    if (companyRecruitmentApiData && !companyRecruitmentError) {
+      const transformedData = transformApiDataToChartFormat(
+        companyRecruitmentApiData.activities,
+        companyRecruitmentApiData.companies
+      )
+      // period 기준으로 정렬 (날짜 순서)
+      return transformedData.sort((a, b) => {
+        // period 형식을 파싱하는 함수
+        const parsePeriod = (period: string): number => {
+          // "MM/DD" 형식 (일간)
+          if (period.includes('/') && period.split('/').length === 2) {
+            const [month, day] = period.split('/').map(Number)
+            const currentYear = new Date().getFullYear()
+            return new Date(currentYear, month - 1, day).getTime()
+          }
+          // "YYYY-MM" 형식 (월간)
+          if (period.match(/^\d{4}-\d{2}$/)) {
+            return new Date(period + '-01').getTime()
+          }
+          // "N월 N주" 형식 (주간) - 예: "11월 1주", "10월 4주"
+          const weekMatch = period.match(/(\d+)월\s*(\d+)주/)
+          if (weekMatch) {
+            const month = parseInt(weekMatch[1])
+            const week = parseInt(weekMatch[2])
+            const currentYear = new Date().getFullYear()
+            // 주차를 대략적인 날짜로 변환 (첫 주의 첫 날 기준)
+            const firstDayOfMonth = new Date(currentYear, month - 1, 1)
+            const dayOfWeek = firstDayOfMonth.getDay()
+            const firstMonday = firstDayOfMonth.getDate() + (1 - dayOfWeek + 7) % 7
+            const targetDate = new Date(currentYear, month - 1, firstMonday + (week - 1) * 7)
+            return targetDate.getTime()
+          }
+          // 기타 형식은 문자열 비교
+          return period.localeCompare(b.period)
+        }
+        return parsePeriod(a.period) - parsePeriod(b.period)
+      })
+    }
+
+    // API 데이터가 없으면 기본 데이터 사용
     if (companyRecruitmentTimeframe === 'Daily') {
       return companyRecruitmentDataDaily
     } else if (companyRecruitmentTimeframe === 'Weekly') {
@@ -1596,7 +1793,7 @@ export default function Dashboard() {
     } else {
       return companyRecruitmentDataMonthly
     }
-  }, [companyRecruitmentTimeframe])
+  }, [companyRecruitmentTimeframe, companyRecruitmentApiData, companyRecruitmentError, transformApiDataToChartFormat])
 
   // timeframe에 따른 회사별 채용 활동 차트 제목
   const companyRecruitmentTitle = useMemo(() => {
@@ -1609,8 +1806,23 @@ export default function Dashboard() {
     }
   }, [companyRecruitmentTimeframe])
 
-  // timeframe에 따른 회사별 채용 활동 Y축 최대값
+  // timeframe에 따른 회사별 채용 활동 Y축 최대값 (동적 계산)
   const companyRecruitmentYAxisMax = useMemo(() => {
+    // API 데이터가 있으면 데이터 기반으로 계산
+    if (companyRecruitmentData && companyRecruitmentData.length > 0) {
+      let maxValue = 0
+      companyRecruitmentData.forEach(item => {
+        Object.values(item).forEach(value => {
+          if (typeof value === 'number' && value > maxValue) {
+            maxValue = value
+          }
+        })
+      })
+      // 최대값의 1.2배로 설정 (여유 공간)
+      return Math.ceil(maxValue * 1.2)
+    }
+    
+    // 기본값
     if (companyRecruitmentTimeframe === 'Daily') {
       return 30
     } else if (companyRecruitmentTimeframe === 'Weekly') {
@@ -1618,7 +1830,7 @@ export default function Dashboard() {
     } else {
       return 1200
     }
-  }, [companyRecruitmentTimeframe])
+  }, [companyRecruitmentTimeframe, companyRecruitmentData])
 
   const companyColors = {
     saramin: '#3b82f6', // blue
@@ -1632,17 +1844,75 @@ export default function Dashboard() {
     sk: '#14b8a6', // teal
   }
 
-  // 회사별 채용 활동 회사 목록
-  const recruitmentCompanies = [
-    { key: 'toss', name: '토스', color: companyColors.toss },
-    { key: 'line', name: '라인', color: companyColors.line },
-    { key: 'hanwha', name: '한화 시스템', color: companyColors.hanwha },
-    { key: 'kakao', name: '카카오', color: companyColors.kakao },
-    { key: 'naver', name: '네이버', color: companyColors.naver },
-    { key: 'samsung', name: '삼성 SDS', color: companyColors.samsung },
-    { key: 'lg', name: 'LG CNS', color: companyColors.lg },
-    { key: 'sk', name: 'SK AX', color: companyColors.sk },
-  ]
+  // 회사별 채용 활동 회사 목록 (API 데이터가 있으면 사용, 없으면 기본 데이터 사용)
+  const recruitmentCompanies = useMemo(() => {
+    if (companyRecruitmentApiData && companyRecruitmentApiData.companies.length > 0) {
+      // API에서 받은 회사 목록을 사용
+      return companyRecruitmentApiData.companies.map(company => {
+        // 회사 key에 따라 색상 매핑
+        const colorMap: Record<string, string> = {
+          'toss': companyColors.toss,
+          'line': companyColors.line,
+          'hanwha': companyColors.hanwha,
+          'kakao': companyColors.kakao,
+          'naver': companyColors.naver,
+          'samsung': companyColors.samsung,
+          'lg': companyColors.lg,
+          'hyundai_autoever': '#f59e0b', // amber
+          'woowahan': '#84cc16', // lime
+        }
+        return {
+          key: company.key,
+          name: company.name,
+          color: colorMap[company.key] || '#6b7280' // 기본 회색
+        }
+      })
+    }
+    // 기본 회사 목록
+    return [
+      { key: 'toss', name: '토스', color: companyColors.toss },
+      { key: 'line', name: '라인', color: companyColors.line },
+      { key: 'hanwha', name: '한화 시스템', color: companyColors.hanwha },
+      { key: 'kakao', name: '카카오', color: companyColors.kakao },
+      { key: 'naver', name: '네이버', color: companyColors.naver },
+      { key: 'samsung', name: '삼성 SDS', color: companyColors.samsung },
+      { key: 'lg', name: 'LG CNS', color: companyColors.lg },
+      { key: 'sk', name: 'SK AX', color: companyColors.sk },
+    ]
+  }, [companyRecruitmentApiData])
+
+  // 회사 이름을 key로 매핑하는 함수
+  const getCompanyKeyFromName = useCallback((companyName: string, companies: Array<{ id: number; name: string; key: string }>): string | null => {
+    // 정확한 이름 매칭
+    const exactMatch = companies.find(c => c.name === companyName)
+    if (exactMatch) return exactMatch.key
+    
+    // 부분 매칭 (대소문자 무시)
+    const partialMatch = companies.find(c => 
+      c.name.toLowerCase().includes(companyName.toLowerCase()) ||
+      companyName.toLowerCase().includes(c.name.toLowerCase())
+    )
+    if (partialMatch) return partialMatch.key
+    
+    // 특수 케이스 매핑
+    const nameMapping: Record<string, string> = {
+      '네이버': 'naver',
+      'lg_cns': 'lg',
+      'LG_CNS': 'lg',
+      '토스': 'toss',
+      '한화시스템': 'hanwha',
+      '한화 시스템': 'hanwha',
+      '현대오토에버': 'hyundai_autoever',
+      '카카오': 'kakao',
+      'line': 'line',
+      'LINE': 'line',
+      '라인': 'line',
+      '우아한형제들': 'woowahan',
+      '우아한': 'woowahan',
+    }
+    
+    return nameMapping[companyName] || null
+  }, [])
 
   // hex 색상을 rgba로 변환하는 헬퍼 함수
   const hexToRgba = useCallback((hex: string, alpha: number) => {
@@ -2322,8 +2592,24 @@ export default function Dashboard() {
                 })}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={companyRecruitmentData}>
+            {/* 로딩 및 에러 상태 표시 */}
+            {isLoadingCompanyRecruitment && (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="text-gray-500">데이터를 불러오는 중...</div>
+              </div>
+            )}
+            {companyRecruitmentError && !isLoadingCompanyRecruitment && (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="text-red-500 text-sm">
+                  {companyRecruitmentError}
+                  <br />
+                  <span className="text-gray-400">기본 데이터를 표시합니다.</span>
+                </div>
+              </div>
+            )}
+            {!isLoadingCompanyRecruitment && (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={companyRecruitmentData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="period" 
@@ -2349,33 +2635,30 @@ export default function Dashboard() {
                 <Legend 
                   wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                   iconType="line"
+                  formatter={(value: string) => {
+                    const company = recruitmentCompanies.find(c => c.key === value)
+                    return company ? company.name : value
+                  }}
                 />
-                {selectedRecruitmentCompanies.includes('toss') && (
-                  <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('line') && (
-                  <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('hanwha') && (
-                  <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('kakao') && (
-                  <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('naver') && (
-                  <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('samsung') && (
-                  <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('lg') && (
-                  <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={false} />
-                )}
-                {selectedRecruitmentCompanies.includes('sk') && (
-                  <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={false} />
-                )}
+                {recruitmentCompanies.map((company) => {
+                  if (selectedRecruitmentCompanies.includes(company.key)) {
+                    return (
+                      <Line 
+                        key={company.key}
+                        type="monotone" 
+                        dataKey={company.key} 
+                        stroke={company.color} 
+                        strokeWidth={2} 
+                        dot={false}
+                        name={company.name}
+                      />
+                    )
+                  }
+                  return null
+                })}
               </LineChart>
             </ResponsiveContainer>
+            )}
           </section>
         </div>
 
@@ -4034,31 +4317,27 @@ export default function Dashboard() {
                         <Legend 
                           wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                           iconType="line"
+                          formatter={(value: string) => {
+                            const company = recruitmentCompanies.find(c => c.key === value)
+                            return company ? company.name : value
+                          }}
                         />
-                        {selectedRecruitmentCompanies.includes('toss') && (
-                          <Line type="monotone" dataKey="toss" stroke={companyColors.toss} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('line') && (
-                          <Line type="monotone" dataKey="line" stroke={companyColors.line} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('hanwha') && (
-                          <Line type="monotone" dataKey="hanwha" stroke={companyColors.hanwha} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('kakao') && (
-                          <Line type="monotone" dataKey="kakao" stroke={companyColors.kakao} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('naver') && (
-                          <Line type="monotone" dataKey="naver" stroke={companyColors.naver} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('samsung') && (
-                          <Line type="monotone" dataKey="samsung" stroke={companyColors.samsung} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('lg') && (
-                          <Line type="monotone" dataKey="lg" stroke={companyColors.lg} strokeWidth={2} dot={false} />
-                        )}
-                        {selectedRecruitmentCompanies.includes('sk') && (
-                          <Line type="monotone" dataKey="sk" stroke={companyColors.sk} strokeWidth={2} dot={false} />
-                        )}
+                        {recruitmentCompanies.map((company) => {
+                          if (selectedRecruitmentCompanies.includes(company.key)) {
+                            return (
+                              <Line 
+                                key={company.key}
+                                type="monotone" 
+                                dataKey={company.key} 
+                                stroke={company.color} 
+                                strokeWidth={2} 
+                                dot={false}
+                                name={company.name}
+                              />
+                            )
+                          }
+                          return null
+                        })}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

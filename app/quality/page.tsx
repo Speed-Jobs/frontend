@@ -449,9 +449,10 @@ export default function QualityPage() {
     if (canProceedToNextStep() && currentStep < 3) {
       // Step 2로 이동할 때 평가 데이터 가져오기
       if (currentStep === 1) {
-        await fetchEvaluationData()
-        // 평가 완료 후 Step 2로 이동 (에러가 있어도 Step 2에서 표시)
+        // 먼저 Step 2로 이동하여 로딩 UI 표시
         setCurrentStep(currentStep + 1)
+        // 그 다음 평가 데이터 가져오기
+        await fetchEvaluationData()
       }
       // Step 3로 이동할 때 AI 추천 공고 가져오기
       else if (currentStep === 2) {
@@ -1097,14 +1098,26 @@ export default function QualityPage() {
             <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
               <button
                 onClick={handleNextStep}
-                disabled={!canProceedToNextStep()}
-                className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                  canProceedToNextStep()
+                disabled={!canProceedToNextStep() || isLoadingEvaluation}
+                className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  canProceedToNextStep() && !isLoadingEvaluation
                     ? 'bg-gray-900 hover:bg-gray-800 text-white shadow-lg hover:shadow-xl'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                다음 단계 →
+                {isLoadingEvaluation ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>평가 중...</span>
+                  </>
+                ) : (
+                  <>
+                    다음 단계 →
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1164,8 +1177,17 @@ export default function QualityPage() {
 
             {/* 로딩 및 에러 상태 */}
             {isLoadingEvaluation && (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
-                <p className="text-blue-700">평가 데이터를 불러오는 중...</p>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-8 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <svg className="animate-spin h-16 w-16 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <div>
+                    <p className="text-blue-700 font-semibold text-xl mb-2">공고 품질을 평가중입니다</p>
+                    <p className="text-blue-600 text-sm">AI가 두 공고를 분석하고 있습니다. 잠시만 기다려주세요.</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1175,16 +1197,19 @@ export default function QualityPage() {
               </div>
             )}
 
-            {/* 상단 설명 텍스트 */}
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <p className="text-gray-700 leading-relaxed">
-                AI가 두 공고를 가독성, 구체성, 매력도 기준으로 분석하여 비교했습니다.
-                문장 구조, 전문 용어, 맥락, 핵심 키워드를 종합적으로 고려하여 각 항목별 상세 평가 결과를 제공합니다.
-              </p>
-            </div>
+            {/* 로딩 중이 아닐 때만 평가 결과 표시 */}
+            {!isLoadingEvaluation && (
+              <>
+                {/* 상단 설명 텍스트 */}
+                <div className="bg-gray-50 p-6 rounded-xl">
+                  <p className="text-gray-700 leading-relaxed">
+                    AI가 두 공고를 가독성, 구체성, 매력도 기준으로 분석하여 비교했습니다.
+                    문장 구조, 전문 용어, 맥락, 핵심 키워드를 종합적으로 고려하여 각 항목별 상세 평가 결과를 제공합니다.
+                  </p>
+                </div>
 
-            {/* 가독성 분석 */}
-            {evaluationData && (
+                {/* 가독성 분석 */}
+                {evaluationData && (
               <section className="bg-white border-2 border-gray-200 rounded-xl p-6">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -1701,16 +1726,18 @@ export default function QualityPage() {
                   </div>
                 </div>
               </section>
-            )}
+                )}
 
-            {/* 하단 설명 텍스트 */}
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <p className="text-gray-700 leading-relaxed">
-                AI 분석이 완료되었습니다. 가독성, 구체성, 매력도 기준으로 평가되었으며,
-                각 항목별 상세 평가 결과를 확인하시고, AI 추천 공고 및 유사한 우수 공고를 참고하세요.
-                공고 품질 향상을 위한 자동화된 지원입니다.
-              </p>
-            </div>
+                {/* 하단 설명 텍스트 */}
+                <div className="bg-gray-50 p-6 rounded-xl">
+                  <p className="text-gray-700 leading-relaxed">
+                    AI 분석이 완료되었습니다. 가독성, 구체성, 매력도 기준으로 평가되었으며,
+                    각 항목별 상세 평가 결과를 확인하시고, AI 추천 공고 및 유사한 우수 공고를 참고하세요.
+                    공고 품질 향상을 위한 자동화된 지원입니다.
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* 네비게이션 버튼 */}
             <div className="flex justify-between items-center pt-6 border-t border-gray-200">

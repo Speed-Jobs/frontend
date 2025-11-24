@@ -373,6 +373,10 @@ export default function QualityPage() {
       // POST /api/v1/evaluation/reports/{post_id}
       // body는 빈 문자열로 전송
       const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/evaluation/reports/${postId}`
+      
+      console.log('=== AI 추천 공고 API 호출 ===')
+      console.log('호출 URL:', apiUrl)
+      console.log('postId:', postId)
 
       // POST 메서드로 요청 (body는 빈 문자열)
       const response = await fetch(apiUrl, {
@@ -423,11 +427,15 @@ export default function QualityPage() {
       // 응답 데이터 파싱 및 타입 검증
       const data: ImprovedPostingApiResponse = await response.json()
       
+      console.log('AI 추천 공고 응답 데이터:', data)
+      
       // 데이터 구조 검증
       if (data.status !== 'success' || !data.improved_posting) {
-        throw new Error('응답 데이터 구조가 올바르지 않습니다.')
+        console.error('응답 데이터 구조 오류:', data)
+        throw new Error('응답 데이터 구조가 올바르지 않습니다. status: ' + data.status)
       }
       
+      // improved_posting 텍스트 저장
       setImprovedPosting(data.improved_posting)
     } catch (error) {
       console.error('AI 추천 공고 가져오기 실패:', error)
@@ -494,11 +502,12 @@ export default function QualityPage() {
     
     // 섹션 키워드 매핑 (유연한 매칭을 위해 패턴 사용)
     const sectionPatterns = [
+      { pattern: /^📃|^⚡|^✅/, key: 'intro' }, // 소개 섹션 (📃, ⚡, ✅)
       { pattern: /^🚀.*합류하실.*팀.*소개/, key: '🚀 합류하실 팀을 소개해요' },
       { pattern: /^💻.*합류하시면.*함께.*할.*업무/, key: '💻 합류하시면 함께 할 업무예요' },
       { pattern: /^🔍.*이런.*분과.*함께.*하고.*싶어요/, key: '🔍 이런 분과 함께 하고 싶어요' },
       { pattern: /^🔍.*이런.*분이라면.*더욱.*좋아요/, key: '🔍 이런 분이라면 더욱 좋아요' },
-      { pattern: /^⏳.*이렇게.*합류해요/, key: '⏳ 이렇게 합류해요' },
+      { pattern: /^⌛.*이렇게.*합류해요|^⏳.*이렇게.*합류해요/, key: '⏳ 이렇게 합류해요' },
       { pattern: /^📍.*만나게.*될.*근무지/, key: '📍 만나게 될 근무지는 여기예요' },
       { pattern: /^📣.*동료.*한.*마디/, key: '📣 동료의 한 마디' },
       { pattern: /^📌.*참고해.*주세요/, key: '📌 참고해 주세요' },
@@ -508,7 +517,13 @@ export default function QualityPage() {
       const line = lines[i].trim()
       
       // 빈 줄은 건너뛰기
-      if (!line) continue
+      if (!line) {
+        // 빈 줄이지만 현재 섹션이 있으면 빈 줄 추가 (형식 유지)
+        if (currentSection && currentSection !== 'intro') {
+          sections[currentSection].push('')
+        }
+        continue
+      }
       
       // 제목 추출 - [M&C], [Tech] 등으로 시작하는 줄
       if (line.match(/^\[(M&C|Tech|채용 공고)\]/)) {
@@ -517,7 +532,7 @@ export default function QualityPage() {
       }
       
       // 제목이 없고 이모지로 시작하지 않는 첫 번째 줄을 제목으로
-      if (!title && !line.match(/^[📃⚡✅🚀💻🔍⏳📍📣📌]/)) {
+      if (!title && !line.match(/^[📃⚡✅🚀💻🔍⏳⌛📍📣📌]/)) {
         title = line
         continue
       }
@@ -529,12 +544,19 @@ export default function QualityPage() {
         if (!sections[currentSection]) {
           sections[currentSection] = []
         }
+        // 섹션 헤더는 제외하고 내용만 저장
         continue
       }
       
       // 현재 섹션에 내용 추가
       if (currentSection) {
         sections[currentSection].push(line)
+      } else {
+        // 섹션이 지정되지 않은 경우 intro 섹션에 추가
+        if (!sections['intro']) {
+          sections['intro'] = []
+        }
+        sections['intro'].push(line)
       }
     }
     
@@ -1785,6 +1807,15 @@ export default function QualityPage() {
                           {parsed.company || selectedOurJob?.company || '회사명'}
                         </p>
                       </div>
+
+                      {/* 소개 섹션 (📃, ⚡, ✅) */}
+                      {parsed.sections['intro'] && parsed.sections['intro'].length > 0 && (
+                        <section className="space-y-4 pt-6 border-t-2 border-gray-200">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {parsed.sections['intro'].join('\n')}
+                          </div>
+                        </section>
+                      )}
 
                       {/* 합류하실 팀을 소개해요 */}
                       {parsed.sections['🚀 합류하실 팀을 소개해요'] && (

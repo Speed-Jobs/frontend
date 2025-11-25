@@ -1846,305 +1846,438 @@ export default function QualityPage() {
 
                 {/* AI 개선된 공고 내용 */}
                 {improvedPosting && (
-                  <div className="bg-white border-2 border-green-500 rounded-xl p-8 space-y-8">
-                    <div className="mb-6 pb-4 border-b-2 border-gray-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold">
-                          AI 개선 버전
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          평가 결과를 바탕으로 개선된 공고입니다
-                        </span>
+                  <div className="bg-gradient-to-br from-green-50 via-white to-blue-50 border-2 border-green-400 rounded-2xl shadow-xl overflow-hidden">
+                    {/* 헤더 섹션 */}
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6 text-white">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold mb-1">
+                            {improvedPosting.position || selectedOurJob?.title || '공고 제목'}
+                          </h2>
+                          <p className="text-green-100 text-lg">
+                            {improvedPosting.company_name || selectedOurJob?.company || '회사명'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-green-100">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>AI가 평가 결과를 바탕으로 개선한 공고입니다</span>
                       </div>
                     </div>
-                    
-                    {/* 공고 제목 */}
-                    <div className="border-b-2 border-gray-200 pb-6">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                        {improvedPosting.position || selectedOurJob?.title || '공고 제목'}
-                      </h2>
-                      <p className="text-lg text-gray-600">
-                        {improvedPosting.company_name || selectedOurJob?.company || '회사명'}
-                      </p>
+
+                    {/* 주요 정보 요약 카드 */}
+                    <div className="px-8 py-6 bg-white border-b border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {improvedPosting.employment_type && (
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">고용 형태</div>
+                              <div className="text-sm font-semibold text-gray-900">{improvedPosting.employment_type}</div>
+                            </div>
+                          </div>
+                        )}
+                        {improvedPosting.work_location && (
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">근무지</div>
+                              <div className="text-sm font-semibold text-gray-900">{improvedPosting.work_location}</div>
+                            </div>
+                          </div>
+                        )}
+                        {improvedPosting.deadline && (
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">마감일</div>
+                              <div className="text-sm font-semibold text-gray-900">{improvedPosting.deadline}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* 회사 소개 */}
-                    {improvedPosting.company_introduction && (
-                      <section className="space-y-4 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">회사 소개</h3>
-                        <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                          {improvedPosting.company_introduction}
+                    {/* 기술 스택 & 도구 - 상단 강조 */}
+                    {(improvedPosting.tech_stack?.length > 0 || improvedPosting.tools?.length > 0) && (
+                      <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {improvedPosting.tech_stack && improvedPosting.tech_stack.length > 0 && (
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                                기술 스택
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                {improvedPosting.tech_stack.map((tech, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-600 transition-colors"
+                                  >
+                                    {tech}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {improvedPosting.tools && improvedPosting.tools.length > 0 && (
+                            <div>
+                              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                사용 도구
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                {improvedPosting.tools.map((tool, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-purple-600 transition-colors"
+                                  >
+                                    {tool}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </section>
+                      </div>
                     )}
 
-                    {/* 팀 소개 */}
-                    {improvedPosting.team_introduction && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">합류하실 팀을 소개해요</h3>
-                        <div className="pl-4 border-l-4 border-gray-900">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                    {/* 상세 내용 섹션 */}
+                    <div className="px-8 py-6 space-y-6">
+
+                      {/* 회사 소개 */}
+                      {improvedPosting.company_introduction && (
+                        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">회사 소개</h3>
+                          </div>
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.company_introduction}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 팀 소개 */}
+                      {improvedPosting.team_introduction && (
+                        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">합류하실 팀을 소개해요</h3>
+                          </div>
+                          <div className="pl-4 border-l-4 border-green-500 text-gray-700 leading-relaxed whitespace-pre-line">
                             {improvedPosting.team_introduction}
-                          </p>
+                          </div>
                         </div>
-                      </section>
-                    )}
+                      )}
 
-                    {/* 프로젝트 소개 */}
-                    {improvedPosting.project_introduction && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">프로젝트 소개</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                      {/* 프로젝트 소개 */}
+                      {improvedPosting.project_introduction && (
+                        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">프로젝트 소개</h3>
+                          </div>
+                          <div className="pl-4 border-l-4 border-purple-500 text-gray-700 leading-relaxed whitespace-pre-line">
                             {improvedPosting.project_introduction}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 주요 업무 */}
-                    {improvedPosting.main_responsibilities && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">합류하시면 함께 할 업무예요</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.main_responsibilities.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
-                                </div>
-                              )
-                            })}
                           </div>
                         </div>
-                      </section>
-                    )}
+                      )}
 
-                    {/* 자격요건 */}
-                    {improvedPosting.required_qualifications && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">이런 분과 함께 하고 싶어요</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.required_qualifications.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
-                                </div>
-                              )
-                            })}
+                      {/* 주요 업무 */}
+                      {improvedPosting.main_responsibilities && (
+                        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">합류하시면 함께 할 업무예요</h3>
+                          </div>
+                          <div className="pl-4 border-l-4 border-orange-500">
+                            <div className="space-y-2">
+                              {improvedPosting.main_responsibilities.split('\n').map((item, idx) => {
+                                const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                if (!cleanItem) return null
+                                return (
+                                  <div key={idx} className="flex items-start gap-3">
+                                    <span className="text-orange-500 mt-1 font-bold">•</span>
+                                    <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </section>
-                    )}
+                      )}
 
-                    {/* 우대사항 */}
-                    {improvedPosting.preferred_qualifications && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">이런 분이라면 더욱 좋아요</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.preferred_qualifications.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
+                      {/* 자격요건 & 우대사항 그리드 */}
+                      {(improvedPosting.required_qualifications || improvedPosting.preferred_qualifications) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* 자격요건 */}
+                          {improvedPosting.required_qualifications && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
                                 </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 기술 스택 */}
-                    {improvedPosting.tech_stack && improvedPosting.tech_stack.length > 0 && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">기술 스택</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {improvedPosting.tech_stack.map((tech, idx) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium"
-                            >
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 사용 도구 */}
-                    {improvedPosting.tools && improvedPosting.tools.length > 0 && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">사용 도구</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {improvedPosting.tools.map((tool, idx) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg text-sm font-medium"
-                            >
-                              {tool}
-                            </span>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 개발 문화 */}
-                    {improvedPosting.development_culture && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">개발 문화</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.development_culture.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
+                                <h3 className="text-lg font-bold text-gray-900">이런 분과 함께 하고 싶어요</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-blue-500">
+                                <div className="space-y-2">
+                                  {improvedPosting.required_qualifications.split('\n').map((item, idx) => {
+                                    const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                    if (!cleanItem) return null
+                                    return (
+                                      <div key={idx} className="flex items-start gap-3">
+                                        <span className="text-blue-500 mt-1 font-bold">•</span>
+                                        <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                      </div>
+                                    )
+                                  })}
                                 </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </section>
-                    )}
+                              </div>
+                            </div>
+                          )}
 
-                    {/* 성장 기회 */}
-                    {improvedPosting.growth_opportunities && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">성장 기회</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.growth_opportunities.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
+                          {/* 우대사항 */}
+                          {improvedPosting.preferred_qualifications && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                  </svg>
                                 </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 근무 조건 */}
-                    {improvedPosting.work_conditions && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">근무 조건</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.work_conditions}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 근무지 */}
-                    {improvedPosting.work_location && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">근무지</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed">
-                            {improvedPosting.work_location}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 채용 절차 */}
-                    {improvedPosting.recruitment_process && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">이렇게 합류해요</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.recruitment_process}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 지원 방법 */}
-                    {improvedPosting.application_method && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">지원 방법</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed">
-                            {improvedPosting.application_method}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 마감일 */}
-                    {improvedPosting.deadline && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">마감일</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed">
-                            {improvedPosting.deadline}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 복리후생 */}
-                    {improvedPosting.benefits && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">복리후생</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {improvedPosting.benefits.split('\n').map((item, idx) => {
-                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                              if (!cleanItem) return null
-                              return (
-                                <div key={idx} className="flex items-start gap-2 mb-2">
-                                  <span className="text-gray-900 mt-1">•</span>
-                                  <span>{cleanItem}</span>
+                                <h3 className="text-lg font-bold text-gray-900">이런 분이라면 더욱 좋아요</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-yellow-500">
+                                <div className="space-y-2">
+                                  {improvedPosting.preferred_qualifications.split('\n').map((item, idx) => {
+                                    const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                    if (!cleanItem) return null
+                                    return (
+                                      <div key={idx} className="flex items-start gap-3">
+                                        <span className="text-yellow-500 mt-1 font-bold">•</span>
+                                        <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                      </div>
+                                    )
+                                  })}
                                 </div>
-                              )
-                            })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+
+                      {/* 개발 문화 & 성장 기회 그리드 */}
+                      {(improvedPosting.development_culture || improvedPosting.growth_opportunities) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* 개발 문화 */}
+                          {improvedPosting.development_culture && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">개발 문화</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-indigo-500">
+                                <div className="space-y-2">
+                                  {improvedPosting.development_culture.split('\n').map((item, idx) => {
+                                    const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                    if (!cleanItem) return null
+                                    return (
+                                      <div key={idx} className="flex items-start gap-3">
+                                        <span className="text-indigo-500 mt-1 font-bold">•</span>
+                                        <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 성장 기회 */}
+                          {improvedPosting.growth_opportunities && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">성장 기회</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-teal-500">
+                                <div className="space-y-2">
+                                  {improvedPosting.growth_opportunities.split('\n').map((item, idx) => {
+                                    const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                    if (!cleanItem) return null
+                                    return (
+                                      <div key={idx} className="flex items-start gap-3">
+                                        <span className="text-teal-500 mt-1 font-bold">•</span>
+                                        <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 근무 조건 & 복리후생 그리드 */}
+                      {(improvedPosting.work_conditions || improvedPosting.benefits) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* 근무 조건 */}
+                          {improvedPosting.work_conditions && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">근무 조건</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-gray-400 text-gray-700 leading-relaxed whitespace-pre-line">
+                                {improvedPosting.work_conditions}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 복리후생 */}
+                          {improvedPosting.benefits && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">복리후생</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-pink-500">
+                                <div className="space-y-2">
+                                  {improvedPosting.benefits.split('\n').map((item, idx) => {
+                                    const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                                    if (!cleanItem) return null
+                                    return (
+                                      <div key={idx} className="flex items-start gap-3">
+                                        <span className="text-pink-500 mt-1 font-bold">•</span>
+                                        <span className="text-gray-700 leading-relaxed">{cleanItem}</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 채용 절차 & 지원 방법 그리드 */}
+                      {(improvedPosting.recruitment_process || improvedPosting.application_method) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* 채용 절차 */}
+                          {improvedPosting.recruitment_process && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">이렇게 합류해요</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-cyan-500 text-gray-700 leading-relaxed whitespace-pre-line">
+                                {improvedPosting.recruitment_process}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 지원 방법 */}
+                          {improvedPosting.application_method && (
+                            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">지원 방법</h3>
+                              </div>
+                              <div className="pl-4 border-l-4 border-emerald-500 text-gray-700 leading-relaxed">
+                                {improvedPosting.application_method}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 추가 정보 */}
+                      {improvedPosting.additional_info && (
+                        <div className="bg-yellow-50 rounded-xl p-6 border-2 border-yellow-200 shadow-sm">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">참고해 주세요</h3>
                           </div>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 고용 형태 */}
-                    {improvedPosting.employment_type && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">고용 형태</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed">
-                            {improvedPosting.employment_type}
-                          </p>
-                        </div>
-                      </section>
-                    )}
-
-                    {/* 추가 정보 */}
-                    {improvedPosting.additional_info && (
-                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-900">참고해 주세요</h3>
-                        <div className="pl-4 border-l-4 border-gray-300">
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                          <div className="pl-4 border-l-4 border-yellow-500 text-gray-700 leading-relaxed whitespace-pre-line">
                             {improvedPosting.additional_info}
-                          </p>
+                          </div>
                         </div>
-                      </section>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
 

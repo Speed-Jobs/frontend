@@ -45,7 +45,7 @@ export default function Dashboard() {
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
   const [skillStatisticsViewMode, setSkillStatisticsViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily') // 스킬별 통계 시간 필터
-  const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'all' | 'year' | 'month'>('all') // 직군별 통계 시간 필터
+  const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily') // 직군별 통계 시간 필터
   const [selectedJobRoleCompany, setSelectedJobRoleCompany] = useState<string | null>(null) // 직군별 통계 회사 필터 (null이면 전체)
   const [selectedJobRoleMonth, setSelectedJobRoleMonth] = useState<string>('') // 직군별 통계 월 필터 (YYYY-MM 형식)
   
@@ -3248,86 +3248,36 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setJobRoleStatisticsViewMode('all')}
+                    onClick={() => setJobRoleStatisticsViewMode('Daily')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      jobRoleStatisticsViewMode === 'all'
+                      jobRoleStatisticsViewMode === 'Daily'
                         ? 'bg-black text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    전체
+                    일간
                   </button>
                   <button
-                    onClick={() => setJobRoleStatisticsViewMode('year')}
+                    onClick={() => setJobRoleStatisticsViewMode('Weekly')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      jobRoleStatisticsViewMode === 'year'
+                      jobRoleStatisticsViewMode === 'Weekly'
                         ? 'bg-black text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    연도
+                    주간
                   </button>
                   <button
-                    onClick={() => setJobRoleStatisticsViewMode('month')}
+                    onClick={() => setJobRoleStatisticsViewMode('Monthly')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      jobRoleStatisticsViewMode === 'month'
+                      jobRoleStatisticsViewMode === 'Monthly'
                         ? 'bg-black text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    월별
+                    월간
                   </button>
                 </div>
-                {jobRoleStatisticsViewMode === 'year' && (
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="2021">2021</option>
-                    <option value="2022">2022</option>
-                    <option value="2023">2023</option>
-                    <option value="2024">2024</option>
-                    <option value="2025">2025</option>
-                  </select>
-                )}
-                {jobRoleStatisticsViewMode === 'month' && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => {
-                        setSelectedYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')
-                        setSelectedJobRoleMonth('')
-                      }}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="2021">2021</option>
-                      <option value="2022">2022</option>
-                      <option value="2023">2023</option>
-                      <option value="2024">2024</option>
-                      <option value="2025">2025</option>
-                    </select>
-                    <select
-                      value={selectedJobRoleMonth}
-                      onChange={(e) => setSelectedJobRoleMonth(e.target.value)}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">월 선택</option>
-                      <option value="01">1월</option>
-                      <option value="02">2월</option>
-                      <option value="03">3월</option>
-                      <option value="04">4월</option>
-                      <option value="05">5월</option>
-                      <option value="06">6월</option>
-                      <option value="07">7월</option>
-                      <option value="08">8월</option>
-                      <option value="09">9월</option>
-                      <option value="10">10월</option>
-                      <option value="11">11월</option>
-                      <option value="12">12월</option>
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
             

@@ -107,12 +107,40 @@ interface EvaluationApiResponse {
 }
 
 /**
+ * AI 추천 공고 데이터 구조 (ImprovedPostingData)
+ * GET /api/v1/evaluation/reports/{post_id} 응답의 data 필드
+ */
+interface ImprovedPostingData {
+  additional_info: string
+  application_method: string
+  benefits: string
+  company_introduction: string
+  company_name: string
+  deadline: string
+  development_culture: string
+  employment_type: string
+  growth_opportunities: string
+  main_responsibilities: string
+  position: string
+  preferred_qualifications: string
+  project_introduction: string
+  recruitment_process: string
+  required_qualifications: string
+  team_introduction: string
+  tech_stack: string[]
+  tools: string[]
+  work_conditions: string
+  work_location: string
+}
+
+/**
  * AI 추천 공고 API 응답 구조 (ImprovedPostingApiResponse)
  * GET /api/v1/evaluation/reports/{post_id} 응답 형식
  */
 interface ImprovedPostingApiResponse {
-  status: string           // "success" 또는 에러 상태
-  improved_posting: string // AI가 개선한 공고 텍스트
+  status: string              // "success" 또는 에러 상태
+  message: string              // 응답 메시지
+  data: ImprovedPostingData    // AI가 개선한 공고 데이터
 }
 
 export default function QualityPage() {
@@ -153,7 +181,7 @@ export default function QualityPage() {
   const [evaluationCompleted, setEvaluationCompleted] = useState(false) // 평가 완료 여부
 
   // AI 추천 공고 상태
-  const [improvedPosting, setImprovedPosting] = useState<string | null>(null)
+  const [improvedPosting, setImprovedPosting] = useState<ImprovedPostingData | null>(null)
   const [isLoadingImprovedPosting, setIsLoadingImprovedPosting] = useState(false)
   const [improvedPostingError, setImprovedPostingError] = useState<string | null>(null)
 
@@ -356,12 +384,17 @@ export default function QualityPage() {
 
   /**
    * AI 추천 공고 API 호출 함수
-   * GET /api/v1/evaluation/reports/{post_id} 엔드포인트를 호출하여
+   * POST /api/v1/evaluation/reports/{post_id} 엔드포인트를 호출하여
    * 선택된 공고의 AI 개선 버전을 가져옵니다.
    * 
    * 응답 형식: {
    *   "status": "success",
-   *   "improved_posting": "..."
+   *   "message": "...",
+   *   "data": {
+   *     "position": "...",
+   *     "company_name": "...",
+   *     ...
+   *   }
    * }
    */
   const fetchImprovedPosting = async (postId: number) => {
@@ -371,21 +404,20 @@ export default function QualityPage() {
 
       // API 엔드포인트
       // POST /api/v1/evaluation/reports/{post_id}
-      // body는 빈 문자열로 전송
       const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/evaluation/reports/${postId}`
       
       console.log('=== AI 추천 공고 API 호출 ===')
       console.log('호출 URL:', apiUrl)
       console.log('postId:', postId)
 
-      // POST 메서드로 요청 (body는 빈 문자열)
+      // POST 메서드로 요청 (body는 빈 객체 또는 빈 문자열)
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: '',
+        body: JSON.stringify({}), // 빈 객체를 JSON으로 전송
         mode: 'cors',
         credentials: 'omit',
       })
@@ -399,6 +431,8 @@ export default function QualityPage() {
             const errorJson = JSON.parse(errorText)
             if (errorJson.detail) {
               errorMessage = errorJson.detail
+            } else if (errorJson.message) {
+              errorMessage = errorJson.message
             }
           } catch {
             if (errorText) {
@@ -408,35 +442,36 @@ export default function QualityPage() {
           // 더 명확한 에러 메시지
           throw new Error(`${errorMessage}\n\n해결 방법:\n1. Step 2로 돌아가서 평가를 완료해주세요.\n2. 평가가 완료되면 Step 3에서 AI 추천 공고를 확인할 수 있습니다.`)
         }
-        // 405 에러인 경우 더 자세한 정보 제공
-        if (response.status === 405) {
-          const errorText = await response.text()
-          console.error('405 Method Not Allowed:', {
-            url: apiUrl,
-            method: 'POST',
-            status: response.status,
-            statusText: response.statusText,
-            response: errorText,
-          })
-          throw new Error(`HTTP 405: 서버가 POST 메서드를 허용하지 않습니다. API 엔드포인트를 확인해주세요. (URL: ${apiUrl})`)
-        }
         const errorText = await response.text().catch(() => '')
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText || response.statusText}`)
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorJson = JSON.parse(errorText)
+          if (errorJson.message) {
+            errorMessage = errorJson.message
+          } else if (errorJson.detail) {
+            errorMessage = errorJson.detail
+          }
+        } catch {
+          if (errorText) {
+            errorMessage = errorText
+          }
+        }
+        throw new Error(errorMessage)
       }
 
       // 응답 데이터 파싱 및 타입 검증
-      const data: ImprovedPostingApiResponse = await response.json()
+      const result: ImprovedPostingApiResponse = await response.json()
       
-      console.log('AI 추천 공고 응답 데이터:', data)
+      console.log('AI 추천 공고 응답 데이터:', result)
       
       // 데이터 구조 검증
-      if (data.status !== 'success' || !data.improved_posting) {
-        console.error('응답 데이터 구조 오류:', data)
-        throw new Error('응답 데이터 구조가 올바르지 않습니다. status: ' + data.status)
+      if (result.status !== 'success' || !result.data) {
+        console.error('응답 데이터 구조 오류:', result)
+        throw new Error(result.message || '응답 데이터 구조가 올바르지 않습니다.')
       }
       
-      // improved_posting 텍스트 저장
-      setImprovedPosting(data.improved_posting)
+      // improved_posting 데이터 저장
+      setImprovedPosting(result.data)
     } catch (error) {
       console.error('AI 추천 공고 가져오기 실패:', error)
       setImprovedPostingError(error instanceof Error ? error.message : 'AI 추천 공고를 가져오는데 실패했습니다.')
@@ -1810,197 +1845,308 @@ export default function QualityPage() {
                 )}
 
                 {/* AI 개선된 공고 내용 */}
-                {improvedPosting && (() => {
-                  const parsed = parseImprovedPosting(improvedPosting)
-                  return (
-                    <div className="bg-white border-2 border-green-500 rounded-xl p-8 space-y-8">
-                      <div className="mb-6 pb-4 border-b-2 border-gray-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold">
-                            AI 개선 버전
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            평가 결과를 바탕으로 개선된 공고입니다
-                          </span>
-                        </div>
+                {improvedPosting && (
+                  <div className="bg-white border-2 border-green-500 rounded-xl p-8 space-y-8">
+                    <div className="mb-6 pb-4 border-b-2 border-gray-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-3 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold">
+                          AI 개선 버전
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          평가 결과를 바탕으로 개선된 공고입니다
+                        </span>
                       </div>
-                      
-                      {/* 공고 제목 */}
-                      <div className="border-b-2 border-gray-200 pb-6">
-                        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                          {parsed.title || selectedOurJob?.title || '공고 제목'}
-                        </h2>
-                        <p className="text-lg text-gray-600">
-                          {parsed.company || selectedOurJob?.company || '회사명'}
-                        </p>
-                      </div>
-
-                      {/* 소개 섹션 (📃, ⚡, ✅) */}
-                      {parsed.sections['intro'] && parsed.sections['intro'].length > 0 && (
-                        <section className="space-y-4 pt-6 border-t-2 border-gray-200">
-                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
-                            {parsed.sections['intro'].join('\n')}
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 합류하실 팀을 소개해요 */}
-                      {parsed.sections['🚀 합류하실 팀을 소개해요'] && (
-                        <section className="space-y-6">
-                          <h3 className="text-2xl font-bold text-gray-900">합류하실 팀을 소개해요</h3>
-                          <div className="pl-4 border-l-4 border-gray-900">
-                            <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                              {parsed.sections['🚀 합류하실 팀을 소개해요'].join('\n')}
-                            </p>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 합류하시면 함께 할 업무예요 */}
-                      {(parsed.sections['💻 합류하시면 함께 할 업무예요'] || parsed.sections['💻 합류하시면 함께 할 업무에요']) && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">합류하시면 함께 할 업무예요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <ul className="space-y-2 text-gray-700">
-                              {(parsed.sections['💻 합류하시면 함께 할 업무예요'] || parsed.sections['💻 합류하시면 함께 할 업무에요'] || []).map((item, idx) => {
-                                // 항목이 ':' 또는 '-'로 시작하는 경우 처리
-                                const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                                if (!cleanItem) return null
-                                // 괄호로 묶인 설명이 있으면 별도로 표시
-                                const hasParenthesis = cleanItem.includes('(') && cleanItem.includes(')')
-                                if (hasParenthesis) {
-                                  const parts = cleanItem.split(/(\([^)]+\))/)
-                                  return (
-                                    <li key={idx} className="flex flex-col items-start gap-1">
-                                      <div className="flex items-start gap-2">
-                                        <span className="text-gray-900 mt-1">•</span>
-                                        <span>{parts[0].trim()}</span>
-                                      </div>
-                                      {parts[1] && (
-                                        <div className="ml-6 text-sm text-gray-600 italic">
-                                          {parts[1]}
-                                        </div>
-                                      )}
-                                    </li>
-                                  )
-                                }
-                                return (
-                                  <li key={idx} className="flex items-start gap-2">
-                                    <span className="text-gray-900 mt-1">•</span>
-                                    <span>{cleanItem}</span>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 이런 분과 함께 하고 싶어요 */}
-                      {(parsed.sections['🔍 이런 분과 함께 하고 싶어요'] || parsed.sections['🔍 이런 분과 함께하고 싶어요']) && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">이런 분과 함께 하고 싶어요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <ul className="space-y-2 text-gray-700">
-                              {(parsed.sections['🔍 이런 분과 함께 하고 싶어요'] || parsed.sections['🔍 이런 분과 함께하고 싶어요'] || []).map((item, idx) => {
-                                const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                                if (!cleanItem) return null
-                                return (
-                                  <li key={idx} className="flex items-start gap-2">
-                                    <span className="text-gray-900 mt-1">•</span>
-                                    <span>{cleanItem}</span>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 이런 분이라면 더욱 좋아요 */}
-                      {parsed.sections['🔍 이런 분이라면 더욱 좋아요'] && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">이런 분이라면 더욱 좋아요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <ul className="space-y-2 text-gray-700">
-                              {parsed.sections['🔍 이런 분이라면 더욱 좋아요'].map((item, idx) => {
-                                const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                                if (!cleanItem) return null
-                                return (
-                                  <li key={idx} className="flex items-start gap-2">
-                                    <span className="text-gray-900 mt-1">•</span>
-                                    <span>{cleanItem}</span>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 이렇게 합류해요 */}
-                      {parsed.sections['⏳ 이렇게 합류해요'] && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">이렇게 합류해요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                              {parsed.sections['⏳ 이렇게 합류해요'].join('\n')}
-                            </p>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 만나게 될 근무지는 여기예요 */}
-                      {parsed.sections['📍 만나게 될 근무지는 여기예요'] && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">만나게 될 근무지는 여기예요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <p className="text-gray-700 leading-relaxed">
-                              {parsed.sections['📍 만나게 될 근무지는 여기예요'].join('\n')}
-                            </p>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 동료의 한 마디 */}
-                      {parsed.sections['📣 동료의 한 마디'] && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">동료의 한 마디</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <div className="space-y-4 text-gray-700">
-                              {parsed.sections['📣 동료의 한 마디'].map((item, idx) => (
-                                <p key={idx} className="leading-relaxed whitespace-pre-line">
-                                  {item}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        </section>
-                      )}
-
-                      {/* 참고해 주세요 */}
-                      {parsed.sections['📌 참고해 주세요'] && (
-                        <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                          <h3 className="text-2xl font-bold text-gray-900">참고해 주세요</h3>
-                          <div className="pl-4 border-l-4 border-gray-300">
-                            <ul className="space-y-2 text-gray-700">
-                              {parsed.sections['📌 참고해 주세요'].map((item, idx) => {
-                                const cleanItem = item.replace(/^[-•]\s*/, '').trim()
-                                if (!cleanItem) return null
-                                return (
-                                  <li key={idx} className="flex items-start gap-2">
-                                    <span className="text-gray-900 mt-1">•</span>
-                                    <span>{cleanItem}</span>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </section>
-                      )}
                     </div>
-                  )
-                })()}
+                    
+                    {/* 공고 제목 */}
+                    <div className="border-b-2 border-gray-200 pb-6">
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                        {improvedPosting.position || selectedOurJob?.title || '공고 제목'}
+                      </h2>
+                      <p className="text-lg text-gray-600">
+                        {improvedPosting.company_name || selectedOurJob?.company || '회사명'}
+                      </p>
+                    </div>
+
+                    {/* 회사 소개 */}
+                    {improvedPosting.company_introduction && (
+                      <section className="space-y-4 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">회사 소개</h3>
+                        <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                          {improvedPosting.company_introduction}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 팀 소개 */}
+                    {improvedPosting.team_introduction && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">합류하실 팀을 소개해요</h3>
+                        <div className="pl-4 border-l-4 border-gray-900">
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.team_introduction}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 프로젝트 소개 */}
+                    {improvedPosting.project_introduction && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">프로젝트 소개</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.project_introduction}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 주요 업무 */}
+                    {improvedPosting.main_responsibilities && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">합류하시면 함께 할 업무예요</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.main_responsibilities.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 자격요건 */}
+                    {improvedPosting.required_qualifications && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">이런 분과 함께 하고 싶어요</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.required_qualifications.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 우대사항 */}
+                    {improvedPosting.preferred_qualifications && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">이런 분이라면 더욱 좋아요</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.preferred_qualifications.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 기술 스택 */}
+                    {improvedPosting.tech_stack && improvedPosting.tech_stack.length > 0 && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">기술 스택</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {improvedPosting.tech_stack.map((tech, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 사용 도구 */}
+                    {improvedPosting.tools && improvedPosting.tools.length > 0 && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">사용 도구</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {improvedPosting.tools.map((tool, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg text-sm font-medium"
+                            >
+                              {tool}
+                            </span>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 개발 문화 */}
+                    {improvedPosting.development_culture && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">개발 문화</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.development_culture.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 성장 기회 */}
+                    {improvedPosting.growth_opportunities && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">성장 기회</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.growth_opportunities.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 근무 조건 */}
+                    {improvedPosting.work_conditions && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">근무 조건</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.work_conditions}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 근무지 */}
+                    {improvedPosting.work_location && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">근무지</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed">
+                            {improvedPosting.work_location}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 채용 절차 */}
+                    {improvedPosting.recruitment_process && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">이렇게 합류해요</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.recruitment_process}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 지원 방법 */}
+                    {improvedPosting.application_method && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">지원 방법</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed">
+                            {improvedPosting.application_method}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 마감일 */}
+                    {improvedPosting.deadline && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">마감일</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed">
+                            {improvedPosting.deadline}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 복리후생 */}
+                    {improvedPosting.benefits && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">복리후생</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.benefits.split('\n').map((item, idx) => {
+                              const cleanItem = item.replace(/^[-•]\s*/, '').trim()
+                              if (!cleanItem) return null
+                              return (
+                                <div key={idx} className="flex items-start gap-2 mb-2">
+                                  <span className="text-gray-900 mt-1">•</span>
+                                  <span>{cleanItem}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 고용 형태 */}
+                    {improvedPosting.employment_type && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">고용 형태</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed">
+                            {improvedPosting.employment_type}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 추가 정보 */}
+                    {improvedPosting.additional_info && (
+                      <section className="space-y-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900">참고해 주세요</h3>
+                        <div className="pl-4 border-l-4 border-gray-300">
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {improvedPosting.additional_info}
+                          </p>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                )}
 
                 {/* 원본 공고 내용 (비교용 또는 기본 표시) */}
                 {(!isLoadingImprovedPosting && !improvedPostingError) && (

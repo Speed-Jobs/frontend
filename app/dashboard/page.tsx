@@ -49,6 +49,10 @@ export default function Dashboard() {
   const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'Weekly' | 'Monthly'>('Weekly') // 직군별 통계 시간 필터
   const [selectedJobRoleCompany, setSelectedJobRoleCompany] = useState<string | null>(null) // 직군별 통계 회사 필터 (null이면 전체)
   const [selectedJobRoleMonth, setSelectedJobRoleMonth] = useState<string>('') // 직군별 통계 월 필터 (YYYY-MM 형식)
+  const [selectedSidebarJobRole, setSelectedSidebarJobRole] = useState<string | null>(null) // 사이드바에서 선택된 직군 (공고 필터링용)
+  const [selectedSurgePosition, setSelectedSurgePosition] = useState<string | null>(null) // 선택된 급증 포지션
+  const [positionSurgeTimeframe, setPositionSurgeTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily') // 포지션별 채용 급증 시간 필터
+  const [sidebarJobRoleTimeframe, setSidebarJobRoleTimeframe] = useState<'Weekly' | 'Monthly'>('Weekly') // 직군별 공고 시간 필터
   
   // 직군별 통계용 회사 목록
   const jobRoleCompanies = [
@@ -577,8 +581,25 @@ export default function Dashboard() {
     )
   }, [companySearchQuery, companies])
 
-  // 필터링된 공고 목록 (로고가 있는 회사만 + 회사 필터)
-  const filteredJobPostings = useMemo(() => {
+  // 직군명과 공고 매칭을 위한 키워드 매핑
+  const jobRoleKeywords: Record<string, string[]> = {
+    'Software Development': ['개발', 'developer', 'development', '프로그래머', '프로그래밍', '소프트웨어', 'software', '백엔드', 'backend', '프론트엔드', 'frontend', '풀스택', 'fullstack'],
+    'Factory AX Engineering': ['factory', 'ax', 'engineering', '공장', '제조', '시뮬레이션', 'simulation', '기구설계', '전장', '제어'],
+    'Solution Development': ['solution', '솔루션', 'erp', 'fcm', 'scm', 'hcm'],
+    'Cloud/Infra Engineering': ['cloud', 'infra', 'infrastructure', '클라우드', '인프라', '시스템', 'system', 'network', '네트워크', '데이터베이스', 'database', 'db'],
+    'Architect': ['architect', '아키텍트', '아키텍처', 'architecture', '설계'],
+    'Project Management': ['project', 'pm', '프로젝트', '관리', 'management', '프로젝트매니저'],
+    'Quality Management': ['quality', 'qa', 'qc', '품질', '테스트', 'test', 'testing', 'qa엔지니어'],
+    'AI': ['ai', 'artificial intelligence', '인공지능', '머신러닝', 'machine learning', 'ml', '딥러닝', 'deep learning', 'nlp', '자연어처리', '데이터사이언스', 'data science'],
+    '정보보호': ['보안', 'security', '정보보호', 'cyber', '사이버', '보안관리'],
+    'Sales': ['sales', '영업', '세일즈', '영업사원'],
+    'Domain Expert': ['domain', '도메인', '전문가', 'expert', '컨설턴트', 'consultant'],
+    'Consulting': ['consulting', '컨설팅', '컨설턴트', 'consultant'],
+    'Biz. Supporting': ['biz', 'business', '비즈니스', '기획', 'planning', '전략', 'strategy', 'hr', '인사', '재무', 'finance']
+  }
+
+  // 경쟁사 공고 자동 매칭용 필터링 (사이드바 직군 필터 제외)
+  const filteredJobPostingsForMatching = useMemo(() => {
     const filtered = jobPostingsData.filter((job) => {
       // 회사 필터링 (다중 선택)
       if (selectedCompanies.length > 0) {
@@ -616,6 +637,113 @@ export default function Dashboard() {
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'latest':
+          return new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+        case 'company':
+          const companyA = a.company.replace('(주)', '').trim()
+          const companyB = b.company.replace('(주)', '').trim()
+          return companyA.localeCompare(companyB, 'ko')
+        case 'deadline':
+          if (!a.expired_date && !b.expired_date) return 0
+          if (!a.expired_date) return 1
+          if (!b.expired_date) return -1
+          return new Date(a.expired_date).getTime() - new Date(b.expired_date).getTime()
+        default:
+          return 0
+      }
+    })
+
+    return sorted
+  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy])
+
+  // 필터링된 공고 목록 (로고가 있는 회사만 + 회사 필터 + 직군 필터 + 시간 필터)
+  const filteredJobPostings = useMemo(() => {
+    // 시간 필터에 따른 기간 설정 (직군별 공고용)
+    const now = new Date()
+    let timeFilterStart: Date | null = null
+    
+    if (selectedSidebarJobRole) {
+      switch (sidebarJobRoleTimeframe) {
+        case 'Weekly':
+          timeFilterStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // 최근 7일
+          break
+        case 'Monthly':
+          timeFilterStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) // 최근 30일
+          break
+      }
+    }
+    
+    const filtered = jobPostingsData.filter((job) => {
+      // 회사 필터링 (다중 선택)
+      if (selectedCompanies.length > 0) {
+        const normalizedJobCompany = job.company.replace('(주)', '').trim().toLowerCase()
+        const companyMatch = selectedCompanies.some(selectedCompany => {
+          const normalizedSelectedCompany = selectedCompany.toLowerCase()
+          return normalizedJobCompany.includes(normalizedSelectedCompany) ||
+                 normalizedSelectedCompany.includes(normalizedJobCompany)
+        })
+        if (!companyMatch) return false
+      }
+
+      // 로고가 있는 회사만 필터링 (더 유연한 매칭)
+      const companyName = job.company.replace('(주)', '').trim().toLowerCase()
+      const normalizedCompanyName = companyName.replace(/\s+/g, '')
+      const hasLogo = companiesWithLogo.some(company => {
+        const normalizedLogoCompany = company.toLowerCase().replace(/\s+/g, '')
+        return companyName.includes(normalizedLogoCompany) || 
+               normalizedLogoCompany.includes(companyName) ||
+               normalizedCompanyName.includes(normalizedLogoCompany) ||
+               normalizedLogoCompany.includes(normalizedCompanyName) ||
+               // 부분 매칭 (예: "삼성전자"와 "삼성" 매칭)
+               companyName.startsWith(normalizedLogoCompany) ||
+               normalizedLogoCompany.startsWith(companyName)
+      })
+      if (!hasLogo) return false
+
+      const employmentTypeMatch =
+        selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
+      
+      // 직군 필터링 (사이드바에서 선택된 직군) - 개선된 매칭 로직
+      if (selectedSidebarJobRole) {
+        const jobCategory = (job.meta_data?.job_category || '').toLowerCase()
+        const jobDescription = (job.description || '').toLowerCase()
+        const jobTitle = (job.title || '').toLowerCase()
+        const techStack = (job.meta_data?.tech_stack || []).map(tech => tech.toLowerCase())
+        
+        // 직군명의 키워드 목록 가져오기
+        const keywords = jobRoleKeywords[selectedSidebarJobRole] || [selectedSidebarJobRole.toLowerCase()]
+        
+        // 키워드 중 하나라도 매칭되면 통과
+        const roleMatch = keywords.some(keyword => {
+          const keywordLower = keyword.toLowerCase()
+          return jobCategory.includes(keywordLower) ||
+                 jobDescription.includes(keywordLower) ||
+                 jobTitle.includes(keywordLower) ||
+                 techStack.some(tech => tech.includes(keywordLower) || keywordLower.includes(tech))
+        })
+        
+        // 추가로 직군명 자체도 확인
+        const roleNameLower = selectedSidebarJobRole.toLowerCase()
+        const directMatch = 
+          jobCategory.includes(roleNameLower) ||
+          jobDescription.includes(roleNameLower) ||
+          jobTitle.includes(roleNameLower)
+        
+        if (!roleMatch && !directMatch) return false
+        
+        // 시간 필터 적용 (직군이 선택된 경우만)
+        if (timeFilterStart) {
+          const postedDate = new Date(job.posted_date)
+          if (postedDate < timeFilterStart) return false
+        }
+      }
+      
+      return employmentTypeMatch
+    })
+
+    // 정렬 적용
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'latest':
           // 최신공고순: posted_date 기준 내림차순
           return new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
         case 'company':
@@ -635,12 +763,12 @@ export default function Dashboard() {
     })
 
     return sorted
-  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy])
+  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy, selectedSidebarJobRole, selectedExpertCategory, sidebarJobRoleTimeframe])
 
   // 페이지당 5개씩 표시
   const itemsPerPage = 5
-  const totalPages = Math.ceil(filteredJobPostings.length / itemsPerPage)
-  const displayedJobs = filteredJobPostings.slice(
+  const totalPages = Math.ceil(filteredJobPostingsForMatching.length / itemsPerPage)
+  const displayedJobs = filteredJobPostingsForMatching.slice(
     currentPage * itemsPerPage,
     (currentPage + 1) * itemsPerPage
   )
@@ -1003,6 +1131,151 @@ export default function Dashboard() {
   const jobTrendData = trendDataByCategory.Job[currentTimeframe]
   const techTrendData = trendDataByCategory.Tech[currentTimeframe]
 
+  // 당사 회사명 (SK AX로 가정)
+  const ourCompany = 'SK AX'
+  
+  // 포지션별 채용 급증 분석
+  const positionSurgeAnalysis = useMemo(() => {
+    // 시간 필터에 따른 기간 설정
+    const now = new Date()
+    let recentPeriod: Date
+    let previousPeriod: Date
+    
+    switch (positionSurgeTimeframe) {
+      case 'Daily':
+        recentPeriod = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) // 최근 1일
+        previousPeriod = new Date(recentPeriod.getTime() - 1 * 24 * 60 * 60 * 1000) // 이전 1일
+        break
+      case 'Weekly':
+        recentPeriod = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // 최근 7일
+        previousPeriod = new Date(recentPeriod.getTime() - 7 * 24 * 60 * 60 * 1000) // 이전 7일
+        break
+      case 'Monthly':
+        recentPeriod = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) // 최근 30일
+        previousPeriod = new Date(recentPeriod.getTime() - 30 * 24 * 60 * 60 * 1000) // 이전 30일
+        break
+    }
+    
+    const positionCounts: Record<string, {
+      recent: number
+      previous: number
+      companies: Set<string>
+      ourCompanyCount: number
+      total: number
+    }> = {}
+    
+    jobPostingsData.forEach(job => {
+      const postedDate = new Date(job.posted_date)
+      const jobCategory = job.meta_data?.job_category || '기타'
+      const jobTitle = job.title || ''
+      
+      // 포지션명 결정 (카테고리 우선, 없으면 제목에서 추출)
+      let position = jobCategory
+      if (jobCategory === '기타' || !jobCategory) {
+        // 제목에서 포지션 추출 시도
+        const titleLower = jobTitle.toLowerCase()
+        if (titleLower.includes('개발') || titleLower.includes('developer')) {
+          if (titleLower.includes('백엔드') || titleLower.includes('backend')) position = '백엔드 개발'
+          else if (titleLower.includes('프론트') || titleLower.includes('frontend')) position = '프론트엔드 개발'
+          else if (titleLower.includes('ai') || titleLower.includes('인공지능')) position = 'AI/ML'
+          else position = '개발'
+        } else if (titleLower.includes('ai') || titleLower.includes('인공지능') || titleLower.includes('ml')) {
+          position = 'AI/ML'
+        } else if (titleLower.includes('인프라') || titleLower.includes('infra') || titleLower.includes('cloud')) {
+          position = '인프라/클라우드'
+        } else if (titleLower.includes('아키텍트') || titleLower.includes('architect')) {
+          position = '아키텍트'
+        } else if (titleLower.includes('pm') || titleLower.includes('프로젝트') || titleLower.includes('product manager')) {
+          position = '프로젝트 관리'
+        } else if (titleLower.includes('데이터') || titleLower.includes('data')) {
+          position = '데이터'
+        } else if (titleLower.includes('디자인') || titleLower.includes('designer') || titleLower.includes('ui') || titleLower.includes('ux')) {
+          position = 'UI/UX 디자인'
+        } else if (titleLower.includes('qa') || titleLower.includes('품질') || titleLower.includes('quality')) {
+          position = 'QA/품질관리'
+        } else if (titleLower.includes('영업') || titleLower.includes('sales')) {
+          position = '영업'
+        } else if (titleLower.includes('기획') || titleLower.includes('planning')) {
+          position = '기획'
+        }
+      }
+      
+      if (!positionCounts[position]) {
+        positionCounts[position] = {
+          recent: 0,
+          previous: 0,
+          companies: new Set(),
+          ourCompanyCount: 0,
+          total: 0
+        }
+      }
+      
+      const companyName = job.company.replace('(주)', '').trim()
+      positionCounts[position].companies.add(companyName)
+      positionCounts[position].total++
+      
+      // 당사 공고인지 확인
+      if (companyName.includes(ourCompany) || ourCompany.includes(companyName)) {
+        positionCounts[position].ourCompanyCount++
+      }
+      
+      // 기간별 집계
+      if (postedDate >= recentPeriod) {
+        positionCounts[position].recent++
+      } else if (postedDate >= previousPeriod) {
+        positionCounts[position].previous++
+      }
+    })
+    
+    // 모든 포지션을 분석 (조건 완화: 증가율 20% 이상 또는 최근 2건 이상)
+    const surges: Array<{
+      position: string
+      recent: number
+      previous: number
+      growthRate: number
+      companies: string[]
+      isOurPosition: boolean
+      ourCompanyCount: number
+      total: number
+    }> = []
+    
+    Object.entries(positionCounts).forEach(([position, data]) => {
+      // 최소 2건 이상의 공고가 있어야 표시
+      if (data.total < 2) return
+      
+      let growthRate = 0
+      if (data.previous > 0) {
+        growthRate = ((data.recent - data.previous) / data.previous) * 100
+      } else if (data.recent > 0) {
+        growthRate = Infinity // 신규 급증
+      }
+      
+      // 모든 포지션 표시 (최소 1건 이상)
+      surges.push({
+        position,
+        recent: data.recent,
+        previous: data.previous,
+        growthRate: growthRate === Infinity ? Infinity : Math.round(growthRate),
+        companies: Array.from(data.companies),
+        isOurPosition: data.ourCompanyCount > 0,
+        ourCompanyCount: data.ourCompanyCount,
+        total: data.total
+      })
+    })
+    
+    // 증가율 순으로 정렬 (신규 급증 > 높은 증가율 > 최근 공고 수)
+    return surges.sort((a, b) => {
+      // 신규 급증 우선
+      if (a.growthRate === Infinity && b.growthRate !== Infinity) return -1
+      if (a.growthRate !== Infinity && b.growthRate === Infinity) return 1
+      // 증가율이 같으면 최근 공고 수로 정렬
+      if (a.growthRate === b.growthRate) {
+        return b.recent - a.recent
+      }
+      return b.growthRate - a.growthRate
+    })
+  }, [positionSurgeTimeframe])
+  
   // 직군별 통계 데이터 구조
   const jobRoleData = {
     Tech: [
@@ -2461,8 +2734,12 @@ export default function Dashboard() {
         {/* AI 분석 말풍선 */}
         <GlobalAnalysisBubble />
         
-        {/* 상단 그래프 섹션 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* 메인 레이아웃: 왼쪽 통계 1열 + 오른쪽 사이드바 */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          {/* 왼쪽 통계 영역 (3열) */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* 상단 그래프 섹션 - 1열로 변경 */}
+            <div className="space-y-6">
           {/* 채용 공고 수 추이 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-4">
@@ -2678,10 +2955,10 @@ export default function Dashboard() {
             </ResponsiveContainer>
             )}
           </section>
-        </div>
+            </div>
 
-        {/* 회사별 스킬 다양성 및 분기별 트렌드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* 회사별 스킬 다양성 및 분기별 트렌드 - 1열로 변경 */}
+            <div className="space-y-6">
           {/* 회사별 스킬 다양성 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-4">
@@ -2872,10 +3149,10 @@ export default function Dashboard() {
               </div>
             )}
           </section>
-        </div>
+            </div>
 
-        {/* 첫 번째 줄: 스킬별 통계와 직군별 통계 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* 스킬별 통계와 직군별 통계 - 1열로 변경 */}
+            <div className="space-y-6">
           {/* 스킬별 통계 */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -3470,12 +3747,411 @@ export default function Dashboard() {
             )}
           </div>
           </section>
+            </div>
+          </div>
+
+          {/* 오른쪽 사이드바 (1열) */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6 space-y-6">
+              {/* 포지션별 채용 급증 순위 */}
+              {positionSurgeAnalysis.length > 0 && (
+                <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-900">포지션별 채용 급증</h2>
+                  </div>
+                  
+                  {/* 시간 필터 버튼 */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setPositionSurgeTimeframe('Daily')}
+                      className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        positionSurgeTimeframe === 'Daily'
+                          ? 'bg-black text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      일간
+                    </button>
+                    <button
+                      onClick={() => setPositionSurgeTimeframe('Weekly')}
+                      className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        positionSurgeTimeframe === 'Weekly'
+                          ? 'bg-black text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      주간
+                    </button>
+                    <button
+                      onClick={() => setPositionSurgeTimeframe('Monthly')}
+                      className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        positionSurgeTimeframe === 'Monthly'
+                          ? 'bg-black text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      월간
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {positionSurgeAnalysis.slice(0, 10).map((surge, index) => {
+                      const rank = index + 1
+                      const isNew = surge.previous === 0
+                      const growthDisplay = surge.growthRate === Infinity 
+                        ? '신규' 
+                        : `+${surge.growthRate}%`
+                      
+                      const isSelected = selectedSurgePosition === surge.position
+                      
+                      return (
+                        <div key={index}>
+                          <div
+                            onClick={() => setSelectedSurgePosition(isSelected ? null : surge.position)}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer text-sm ${
+                              isSelected
+                                ? surge.isOurPosition
+                                  ? 'bg-red-100 border-red-300 shadow-md'
+                                  : 'bg-blue-100 border-blue-300 shadow-md'
+                                : surge.isOurPosition
+                                  ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:shadow-md'
+                                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:shadow-md'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {/* 순위 번호 */}
+                              <div className={`text-base font-bold min-w-[24px] text-center flex-shrink-0 ${
+                                rank <= 4 ? 'text-red-600' : 'text-gray-900'
+                              }`}>
+                                {rank}
+                              </div>
+                              
+                              {/* 포지션명 */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`text-sm font-semibold truncate ${
+                                    surge.isOurPosition ? 'text-red-700' : 'text-gray-900'
+                                  }`}>
+                                    {surge.position}
+                                  </span>
+                                  {surge.isOurPosition && (
+                                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded flex-shrink-0">
+                                      당사
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                                  <span>{surge.recent}건</span>
+                                  {isNew ? (
+                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">
+                                      New
+                                    </span>
+                                  ) : (
+                                    <span className="text-orange-600 font-bold">{growthDisplay}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* 선택된 포지션의 상세 정보 */}
+                          {isSelected && (
+                            <div className={`mt-2 p-3 rounded-lg border-2 text-sm ${
+                              surge.isOurPosition
+                                ? 'bg-red-50 border-red-300'
+                                : 'bg-blue-50 border-blue-300'
+                            }`}>
+                              <div className="mb-2">
+                                <h3 className="text-xs font-bold text-gray-900 mb-2">
+                                  {surge.position} 상세 정보
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                  <div className="bg-white p-2 rounded border border-gray-200">
+                                    <p className="text-xs text-gray-500 mb-0.5">최근</p>
+                                    <p className="text-base font-bold text-gray-900">{surge.recent}건</p>
+                                  </div>
+                                  <div className="bg-white p-2 rounded border border-gray-200">
+                                    <p className="text-xs text-gray-500 mb-0.5">이전</p>
+                                    <p className="text-base font-bold text-gray-900">{surge.previous}건</p>
+                                  </div>
+                                </div>
+                                
+                                {surge.isOurPosition && (
+                                  <div className="mb-2 p-2 bg-red-100 border border-red-300 rounded text-xs">
+                                    <p className="font-bold text-red-700 mb-0.5">
+                                      ⚠️ 당사 포지션
+                                    </p>
+                                    <p className="text-gray-700">
+                                      당사 공고: {surge.ourCompanyCount}건 → <span className="font-bold text-red-600">주력 필요</span>
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                <div className="mb-2">
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">관련 회사:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {surge.companies.slice(0, 5).map((company, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs text-gray-700"
+                                      >
+                                        {company}
+                                      </span>
+                                    ))}
+                                    {surge.companies.length > 5 && (
+                                      <span className="px-2 py-0.5 bg-white border border-gray-300 rounded text-xs text-gray-500">
+                                        +{surge.companies.length - 5}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* 해당 포지션의 공고 목록 */}
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-700 mb-1">관련 공고:</p>
+                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                    {jobPostingsData
+                                      .filter(job => {
+                                        const jobCategory = job.meta_data?.job_category || '기타'
+                                        const jobTitle = job.title || ''
+                                        const titleLower = jobTitle.toLowerCase()
+                                        
+                                        if (jobCategory === surge.position) return true
+                                        if (surge.position === '개발' && (titleLower.includes('개발') || titleLower.includes('developer'))) return true
+                                        if (surge.position === '백엔드 개발' && (titleLower.includes('백엔드') || titleLower.includes('backend'))) return true
+                                        if (surge.position === '프론트엔드 개발' && (titleLower.includes('프론트') || titleLower.includes('frontend'))) return true
+                                        if (surge.position === 'AI/ML' && (titleLower.includes('ai') || titleLower.includes('인공지능') || titleLower.includes('ml'))) return true
+                                        if (surge.position === '인프라/클라우드' && (titleLower.includes('인프라') || titleLower.includes('infra') || titleLower.includes('cloud'))) return true
+                                        if (surge.position === '아키텍트' && (titleLower.includes('아키텍트') || titleLower.includes('architect'))) return true
+                                        if (surge.position === '프로젝트 관리' && (titleLower.includes('pm') || titleLower.includes('프로젝트') || titleLower.includes('product manager'))) return true
+                                        if (surge.position === '데이터' && (titleLower.includes('데이터') || titleLower.includes('data'))) return true
+                                        if (surge.position === 'UI/UX 디자인' && (titleLower.includes('디자인') || titleLower.includes('designer') || titleLower.includes('ui') || titleLower.includes('ux'))) return true
+                                        if (surge.position === 'QA/품질관리' && (titleLower.includes('qa') || titleLower.includes('품질') || titleLower.includes('quality'))) return true
+                                        if (surge.position === '영업' && (titleLower.includes('영업') || titleLower.includes('sales'))) return true
+                                        if (surge.position === '기획' && (titleLower.includes('기획') || titleLower.includes('planning'))) return true
+                                        return false
+                                      })
+                                      .slice(0, 5)
+                                      .map((job) => {
+                                        const companyName = job.company.replace('(주)', '').trim()
+                                        const formatDate = (dateString: string) => {
+                                          const date = new Date(dateString)
+                                          return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+                                        }
+                                        
+                                        return (
+                                          <div
+                                            key={job.id}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              window.open(`/jobs/${job.id}`, '_blank')
+                                            }}
+                                            className="p-2 bg-white border border-gray-200 rounded hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+                                          >
+                                            <h4 className="text-xs font-semibold text-gray-900 mb-0.5 line-clamp-1">
+                                              {job.title || '공고 제목 없음'}
+                                            </h4>
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                              <span>{companyName}</span>
+                                              <span>•</span>
+                                              <span>{formatDate(job.posted_date)}</span>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+              
+              {/* 직군 선택 카드 */}
+              <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">직군별 공고</h2>
+                </div>
+                
+                {/* 시간 필터 버튼 */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setSidebarJobRoleTimeframe('Weekly')}
+                    className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      sidebarJobRoleTimeframe === 'Weekly'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    주간
+                  </button>
+                  <button
+                    onClick={() => setSidebarJobRoleTimeframe('Monthly')}
+                    className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      sidebarJobRoleTimeframe === 'Monthly'
+                        ? 'bg-black text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    월간
+                  </button>
+                </div>
+                
+                {/* 전문가 카테고리 탭 */}
+                <div className="flex flex-col gap-2 mb-4">
+                  <button
+                    onClick={() => {
+                      setSelectedExpertCategory('Tech')
+                      setSelectedSidebarJobRole(null)
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      selectedExpertCategory === 'Tech'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Tech 전문가
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedExpertCategory('Biz')
+                      setSelectedSidebarJobRole(null)
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      selectedExpertCategory === 'Biz'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Biz 전문가
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedExpertCategory('BizSupporting')
+                      setSelectedSidebarJobRole(null)
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      selectedExpertCategory === 'BizSupporting'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Biz.Supporting 전문가
+                  </button>
+                </div>
+
+                {/* 직군 목록 */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">직군 선택</h3>
+                  {currentJobRoles.map((role) => (
+                    <button
+                      key={role.name}
+                      onClick={() => setSelectedSidebarJobRole(selectedSidebarJobRole === role.name ? null : role.name)}
+                      className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all text-left ${
+                        selectedSidebarJobRole === role.name
+                          ? 'bg-gray-900 text-white shadow-md'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{role.name}</span>
+                        <span className={`text-xs ${
+                          selectedSidebarJobRole === role.name ? 'text-gray-300' : 'text-gray-400'
+                        }`}>
+                          {role.value}건
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* 선택된 직군의 공고 목록 */}
+              {selectedSidebarJobRole && (
+                <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {selectedSidebarJobRole} 공고
+                    </h2>
+                    <button
+                      onClick={() => setSelectedSidebarJobRole(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {filteredJobPostings.length > 0 ? (
+                      filteredJobPostings.slice(0, 10).map((job) => {
+                        const companyName = job.company.replace('(주)', '').trim()
+                        const formatDate = (dateString: string) => {
+                          const date = new Date(dateString)
+                          return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+                        }
+                        
+                        return (
+                          <div
+                            key={job.id}
+                            className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+                            onClick={() => window.open(`/jobs/${job.id}`, '_blank')}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">
+                                {job.title || '공고 제목 없음'}
+                              </h3>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                              <span>{companyName}</span>
+                              <span>•</span>
+                              <span>{formatDate(job.posted_date)}</span>
+                            </div>
+                            {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {job.meta_data.tech_stack.slice(0, 3).map((tech, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded"
+                                  >
+                                    {tech}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        선택한 직군에 해당하는 공고가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                  
+                  {filteredJobPostings.length > 10 && (
+                    <div className="mt-4 text-center">
+                      <Link
+                        href="/jobs"
+                        className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                      >
+                        더보기 ({filteredJobPostings.length}개) →
+                      </Link>
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* 두 번째 줄: 경쟁사 공고 자동 매칭과 채용 관련 뉴스 */}
-        <div className="relative mb-8">
-          {/* 경쟁사 공고 자동 매칭 */}
-          <div className="flex flex-col pr-80">
+        {/* 경쟁사 공고 자동 매칭 섹션 (전체 너비) */}
+        <div className="mb-8">
             <section className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col h-full">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-gray-900">
@@ -3636,9 +4312,9 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-gray-700 font-medium">
-              <span className="text-gray-900 font-bold">{filteredJobPostings.length}개</span>의 공고를 확인할 수 있어요.
+              <span className="text-gray-900 font-bold">{filteredJobPostingsForMatching.length}개</span>의 공고를 확인할 수 있어요.
             </p>
-            {filteredJobPostings.length > itemsPerPage && (
+            {filteredJobPostingsForMatching.length > itemsPerPage && (
               <Link
                 href="/jobs"
                 prefetch={false}
@@ -3652,7 +4328,7 @@ export default function Dashboard() {
             )}
           </div>
           
-          {filteredJobPostings.length > 0 ? (
+          {filteredJobPostingsForMatching.length > 0 ? (
             <div className="relative flex-1 flex flex-col min-h-0">
               {/* 슬라이드 컨테이너 */}
               <div className="space-y-4 overflow-y-auto flex-1 pb-0">
@@ -3941,7 +4617,7 @@ export default function Dashboard() {
               </div>
 
               {/* 좌우 네비게이션 버튼 */}
-              {filteredJobPostings.length > itemsPerPage && (
+              {filteredJobPostingsForMatching.length > itemsPerPage && (
                 <div className="flex items-center justify-center gap-4 mt-6">
                   <button
                     onClick={handlePrevPage}
@@ -4005,40 +4681,6 @@ export default function Dashboard() {
             </div>
           )}
             </section>
-          </div>
-
-          {/* 채용 관련 뉴스 - 오른쪽 고정 팝업 */}
-          <div className="absolute top-0 right-0 w-72 h-full">
-            <section className="bg-white rounded-2xl p-4 shadow-lg border-2 border-gray-200 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 sticky top-0 bg-white z-10">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  채용 뉴스
-                </h2>
-              </div>
-              <div className="space-y-2 mt-3">
-                {newsItems.map((news, index) => (
-                  <div
-                    key={index}
-                    className="bg-gradient-to-r from-gray-50 to-white p-3 border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
-                        {news.image}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 mb-1 truncate">{news.source}</p>
-                        <h3 className="text-xs font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                          {news.headline}
-                        </h3>
-                        <p className="text-xs text-gray-600 line-clamp-2">{news.snippet}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
         </div>
 
       </div>

@@ -44,8 +44,9 @@ export default function Dashboard() {
   const [selectedCompanyForSkills, setSelectedCompanyForSkills] = useState<string | null>('토스')
   const [skillDiversityViewMode, setSkillDiversityViewMode] = useState<'all' | 'year'>('all')
   const [selectedYear, setSelectedYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025')
-  const [skillStatisticsViewMode, setSkillStatisticsViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily') // 스킬별 통계 시간 필터
-  const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily') // 직군별 통계 시간 필터
+  const [skillStatisticsViewMode, setSkillStatisticsViewMode] = useState<'all' | 'year'>('all') // 스킬별 통계 시간 필터
+  const [selectedSkillStatisticsYear, setSelectedSkillStatisticsYear] = useState<'2021' | '2022' | '2023' | '2024' | '2025'>('2025') // 스킬별 통계 연도 선택
+  const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'Weekly' | 'Monthly'>('Weekly') // 직군별 통계 시간 필터
   const [selectedJobRoleCompany, setSelectedJobRoleCompany] = useState<string | null>(null) // 직군별 통계 회사 필터 (null이면 전체)
   const [selectedJobRoleMonth, setSelectedJobRoleMonth] = useState<string>('') // 직군별 통계 월 필터 (YYYY-MM 형식)
   
@@ -223,34 +224,33 @@ export default function Dashboard() {
         // 쿼리 파라미터 구성
         const params = new URLSearchParams()
         
-        // 일간/주간/월간에 따른 날짜 범위 계산
-        const today = new Date()
-        let startDate: Date
-        let endDate: Date = new Date(today)
+        // 전체보기/연도별에 따른 날짜 범위 계산
+        let startDate: Date | null = null
+        let endDate: Date | null = null
         
-        if (skillStatisticsViewMode === 'Daily') {
-          // 일간: 오늘부터 최근 30일
-          startDate = new Date(today)
-          startDate.setDate(today.getDate() - 30)
-        } else if (skillStatisticsViewMode === 'Weekly') {
-          // 주간: 오늘부터 최근 12주 (약 84일)
-          startDate = new Date(today)
-          startDate.setDate(today.getDate() - 84)
+        if (skillStatisticsViewMode === 'year' && selectedSkillStatisticsYear) {
+          // 연도별: 선택된 연도의 1월 1일부터 12월 31일까지
+          const year = parseInt(selectedSkillStatisticsYear)
+          startDate = new Date(year, 0, 1) // 1월 1일
+          endDate = new Date(year, 11, 31) // 12월 31일
+          
+          params.append('start_date', startDate.toISOString().split('T')[0])
+          params.append('end_date', endDate.toISOString().split('T')[0])
         } else {
-          // 월간: 오늘부터 최근 12개월
-          startDate = new Date(today)
-          startDate.setMonth(today.getMonth() - 12)
+          // 전체보기: 날짜 파라미터 없이 호출 (또는 매우 넓은 범위)
+          // 백엔드가 날짜 파라미터 없이 전체 데이터를 반환한다고 가정
         }
-        
-        params.append('start_date', startDate.toISOString().split('T')[0])
-        params.append('end_date', endDate.toISOString().split('T')[0])
         
         const fullUrl = `${apiUrl}?${params.toString()}`
         console.log('=== 스킬 통계 API 호출 ===')
         console.log('호출 URL:', fullUrl)
-        console.log('timeframe:', skillStatisticsViewMode)
-        console.log('start_date:', startDate.toISOString().split('T')[0])
-        console.log('end_date:', endDate.toISOString().split('T')[0])
+        console.log('view_mode:', skillStatisticsViewMode)
+        if (startDate && endDate) {
+          console.log('start_date:', startDate.toISOString().split('T')[0])
+          console.log('end_date:', endDate.toISOString().split('T')[0])
+        } else {
+          console.log('전체보기 모드: 날짜 파라미터 없음')
+        }
         
         const response = await fetch(fullUrl, {
           method: 'GET',
@@ -341,7 +341,7 @@ export default function Dashboard() {
     }
 
     fetchSkillsStatistics()
-  }, [skillStatisticsViewMode])
+  }, [skillStatisticsViewMode, selectedSkillStatisticsYear])
 
   // 회사별 스킬 다양성 API 호출
   useEffect(() => {
@@ -2883,36 +2883,33 @@ export default function Dashboard() {
                 스킬별 통계
               </h2>
               <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">전체보기</span>
                 <button
-                  onClick={() => setSkillStatisticsViewMode('Daily')}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    skillStatisticsViewMode === 'Daily'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  onClick={() => setSkillStatisticsViewMode(skillStatisticsViewMode === 'all' ? 'year' : 'all')}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${
+                    skillStatisticsViewMode === 'year' ? 'bg-black' : 'bg-gray-300'
                   }`}
                 >
-                  일간
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      skillStatisticsViewMode === 'year' ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
                 </button>
-                <button
-                  onClick={() => setSkillStatisticsViewMode('Weekly')}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    skillStatisticsViewMode === 'Weekly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  주간
-                </button>
-                <button
-                  onClick={() => setSkillStatisticsViewMode('Monthly')}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    skillStatisticsViewMode === 'Monthly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  월간
-                </button>
+                <span className="text-sm text-gray-600">연도별</span>
+                {skillStatisticsViewMode === 'year' && (
+                  <select
+                    value={selectedSkillStatisticsYear}
+                    onChange={(e) => setSelectedSkillStatisticsYear(e.target.value as '2021' | '2022' | '2023' | '2024' | '2025')}
+                    className="ml-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-4">
@@ -3247,16 +3244,6 @@ export default function Dashboard() {
               </h2>
               <div className="flex items-center gap-3">
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setJobRoleStatisticsViewMode('Daily')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      jobRoleStatisticsViewMode === 'Daily'
-                        ? 'bg-black text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    일간
-                  </button>
                   <button
                     onClick={() => setJobRoleStatisticsViewMode('Weekly')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${

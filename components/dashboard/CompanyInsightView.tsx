@@ -112,21 +112,21 @@ export default function CompanyInsightView({
   return (
     <div className="space-y-6">
       {/* 회사 정보 헤더 */}
-      <div className="flex items-center justify-between p-4 bg-[#1a2d47] rounded-lg border border-[#2a3f5f]">
+      <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
         <div className="flex items-center gap-3">
           <div 
             className="w-4 h-4 rounded-full" 
             style={{ backgroundColor: companyColor }}
           />
-          <h3 className="text-xl font-semibold text-white">{companyName} 채용 인사이트</h3>
+          <h3 className="text-xl font-semibold text-gray-900">{companyName} 채용 인사이트</h3>
         </div>
         {recruitmentData && recruitmentData.length > 0 && (
           <div className="flex gap-4 text-sm">
-            <div className="text-gray-400">
-              총 <span className="text-gray-300 font-medium">{recruitmentData.reduce((sum, d) => sum + d.count, 0)}</span> 건
+            <div className="text-gray-600">
+              총 <span className="text-gray-900 font-medium">{recruitmentData.reduce((sum, d) => sum + d.count, 0)}</span> 건
             </div>
-            <div className="text-gray-400">
-              평균 <span className="text-gray-300 font-medium">{Math.round(recruitmentData.reduce((sum, d) => sum + d.count, 0) / recruitmentData.length)}</span> 건/{timeframe === 'Daily' ? '일' : timeframe === 'Weekly' ? '주' : '월'}
+            <div className="text-gray-600">
+              평균 <span className="text-gray-900 font-medium">{Math.round(recruitmentData.reduce((sum, d) => sum + d.count, 0) / recruitmentData.length)}</span> 건/{timeframe === 'Daily' ? '일' : timeframe === 'Weekly' ? '주' : '월'}
             </div>
           </div>
         )}

@@ -23,10 +23,10 @@ export default function RarePositionAlert({ competitive, blueOcean }: RarePositi
             {competitive.map((item, index) => (
               <div
                 key={index}
-                className="p-3 bg-[#0f1e35] rounded-lg border border-red-500/30 hover:border-red-500/50 transition-colors"
+                className="p-3 bg-white rounded-lg border border-red-200 hover:border-red-300 transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-200 font-medium text-sm">{item.position}</span>
+                  <span className="text-gray-700 font-medium text-sm">{item.position}</span>
                   <span className="text-red-400 text-xs font-semibold bg-red-500/10 px-2 py-1 rounded">
                     {item.companyCount}개사
                   </span>
@@ -48,10 +48,10 @@ export default function RarePositionAlert({ competitive, blueOcean }: RarePositi
             {blueOcean.map((item, index) => (
               <div
                 key={index}
-                className="p-3 bg-[#0f1e35] rounded-lg border border-blue-500/30 hover:border-blue-500/50 transition-colors"
+                className="p-3 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-200 font-medium text-sm">{item.position}</span>
+                  <span className="text-gray-700 font-medium text-sm">{item.position}</span>
                   <span className="text-blue-400 text-xs font-semibold bg-blue-500/10 px-2 py-1 rounded">
                     {item.companyCount}개사
                   </span>
@@ -64,7 +64,7 @@ export default function RarePositionAlert({ competitive, blueOcean }: RarePositi
 
       {/* 데이터가 없는 경우 */}
       {(!competitive || competitive.length === 0) && (!blueOcean || blueOcean.length === 0) && (
-        <div className="text-gray-400 text-sm text-center py-8">
+        <div className="text-gray-500 text-sm text-center py-8">
           희소 포지션이 없습니다.
         </div>
       )}

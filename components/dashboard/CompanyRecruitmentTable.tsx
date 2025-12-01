@@ -1,11 +1,19 @@
 interface CompanyRecruitmentTableProps {
   data: Array<{
     company: string
-    backend: number
-    frontend: number
-    dataAi: number
-    devops: number
-    mobile: number
+    'Software Development': number
+    'Factory AX Engineering': number
+    'Solution Development': number
+    'Cloud/Infra Engineering': number
+    'Architect': number
+    'Project Management': number
+    'Quality Management': number
+    'AI': number
+    '정보보호': number
+    'Sales': number
+    'Domain Expert': number
+    'Consulting': number
+    'Biz. Supporting': number
     total: number
     change: number
     surgingPosition: string
@@ -15,7 +23,7 @@ interface CompanyRecruitmentTableProps {
 export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTableProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         데이터가 없습니다.
       </div>
     )
@@ -25,47 +33,80 @@ export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTabl
   const isNegative = (change: number) => change < 0
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
+    <div className="h-[400px] overflow-auto">
+      <div className="overflow-x-auto h-full">
+        <table className="w-full">
         <thead>
-          <tr className="border-b border-[#2a3f5f]">
-            <th className="text-left py-3 px-4 text-gray-300 font-semibold text-sm">회사</th>
-            <th className="text-center py-3 px-2 text-gray-300 font-semibold text-sm">Backend</th>
-            <th className="text-center py-3 px-2 text-gray-300 font-semibold text-sm">Frontend</th>
-            <th className="text-center py-3 px-2 text-gray-300 font-semibold text-sm">Data/AI</th>
-            <th className="text-center py-3 px-2 text-gray-300 font-semibold text-sm">DevOps</th>
-            <th className="text-center py-3 px-2 text-gray-300 font-semibold text-sm">Mobile</th>
-            <th className="text-center py-3 px-4 text-gray-300 font-semibold text-sm">총계</th>
-            <th className="text-center py-3 px-4 text-gray-300 font-semibold text-sm">변화</th>
-            <th className="text-center py-3 px-4 text-gray-300 font-semibold text-sm">급증 포지션</th>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-3 px-3 text-gray-700 font-semibold text-xs sticky left-0 bg-white z-10">회사</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Software<br/>Dev</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Factory AX<br/>Eng</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Solution<br/>Dev</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Cloud/Infra<br/>Eng</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Architect</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Project<br/>Mgmt</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Quality<br/>Mgmt</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">AI</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">정보보호</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Sales</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Domain<br/>Expert</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Consulting</th>
+            <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Biz.<br/>Supporting</th>
+            <th className="text-center py-3 px-3 text-gray-700 font-semibold text-xs">총계</th>
+            <th className="text-center py-3 px-3 text-gray-700 font-semibold text-xs">변화</th>
+            <th className="text-center py-3 px-3 text-gray-700 font-semibold text-xs">급증<br/>포지션</th>
           </tr>
         </thead>
         <tbody>
           {data.map((row, index) => (
             <tr
               key={index}
-              className="border-b border-[#2a3f5f]/50 hover:bg-[#0f1e35] transition-colors"
+              className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
             >
-              <td className="py-3 px-4">
-                <span className="text-white font-medium">{row.company}</span>
+              <td className="py-3 px-3 sticky left-0 bg-white z-10">
+                <span className="text-gray-900 font-medium text-xs">{row.company}</span>
               </td>
-              <td className="text-center py-3 px-2">
-                <span className="text-gray-300">{row.backend}</span>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Software Development']}</span>
               </td>
-              <td className="text-center py-3 px-2">
-                <span className="text-gray-300">{row.frontend}</span>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Factory AX Engineering']}</span>
               </td>
-              <td className="text-center py-3 px-2">
-                <span className="text-gray-300">{row.dataAi}</span>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Solution Development']}</span>
               </td>
-              <td className="text-center py-3 px-2">
-                <span className="text-gray-300">{row.devops}</span>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Cloud/Infra Engineering']}</span>
               </td>
-              <td className="text-center py-3 px-2">
-                <span className="text-gray-300">{row.mobile}</span>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Architect']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Project Management']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Quality Management']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['AI']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['정보보호']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Sales']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Domain Expert']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Consulting']}</span>
+              </td>
+              <td className="text-center py-3 px-1.5">
+                <span className="text-gray-700 text-xs">{row['Biz. Supporting']}</span>
               </td>
               <td className="text-center py-3 px-4">
-                <span className="text-white font-semibold">{row.total}</span>
+                <span className="text-gray-900 font-semibold">{row.total}</span>
               </td>
               <td className="text-center py-3 px-4">
                 {row.change !== 0 && (
@@ -75,7 +116,7 @@ export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTabl
                         ? 'text-green-400'
                         : isNegative(row.change)
                         ? 'text-red-400'
-                        : 'text-gray-400'
+                        : 'text-gray-500'
                     }`}
                   >
                     {isPositive(row.change) ? '↑' : isNegative(row.change) ? '↓' : ''} {Math.abs(row.change)}%
@@ -94,6 +135,7 @@ export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTabl
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

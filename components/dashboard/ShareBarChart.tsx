@@ -8,7 +8,7 @@ interface ShareBarChartProps {
 export default function ShareBarChart({ data }: ShareBarChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         데이터가 없습니다.
       </div>
     )
@@ -37,12 +37,12 @@ export default function ShareBarChart({ data }: ShareBarChartProps) {
         return (
           <div key={index} className="space-y-1">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-300 font-medium">{item.company}</span>
+              <span className="text-gray-700 font-medium">{item.company}</span>
               <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">{item.share}%</span>
+                <span className="text-gray-900 font-semibold">{item.share}%</span>
               </div>
             </div>
-            <div className="w-full bg-[#0f1e35] rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div
                 className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all duration-500 flex items-center justify-end pr-1`}
                 style={{ width: `${percentage}%` }}
@@ -56,7 +56,7 @@ export default function ShareBarChart({ data }: ShareBarChartProps) {
             </div>
             {percentage <= 15 && (
               <div className="text-right">
-                <span className="text-xs text-gray-400">{item.share}%</span>
+                <span className="text-xs text-gray-600">{item.share}%</span>
               </div>
             )}
           </div>

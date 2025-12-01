@@ -37,7 +37,7 @@ export default function WeeklyTrendAnalysis({ trends, suggestion }: WeeklyTrendA
 
   if (!trends || trends.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         트렌드 데이터가 없습니다.
       </div>
     )
@@ -55,8 +55,8 @@ export default function WeeklyTrendAnalysis({ trends, suggestion }: WeeklyTrendA
             <div className="flex items-start gap-3">
               <span className="text-xl flex-shrink-0">{getIcon(trend.icon)}</span>
               <div className="flex-1 min-w-0">
-                <h3 className="text-white font-semibold text-sm mb-1">{trend.title}</h3>
-                <p className="text-gray-300 text-xs">{trend.description}</p>
+                <h3 className="text-gray-900 font-semibold text-sm mb-1">{trend.title}</h3>
+                <p className="text-gray-700 text-xs">{trend.description}</p>
               </div>
             </div>
           </div>
@@ -69,8 +69,8 @@ export default function WeeklyTrendAnalysis({ trends, suggestion }: WeeklyTrendA
           <div className="flex items-start gap-2">
             <span className="text-blue-400 text-sm">💡</span>
             <div>
-              <p className="text-blue-300 font-semibold text-xs mb-1">제안사항</p>
-              <p className="text-gray-300 text-sm">{suggestion}</p>
+              <p className="text-blue-600 font-semibold text-xs mb-1">제안사항</p>
+              <p className="text-gray-700 text-sm">{suggestion}</p>
             </div>
           </div>
         </div>

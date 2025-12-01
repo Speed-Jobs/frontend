@@ -106,8 +106,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
           onClick={() => handleViewModeChange('all')}
           className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
             selectedViewMode === 'all'
-              ? 'bg-blue-500 text-white'
-              : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+              ? 'bg-gray-900 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
           }`}
         >
           전체
@@ -116,8 +116,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
           onClick={() => handleViewModeChange('category')}
           className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
             selectedViewMode === 'category'
-              ? 'bg-blue-500 text-white'
-              : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+              ? 'bg-gray-900 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
           }`}
         >
           직군별
@@ -126,8 +126,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
           onClick={() => handleViewModeChange('position')}
           className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
             selectedViewMode === 'position'
-              ? 'bg-blue-500 text-white'
-              : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+              ? 'bg-gray-900 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
           }`}
         >
           직무별
@@ -141,8 +141,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
             onClick={() => handleCategoryChange('전체')}
             className={`px-3 py-1 text-xs rounded transition-colors ${
               selectedCategory === '전체'
-                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
-                : 'bg-[#0f1e35] text-gray-400 border border-[#2a3f5f] hover:border-gray-500'
+                ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
+                : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
             }`}
           >
             전체
@@ -153,8 +153,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
               onClick={() => handleCategoryChange(cat)}
               className={`px-3 py-1 text-xs rounded transition-colors ${
                 selectedCategory === cat
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
-                  : 'bg-[#0f1e35] text-gray-400 border border-[#2a3f5f] hover:border-gray-500'
+                  ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
               }`}
             >
               {cat}
@@ -173,21 +173,21 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
                 setSelectedPosition(selectedPosition === item.name ? null : item.name)
               }
             }}
-            className={`p-4 bg-[#0f1e35] rounded-lg border border-[#2a3f5f] hover:border-blue-500/50 transition-all ${
+            className={`p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-400 transition-all ${
               selectedViewMode === 'position' ? 'cursor-pointer' : ''
-            } ${selectedPosition === item.name ? 'border-blue-500 bg-[#1a2d47]' : ''}`}
+            } ${selectedPosition === item.name ? 'border-gray-900 bg-gray-50' : ''}`}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="text-white font-semibold">{item.name}</h4>
+                  <h4 className="text-gray-900 font-semibold">{item.name}</h4>
                   {item.category && (
-                    <span className="text-xs px-2 py-0.5 bg-[#1a2d47] text-gray-400 rounded">
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
                       {item.category}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-4 text-xs text-gray-600">
                   <span>유사 공고: {item.similarPostings}개</span>
                   <span>경쟁사 비중: {item.competitorRatio.toFixed(1)}%</span>
                   <span className={item.recentGrowthRate > 0 ? 'text-red-400' : 'text-green-400'}>
@@ -214,7 +214,7 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
             </div>
 
             {/* 난이도 게이지 */}
-            <div className="w-full bg-[#1a2d47] rounded-full h-3 overflow-hidden mb-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-2">
               <div
                 className={`h-full bg-gradient-to-r ${getDifficultyColor(item.difficulty)} rounded-full transition-all duration-500`}
                 style={{ width: `${item.difficulty}%` }}
@@ -223,12 +223,12 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
 
             {/* 인사이트 카드 (선택된 경우 또는 항상 표시) */}
             {(selectedPosition === item.name || selectedViewMode !== 'position') && item.insights.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-[#2a3f5f]">
-                <div className="text-xs font-semibold text-gray-400 mb-2">난이도 분석</div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="text-xs font-semibold text-gray-600 mb-2">난이도 분석</div>
                 <ul className="space-y-1">
                   {item.insights.map((insight, idx) => (
-                    <li key={idx} className="text-xs text-gray-300 flex items-start gap-2">
-                      <span className="text-blue-400 mt-0.5">•</span>
+                    <li key={idx} className="text-xs text-gray-700 flex items-start gap-2">
+                      <span className="text-gray-700 mt-0.5">•</span>
                       <span>{insight}</span>
                     </li>
                   ))}
@@ -240,15 +240,15 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
       </div>
 
       {filteredData.length === 0 && (
-        <div className="text-gray-400 text-sm text-center py-8">
+        <div className="text-gray-500 text-sm text-center py-8">
           데이터가 없습니다.
         </div>
       )}
 
       {/* 페이지네이션 */}
       {filteredData.length > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between pt-4 border-t border-[#2a3f5f]">
-          <div className="text-xs text-gray-400">
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="text-xs text-gray-600">
             {startIndex + 1}-{Math.min(endIndex, filteredData.length)} / {filteredData.length}
           </div>
           <div className="flex gap-2">
@@ -257,8 +257,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
               disabled={currentPage === 1}
               className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                 currentPage === 1
-                  ? 'bg-[#0f1e35] text-gray-600 border border-[#2a3f5f] cursor-not-allowed'
-                  : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+                  ? 'bg-gray-100 text-gray-400 border border-gray-300 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
               }`}
             >
               이전
@@ -270,8 +270,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
                   onClick={() => setCurrentPage(page)}
                   className={`px-2 py-1.5 text-xs rounded transition-colors ${
                     currentPage === page
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
                   {page}
@@ -283,8 +283,8 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
               disabled={currentPage === totalPages}
               className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                 currentPage === totalPages
-                  ? 'bg-[#0f1e35] text-gray-600 border border-[#2a3f5f] cursor-not-allowed'
-                  : 'bg-[#0f1e35] text-gray-300 hover:bg-[#1a2d47] border border-[#2a3f5f]'
+                  ? 'bg-gray-100 text-gray-400 border border-gray-300 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
               }`}
             >
               다음

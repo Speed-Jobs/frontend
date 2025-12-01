@@ -169,7 +169,7 @@ export default function CombinedTrendChart({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-400">데이터를 불러오는 중...</div>
+        <div className="text-gray-500">데이터를 불러오는 중...</div>
       </div>
     )
   }
@@ -177,7 +177,7 @@ export default function CombinedTrendChart({
   if (error) {
     return (
       <div className="flex items-center justify-center h-[400px]">
-        <div className="text-red-400 text-sm">{error}</div>
+        <div className="text-red-500 text-sm">{error}</div>
       </div>
     )
   }
@@ -185,7 +185,7 @@ export default function CombinedTrendChart({
   if (!mergedData || mergedData.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-400 text-sm">데이터가 없습니다.</div>
+        <div className="text-gray-500 text-sm">데이터가 없습니다.</div>
       </div>
     )
   }
@@ -199,25 +199,25 @@ export default function CombinedTrendChart({
             <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2a3f5f" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis 
           dataKey="period" 
-          tick={{ fill: '#9ca3af', fontSize: 12 }}
+          tick={{ fill: '#6b7280', fontSize: 12 }}
           angle={-45}
           textAnchor="end"
           height={80}
         />
         <YAxis 
-          tick={{ fill: '#9ca3af', fontSize: 12 }}
+          tick={{ fill: '#6b7280', fontSize: 12 }}
           domain={[0, maxValue * 1.1]}
-          label={{ value: '공고 수 (건)', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af', fontSize: 12 } }}
+          label={{ value: '공고 수 (건)', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 12 } }}
         />
         <Tooltip 
           contentStyle={{ 
-            backgroundColor: '#1a2d47', 
-            border: '1px solid #2a3f5f', 
+            backgroundColor: '#ffffff', 
+            border: '1px solid #e5e7eb', 
             borderRadius: '8px', 
-            color: '#e5e7eb',
+            color: '#374151',
             fontSize: '13px'
           }}
           formatter={(value: number, name: string) => {
@@ -229,7 +229,7 @@ export default function CombinedTrendChart({
           }}
         />
         <Legend 
-          wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#9ca3af' }}
+          wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#6b7280' }}
           iconType="line"
           formatter={(value: string) => {
             if (value === 'totalCount') {

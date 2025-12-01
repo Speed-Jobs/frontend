@@ -161,20 +161,20 @@ export default function CompanyInsightAnalysis({
     <div className="space-y-6">
       {/* 1. 채용 활동 트렌드 요약 */}
       {recruitmentTrend && (
-        <div className="bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
             채용 활동 트렌드 분석
           </h3>
-          <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
+          <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
             <p>
-              <span className="font-semibold text-white">{companyName}</span>은(는) 최근 {timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'} 평균 <span className="text-blue-400 font-medium">{recruitmentTrend.avg}건</span>의 채용 공고를 게시하고 있으며, 
+              <span className="font-semibold text-gray-900">{companyName}</span>은(는) 최근 {timeframe === 'Daily' ? '일간' : timeframe === 'Weekly' ? '주간' : '월간'} 평균 <span className="text-blue-400 font-medium">{recruitmentTrend.avg}건</span>의 채용 공고를 게시하고 있으며, 
               {recruitmentTrend.trend === 'up' ? (
                 <span className="text-green-400 font-medium"> 전 기간 대비 {recruitmentTrend.changeRate.toFixed(1)}% 증가</span>
               ) : recruitmentTrend.trend === 'down' ? (
                 <span className="text-red-400 font-medium"> 전 기간 대비 {recruitmentTrend.changeRate.toFixed(1)}% 감소</span>
               ) : (
-                <span className="text-gray-400 font-medium"> 안정적인 채용 활동</span>
+                <span className="text-gray-600 font-medium"> 안정적인 채용 활동</span>
               )}을 보이고 있습니다.
             </p>
             <p>
@@ -197,12 +197,12 @@ export default function CompanyInsightAnalysis({
 
       {/* 2. 시장 점유율 및 경쟁력 분석 */}
       {marketAnalysis && (
-        <div className="bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-purple-500"></span>
             시장 점유율 및 경쟁력 분석
           </h3>
-          <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
+          <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
             <p>
               전체 시장 대비 <span className="font-semibold text-white">{companyName}</span>의 채용 공고 점유율은 <span className="text-purple-400 font-medium">{marketAnalysis.marketShare}%</span>입니다.
               {marketAnalysis.shareChange > 0 ? (
@@ -228,14 +228,14 @@ export default function CompanyInsightAnalysis({
 
       {/* 3. 스킬 트렌드 분석 */}
       {skillAnalysis && (
-        <div className="bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             주요 스킬 트렌드 분석
           </h3>
-          <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
+          <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
             <p>
-              <span className="font-semibold text-white">{companyName}</span>이(가) 가장 많이 요구하는 기술 스택은{' '}
+              <span className="font-semibold text-gray-900">{companyName}</span>이(가) 가장 많이 요구하는 기술 스택은{' '}
               <span className="text-green-400 font-medium">{skillAnalysis.topSkills.map((s, i) => 
                 i === skillAnalysis.topSkills.length - 1 ? s.name : `${s.name}, `
               ).join('')}</span>입니다.
@@ -247,11 +247,11 @@ export default function CompanyInsightAnalysis({
               </p>
             )}
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-semibold text-gray-200">상위 요구 스킬 Top 5:</p>
+              <p className="text-sm font-semibold text-gray-700">상위 요구 스킬 Top 5:</p>
               <div className="grid grid-cols-2 gap-2">
                 {skillAnalysis.topSkills.map((skill, index) => (
-                  <div key={skill.name} className="flex items-center justify-between bg-[#0f1e35] rounded-lg p-2 border border-[#2a3f5f]">
-                    <span className="text-gray-300 text-xs">
+                  <div key={skill.name} className="flex items-center justify-between bg-gray-50 rounded-lg p-2 border border-gray-200">
+                    <span className="text-gray-700 text-xs">
                       <span className="text-yellow-400 font-medium">{index + 1}위</span> {skill.name}
                     </span>
                     <span className="text-blue-400 text-xs font-medium">{skill.count}건</span>
@@ -265,12 +265,12 @@ export default function CompanyInsightAnalysis({
 
       {/* 4. 채용 패턴 분석 */}
       {recruitmentPattern && (
-        <div className="bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
             채용 패턴 분석
           </h3>
-          <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
+          <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
             <p>
               채용 활동의 일관성은 <span className={`font-medium ${
                 recruitmentPattern.consistency === 'high' ? 'text-green-400' :
@@ -299,21 +299,21 @@ export default function CompanyInsightAnalysis({
 
       {/* 종합 인사이트 */}
       {recruitmentTrend && marketAnalysis && (
-        <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="text-xl">💡</span>
             종합 인사이트
           </h3>
-          <div className="space-y-2 text-gray-200 text-sm leading-relaxed">
+          <div className="space-y-2 text-gray-700 text-sm leading-relaxed">
             {recruitmentTrend.trend === 'up' && marketAnalysis.shareChange > 0 && (
               <p>
-                <span className="font-semibold text-white">{companyName}</span>은(는) 현재 <span className="text-green-400 font-medium">성장 단계</span>에 있으며, 
+                <span className="font-semibold text-gray-900">{companyName}</span>은(는) 현재 <span className="text-green-400 font-medium">성장 단계</span>에 있으며, 
                 채용 활동 증가와 시장 점유율 상승이 동시에 나타나고 있습니다. 이는 신규 사업 확장이나 조직 성장을 위한 적극적인 인력 확보 전략으로 해석됩니다.
               </p>
             )}
             {recruitmentTrend.trend === 'down' && marketAnalysis.shareChange < 0 && (
               <p>
-                <span className="font-semibold text-white">{companyName}</span>의 채용 활동이 감소하고 있으며, 
+                <span className="font-semibold text-gray-900">{companyName}</span>의 채용 활동이 감소하고 있으며, 
                 시장 점유율도 하락하고 있습니다. 이는 채용 계획 조정이나 시장 상황 변화에 따른 전략적 변화로 보입니다.
               </p>
             )}

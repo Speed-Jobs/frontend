@@ -91,53 +91,53 @@ export default function RecruitmentCalendar({
   const getEventColor = (type: string) => {
     switch (type) {
       case '신입공채':
-        return 'bg-blue-500/20 text-blue-300 border-blue-500/50'
+        return 'bg-blue-500/20 text-blue-700 border-blue-500/50'
       case '인턴십':
-        return 'bg-green-500/20 text-green-300 border-green-500/50'
+        return 'bg-green-500/20 text-green-700 border-green-500/50'
       case '공개채용':
-        return 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+        return 'bg-purple-500/20 text-purple-700 border-purple-500/50'
       default:
-        return 'bg-gray-500/20 text-gray-300 border-gray-500/50'
+        return 'bg-gray-500/20 text-gray-700 border-gray-500/50'
     }
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full flex flex-col h-full overflow-hidden">
       {/* 헤더: 월 네비게이션 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <button
           onClick={goToPreviousMonth}
-          className="px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-[#1a2d47] rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
         >
           ←
         </button>
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-base font-semibold text-gray-900">
             {viewMonth.getFullYear()}년 {monthNames[viewMonth.getMonth()]}
           </h3>
           <button
             onClick={goToToday}
-            className="px-3 py-1 text-xs text-gray-400 hover:text-white hover:bg-[#1a2d47] rounded transition-colors"
+            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded transition-colors"
           >
             오늘
           </button>
         </div>
         <button
           onClick={goToNextMonth}
-          className="px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-[#1a2d47] rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
         >
           →
         </button>
       </div>
 
       {/* 달력 그리드 */}
-      <div className="flex-1 grid grid-cols-7 gap-1 mb-4">
+      <div className="grid grid-cols-7 gap-1 mb-2 flex-shrink-0" style={{ gridTemplateRows: 'auto repeat(6, minmax(0, 1fr))' }}>
         {/* 요일 헤더 */}
         {dayNames.map((day, index) => (
           <div
             key={day}
-            className={`text-center text-xs font-semibold py-2 ${
-              index === 0 ? 'text-red-400' : index === 6 ? 'text-blue-400' : 'text-gray-400'
+            className={`text-center text-xs font-semibold py-1.5 ${
+              index === 0 ? 'text-red-500' : index === 6 ? 'text-blue-500' : 'text-gray-600'
             }`}
           >
             {day}
@@ -164,29 +164,29 @@ export default function RecruitmentCalendar({
                   setSelectedDate(day.date)
                 }
               }}
-              className={`min-h-[60px] p-1 text-xs rounded transition-colors ${
+              className={`h-full min-h-[50px] p-1 text-xs rounded transition-colors flex flex-col ${
                 !day.isCurrentMonth
-                  ? 'text-gray-600 cursor-default'
+                  ? 'text-gray-400 cursor-default'
                   : isSelected
-                  ? 'bg-blue-500/30 text-white border-2 border-blue-500'
+                  ? 'bg-gray-100 text-gray-900 border-2 border-gray-900'
                   : isToday
-                  ? 'bg-blue-500/10 text-blue-300 border border-blue-500/30'
-                  : 'text-gray-300 hover:bg-[#1a2d47] border border-transparent'
+                  ? 'bg-gray-50 text-gray-800 border border-gray-300'
+                  : 'text-gray-800 hover:bg-gray-50 border border-gray-200'
               }`}
             >
-              <div className="text-left mb-1">{day.date.getDate()}</div>
-              <div className="space-y-0.5">
+              <div className="text-left mb-0.5 font-medium flex-shrink-0">{day.date.getDate()}</div>
+              <div className="space-y-0.5 flex flex-col flex-1 min-h-0 overflow-hidden">
                 {day.events.slice(0, 2).map((event, eventIndex) => (
                   <div
                     key={eventIndex}
-                    className={`text-[10px] px-1 py-0.5 rounded border ${getEventColor(event.type)} truncate`}
+                    className={`text-[8px] px-1 py-0.5 rounded border ${getEventColor(event.type)} truncate flex-shrink-0`}
                     title={`${event.company} - ${event.type}`}
                   >
                     {event.company}
                   </div>
                 ))}
                 {day.events.length > 2 && (
-                  <div className="text-[10px] text-gray-500 px-1">
+                  <div className="text-[8px] text-gray-500 px-1 flex-shrink-0">
                     +{day.events.length - 2}
                   </div>
                 )}
@@ -198,11 +198,11 @@ export default function RecruitmentCalendar({
 
       {/* 선택된 날짜의 상세 이벤트 */}
       {selectedDateEvents.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-[#2a3f5f]">
-          <h4 className="text-sm font-semibold text-white mb-2">
+        <div className="mt-2 pt-2 border-t border-gray-200 flex-shrink-0">
+          <h4 className="text-xs font-semibold text-gray-900 mb-1.5">
             {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 일정
           </h4>
-          <div className="space-y-2 max-h-[120px] overflow-y-auto">
+          <div className="space-y-1.5 max-h-[80px] overflow-y-auto">
             {selectedDateEvents.map((event, index) => (
               <div
                 key={index}
@@ -210,12 +210,12 @@ export default function RecruitmentCalendar({
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-white">{event.company}</div>
+                    <div className="text-sm font-semibold text-gray-900">{event.company}</div>
                     {event.title && (
-                      <div className="text-xs text-gray-400 mt-0.5">{event.title}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{event.title}</div>
                     )}
                   </div>
-                  <span className="text-xs px-2 py-1 rounded bg-[#0f1e35] text-gray-300">
+                  <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
                     {event.type}
                   </span>
                 </div>

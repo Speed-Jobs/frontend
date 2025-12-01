@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import CompanyLogo from '@/components/CompanyLogo'
 
 interface HotJobsListProps {
   jobs: Array<{
@@ -23,41 +24,107 @@ interface HotJobsListProps {
 export default function HotJobsList({ jobs }: HotJobsListProps) {
   if (!jobs || jobs.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         데이터가 없습니다.
       </div>
     )
   }
 
-  const getRankColor = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return 'bg-yellow-500/20 border-yellow-400 text-yellow-400'
-      case 2:
-        return 'bg-gray-400/20 border-gray-400 text-gray-300'
-      case 3:
-        return 'bg-orange-500/20 border-orange-400 text-orange-400'
-      default:
-        return 'bg-blue-500/20 border-blue-400 text-blue-300'
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return ''
+    try {
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}.${month}.${day}`
+    } catch {
+      return dateString
     }
   }
 
-  const getDaysUntilExpiry = (expiredDate: string | null): string => {
-    if (!expiredDate) return '상시채용'
-    const today = new Date()
-    const expiry = new Date(expiredDate)
-    const diffTime = expiry.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const getDaysUntilExpiry = (expiredDate: string | null): boolean => {
+    if (!expiredDate) return false
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const expiry = new Date(expiredDate)
+      expiry.setHours(0, 0, 0, 0)
+      return expiry < today
+    } catch {
+      return false
+    }
+  }
+
+  // 직무 추출 (제목, 기술 스택, 설명 기반)
+  const extractPosition = (job: HotJobsListProps['jobs'][0]): string => {
+    const title = (job.title || '').toLowerCase()
+    const description = (job.description || '').toLowerCase()
+    const techStack = (job.techStack || []).join(' ').toLowerCase()
+    const combinedText = `${title} ${description} ${techStack}`
+
+    // AI/ML 관련
+    if (combinedText.includes('ai') || combinedText.includes('ml') || combinedText.includes('인공지능') || 
+        combinedText.includes('machine learning') || combinedText.includes('딥러닝') || 
+        combinedText.includes('tensorflow') || combinedText.includes('pytorch')) {
+      return 'ML Engineer'
+    }
     
-    if (diffDays < 0) return '마감'
-    if (diffDays === 0) return '오늘 마감'
-    return `${diffDays}일 남음`
+    // 마케팅 관련
+    if (combinedText.includes('marketing') || combinedText.includes('마케팅') || 
+        combinedText.includes('marketing manager')) {
+      return 'Marketing Manager'
+    }
+    
+    // 개발자 관련
+    if (combinedText.includes('backend') || combinedText.includes('백엔드') || 
+        combinedText.includes('django') || combinedText.includes('spring')) {
+      return 'Backend Engineer'
+    }
+    if (combinedText.includes('frontend') || combinedText.includes('프론트엔드') || 
+        combinedText.includes('react') || combinedText.includes('vue')) {
+      return 'Frontend Engineer'
+    }
+    if (combinedText.includes('developer') || combinedText.includes('개발자') || 
+        combinedText.includes('engineer')) {
+      return 'Engineer'
+    }
+    
+    // 데이터 관련
+    if (combinedText.includes('data') || combinedText.includes('데이터') || 
+        combinedText.includes('spark') || combinedText.includes('hadoop')) {
+      return 'Data Engineer'
+    }
+    
+    // 매니저 관련
+    if (combinedText.includes('manager') || combinedText.includes('매니저') || 
+        combinedText.includes('pm') || combinedText.includes('product')) {
+      return 'Manager'
+    }
+    
+    // 기술 스택이 있으면 첫 번째 기술을 직무로 사용
+    if (job.techStack && job.techStack.length > 0) {
+      const firstTech = job.techStack[0]
+      if (firstTech.includes('Python') || firstTech.includes('Java') || firstTech.includes('JavaScript')) {
+        return `${firstTech} Engineer`
+      }
+      return firstTech
+    }
+    
+    return 'Engineer'
   }
 
   return (
     <div className="space-y-3">
       {jobs.map((job) => {
-        const deadline = getDaysUntilExpiry(job.expiredDate || null)
+        const isExpired = getDaysUntilExpiry(job.expiredDate || null)
+        const position = extractPosition(job)
+        const period = job.postedDate && job.expiredDate
+          ? `기간: ${formatDate(job.postedDate)} ~ ${formatDate(job.expiredDate)}`
+          : job.postedDate
+          ? `기간: ${formatDate(job.postedDate)} ~`
+          : ''
+        const employmentType = job.employmentType || '정규직'
         
         return (
           <Link
@@ -65,72 +132,42 @@ export default function HotJobsList({ jobs }: HotJobsListProps) {
             href={`/dashboard/jobs/${job.id}`}
             className="block"
           >
-            <div className="p-4 bg-[#0f1e35] rounded-lg border border-[#2a3f5f] hover:border-orange-500/50 transition-colors cursor-pointer">
-              <div className="flex items-start gap-3">
-                {/* 순위 배지 */}
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-sm ${getRankColor(job.rank)}`}>
-                  {job.rank}
+            <div className="p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer">
+              <div className="flex items-start gap-4">
+                {/* 회사 로고 */}
+                <div className="flex-shrink-0 w-14 h-14 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
+                  <CompanyLogo name={job.company} className="w-full h-full p-1" />
                 </div>
 
                 {/* 공고 정보 */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2">
-                        {job.title}
-                      </h3>
-                      <p className="text-gray-400 text-xs mb-2">{job.company}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                      <span>👁</span>
-                      <span>{job.views.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {/* 기술 스택 */}
-                  {job.techStack && job.techStack.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {job.techStack.slice(0, 3).map((tech, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-300 border border-blue-500/30 rounded"
-                        >
-                          {tech}
-                        </span>
-                      ))}
-                      {job.techStack.length > 3 && (
-                        <span className="px-2 py-0.5 text-xs text-gray-500">
-                          +{job.techStack.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                    {job.experience && (
-                      <span className="flex items-center gap-1">
-                        <span>💼</span>
-                        <span>{job.experience}</span>
-                      </span>
+                  <p className="text-sm font-medium text-gray-900 mb-1">{job.company}</p>
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">{job.title}</h3>
+                  <p className="text-sm text-gray-700 mb-3">{position}</p>
+                  
+                  <div className="space-y-0.5 text-xs text-gray-600">
+                    {period && (
+                      <p>{period}</p>
                     )}
-                    <span className="flex items-center gap-1">
-                      <span>💰</span>
-                      <span>{job.salary}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span>📍</span>
-                      <span>{job.location}</span>
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      deadline === '마감' || deadline === '오늘 마감'
-                        ? 'bg-red-500/10 text-red-400 border border-red-500/30'
-                        : deadline === '상시채용'
-                        ? 'bg-gray-500/10 text-gray-400 border border-gray-500/30'
-                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                    }`}>
-                      {deadline}
-                    </span>
+                    <p>고용형태: {employmentType}</p>
                   </div>
+                </div>
+
+                {/* 마감 버튼 */}
+                <div className="flex-shrink-0 flex items-start">
+                  <button
+                    className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${
+                      isExpired
+                        ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                    }}
+                  >
+                    마감
+                    <span className="text-[10px]">▼</span>
+                  </button>
                 </div>
               </div>
             </div>

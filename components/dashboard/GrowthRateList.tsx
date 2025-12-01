@@ -8,7 +8,7 @@ interface GrowthRateListProps {
 export default function GrowthRateList({ items }: GrowthRateListProps) {
   if (!items || items.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         데이터가 없습니다.
       </div>
     )
@@ -18,27 +18,28 @@ export default function GrowthRateList({ items }: GrowthRateListProps) {
   const isNegative = (growth: number) => growth < 0
 
   return (
-    <div className="space-y-3">
-      {items.map((item, index) => {
+    <div className="h-[400px] overflow-y-auto pr-2">
+      <div className="space-y-3">
+        {items.map((item, index) => {
         const isGrowth = isPositive(item.growth)
         const isDecline = isNegative(item.growth)
 
         return (
           <div
             key={index}
-            className="flex items-center justify-between p-3 bg-[#0f1e35] rounded-lg border border-[#2a3f5f] hover:border-blue-500/50 transition-colors"
+            className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500/50 transition-colors"
           >
             <div className="flex items-center gap-2">
               {isGrowth && (
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               )}
               {isDecline && (
-                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <div className="w-2 h-2 rounded-full bg-red-500" />
               )}
               {!isGrowth && !isDecline && (
                 <div className="w-2 h-2 rounded-full bg-gray-400" />
               )}
-              <span className="text-gray-200 font-medium">{item.position}</span>
+              <span className="text-gray-700 font-medium">{item.position}</span>
             </div>
             <div className="flex items-center gap-2">
               {isGrowth && (
@@ -54,12 +55,13 @@ export default function GrowthRateList({ items }: GrowthRateListProps) {
                 </>
               )}
               {!isGrowth && !isDecline && (
-                <span className="text-gray-400 font-semibold">0%</span>
+                <span className="text-gray-500 font-semibold">0%</span>
               )}
             </div>
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

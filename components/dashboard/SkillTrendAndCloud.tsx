@@ -213,50 +213,50 @@ export default function SkillTrendAndCloud({
   return (
     <div className="flex gap-4">
       {/* 스택 바 차트 */}
-      <div className="flex-1 bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-4">
-        <h4 className="text-lg font-semibold text-white mb-4">
+      <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">
           {selectedCompany !== '전체' ? `${selectedCompany} 상위 스킬 연도별 트렌드 (최근 5년)` : '상위 스킬 연도별 트렌드 (최근 5년)'}
         </h4>
         {isLoadingTrend ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-gray-400">데이터를 불러오는 중...</div>
+            <div className="text-gray-500">데이터를 불러오는 중...</div>
           </div>
         ) : trendError ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-red-400 text-sm">{trendError}</div>
+            <div className="text-red-500 text-sm">{trendError}</div>
           </div>
         ) : yearlyData.length === 0 ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-gray-400 text-sm">
+            <div className="text-gray-500 text-sm">
               {selectedCompany === '전체' ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
             </div>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={yearlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a3f5f" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
                 dataKey="year" 
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
                 domain={['2021', '2025']}
                 type="category"
               />
               <YAxis 
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af', fontSize: 12 } }}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 12 } }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#1a2d47', 
-                  border: '1px solid #2a3f5f', 
+                  backgroundColor: '#ffffff', 
+                  border: '1px solid #e5e7eb', 
                   borderRadius: '8px', 
-                  color: '#e5e7eb',
+                  color: '#374151',
                   fontSize: '13px'
                 }}
                 formatter={(value: number) => [`${value}회`, '']}
               />
               <Legend 
-                wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#9ca3af' }}
+                wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#6b7280' }}
                 iconType="square"
               />
               {topSkills.map((skill, index) => (
@@ -275,17 +275,17 @@ export default function SkillTrendAndCloud({
       </div>
 
       {/* 스킬 클라우드 */}
-      <div className="w-[600px] bg-[#1a2d47] rounded-lg border border-[#2a3f5f] p-4">
-        <h4 className="text-lg font-semibold text-white mb-4">
+      <div className="w-[600px] bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">
           스킬 클라우드{selectedCloudCompany !== '전체' ? ` - ${selectedCloudCompany}` : ''}
         </h4>
         {isLoadingCloud ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-gray-400">데이터를 불러오는 중...</div>
+            <div className="text-gray-500">데이터를 불러오는 중...</div>
           </div>
         ) : cloudError && skillCloudData.length === 0 ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="text-red-400 text-sm">{cloudError}</div>
+            <div className="text-red-500 text-sm">{cloudError}</div>
           </div>
         ) : (
           <SkillCloud skills={skillCloudData} selectedCompany={selectedCloudCompany} />

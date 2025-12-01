@@ -39,7 +39,7 @@ export default function CompanyJobPostings({ companies }: CompanyJobPostingsProp
 
   if (!displayCompanies || displayCompanies.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         회사 데이터가 없습니다.
       </div>
     )
@@ -55,24 +55,24 @@ export default function CompanyJobPostings({ companies }: CompanyJobPostingsProp
           <button
             key={index}
             onClick={() => handleCompanyClick(companyName)}
-            className="w-full flex items-center justify-between p-3 bg-[#0f1e35] rounded-lg border border-[#2a3f5f] hover:border-blue-500/50 hover:bg-[#1a2d47] transition-all group"
+            className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500/50 hover:bg-gray-50 transition-all group"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 flex items-center justify-center bg-[#1a2d47] rounded-lg border border-[#2a3f5f] group-hover:border-blue-500/50 transition-colors overflow-hidden">
+              <div className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 group-hover:border-blue-500/50 transition-colors overflow-hidden">
                 <CompanyLogo name={companyName} className="w-8 h-8" />
               </div>
               <div className="text-left">
-                <div className="text-gray-200 font-medium group-hover:text-white transition-colors">
+                <div className="text-gray-900 font-medium group-hover:text-blue-600 transition-colors">
                   {companyName}
                 </div>
                 {company.count > 0 && (
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-gray-500">
                     공고 {company.count}개
                   </div>
                 )}
               </div>
             </div>
-            <div className="text-gray-400 group-hover:text-blue-400 transition-colors">
+            <div className="text-gray-500 group-hover:text-blue-500 transition-colors">
               <svg
                 className="w-5 h-5"
                 fill="none"

@@ -111,7 +111,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
 
   if (!skills || skills.length === 0) {
     return (
-      <div className="text-gray-400 text-sm text-center py-8">
+      <div className="text-gray-500 text-sm text-center py-8">
         스킬 데이터가 없습니다.
       </div>
     )
@@ -122,7 +122,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
       {/* 스킬 클라우드 영역 */}
       <div 
         className={`relative w-full flex items-center justify-center transition-all duration-300 ${
-          selectedSkill ? 'bg-[#0f1e35]/50' : ''
+          selectedSkill ? 'bg-gray-100/50' : ''
         }`}
         style={{ 
           height: '500px',
@@ -181,6 +181,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                     x2={lineEndX}
                     y2={lineEndY}
                     stroke="#9ca3af"
+                    opacity="0.3"
                     strokeWidth="2"
                     strokeDasharray="4 4"
                     opacity="0.5"
@@ -240,12 +241,12 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                 isMain ? 'z-30' : 'z-10'
               } ${
                 isMain && !shouldBlur
-                  ? 'bg-blue-500 text-white shadow-2xl hover:shadow-blue-500/50 hover:scale-110 border-2 border-blue-400/30'
+                  ? 'bg-gray-900 text-white shadow-2xl hover:shadow-gray-900/50 hover:scale-110 border-2 border-gray-700/30'
                   : isSelected
-                  ? 'bg-blue-600 text-white shadow-xl hover:scale-110 border-2 border-blue-400 z-30'
+                  ? 'bg-gray-800 text-white shadow-xl hover:scale-110 border-2 border-gray-700 z-30'
                   : shouldBlur
-                  ? 'bg-[#1a2d47] text-gray-400 border-2 border-[#2a3f5f] shadow-lg opacity-20 blur-md pointer-events-none'
-                  : 'bg-[#1a2d47] text-gray-200 border-2 border-[#2a3f5f] hover:bg-[#0f1e35] hover:border-blue-500/50 hover:scale-105 shadow-lg'
+                  ? 'bg-gray-100 text-gray-400 border-2 border-gray-300 shadow-lg opacity-20 blur-md pointer-events-none'
+                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-600 hover:scale-105 shadow-lg'
               }`}
               style={{
                 left: `calc(50% + ${finalPosition.x}px)`,
@@ -300,8 +301,8 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                 }}
                 className={`absolute ${buttonSize} rounded-full flex items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-all duration-300 ${
                   isRelatedSkillInData
-                    ? 'bg-blue-500/20 text-blue-300 border-2 border-blue-400/50 hover:bg-blue-500/30 hover:scale-110 shadow-md'
-                    : 'bg-[#0f1e35] text-gray-400 border-2 border-[#2a3f5f] hover:bg-[#1a2d47] hover:scale-105 shadow-sm'
+                    ? 'bg-gray-900/20 text-gray-700 border-2 border-gray-700/50 hover:bg-gray-900/30 hover:scale-110 shadow-md'
+                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-50 hover:scale-105 shadow-sm'
                 }`}
                 style={{
                   left: `calc(50% + ${selectedPosition.x + relatedX}px)`,
@@ -321,37 +322,37 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
 
       {/* 스킬 상세 정보 */}
       {selectedSkill && (
-        <div className="mt-4 p-4 bg-[#0f1e35] rounded-lg border border-[#2a3f5f]">
+        <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
           <div className="mb-3">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-500 rounded-xl mb-2 shadow-lg">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-900 rounded-xl mb-2 shadow-lg">
               <span className="text-lg font-bold text-white uppercase">
                 {selectedSkillData.name.charAt(0)}
               </span>
             </div>
-            <h3 className="text-base font-bold text-white mb-1 capitalize">
+            <h3 className="text-base font-bold text-gray-900 mb-1 capitalize">
               {selectedSkillData.name}
             </h3>
-            <p className="text-xs text-gray-400">스킬 상세 정보</p>
+            <p className="text-xs text-gray-500">스킬 상세 정보</p>
           </div>
           
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#0f1e35] p-3 rounded-lg border border-[#2a3f5f]">
-              <p className="text-xs font-medium text-gray-400 mb-1 uppercase">총 공고 수</p>
-              <p className="text-2xl font-bold text-white">{selectedSkillData.count}</p>
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <p className="text-xs font-medium text-gray-600 mb-1 uppercase">총 공고 수</p>
+              <p className="text-2xl font-bold text-gray-900">{selectedSkillData.count}</p>
               <p className="text-xs text-gray-500 mt-0.5">건</p>
             </div>
             
             {selectedSkillData.percentage !== undefined && (
-              <div className="bg-[#0f1e35] p-3 rounded-lg border border-[#2a3f5f]">
-                <p className="text-xs font-medium text-gray-400 mb-1 uppercase">비율</p>
-                <p className="text-2xl font-bold text-white">{selectedSkillData.percentage}</p>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <p className="text-xs font-medium text-gray-600 mb-1 uppercase">비율</p>
+                <p className="text-2xl font-bold text-gray-900">{selectedSkillData.percentage}</p>
                 <p className="text-xs text-gray-500 mt-0.5">%</p>
               </div>
             )}
 
             {selectedSkillData.change !== undefined && (
-              <div className="bg-green-500/10 p-3 rounded-lg border border-green-500/30">
-                <p className="text-xs font-medium text-gray-400 mb-1">전월 대비 변화</p>
+              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                <p className="text-xs font-medium text-gray-600 mb-1">전월 대비 변화</p>
                 <div className="flex items-center gap-2">
                   <p className="text-xl font-bold text-green-400">
                     +{selectedSkillData.change}%
@@ -366,13 +367,13 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
 
           {/* 관련 스킬 */}
           {selectedSkillData.relatedSkills && selectedSkillData.relatedSkills.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#2a3f5f]">
-              <p className="text-xs font-medium text-gray-400 mb-2">관련 스킬</p>
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs font-medium text-gray-600 mb-2">관련 스킬</p>
               <div className="flex flex-wrap gap-2">
                 {selectedSkillData.relatedSkills.map((relatedSkill) => (
                   <span
                     key={relatedSkill}
-                    className="px-2 py-1 text-xs bg-[#0f1e35] text-gray-300 border border-[#2a3f5f] rounded"
+                    className="px-2 py-1 text-xs bg-gray-50 text-gray-700 border border-gray-200 rounded"
                   >
                     {relatedSkill}
                   </span>
@@ -382,9 +383,9 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
           )}
 
           {/* 스킬 인사이트 */}
-          <div className="mt-4 pt-4 border-t border-[#2a3f5f]">
-            <h4 className="text-sm font-semibold text-white mb-2">스킬 인사이트</h4>
-            <p className="text-sm text-gray-300 leading-relaxed">
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">스킬 인사이트</h4>
+            <p className="text-sm text-gray-700 leading-relaxed">
               {generateSkillInsight(selectedSkillData, selectedCompany)}
             </p>
           </div>

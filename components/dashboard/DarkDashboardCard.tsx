@@ -11,10 +11,12 @@ export default function DarkDashboardCard({
   children, 
   className = '' 
 }: DarkDashboardCardProps) {
+  const hasFixedHeight = className.includes('h-[') || className.includes('h-')
+  
   return (
-    <div className={`bg-[#1a2d47] rounded-lg border border-[#2a3f5f] shadow-lg p-6 ${className}`}>
-      <h2 className="text-lg font-semibold text-white mb-4">{title}</h2>
-      <div className="text-gray-300">
+    <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 ${className} ${hasFixedHeight ? 'overflow-hidden flex flex-col' : ''}`}>
+      <h2 className={`text-lg font-semibold text-gray-900 ${hasFixedHeight ? 'mb-3 flex-shrink-0' : 'mb-4'}`}>{title}</h2>
+      <div className={`text-gray-700 ${hasFixedHeight ? 'flex-1 min-h-0 overflow-hidden' : ''}`}>
         {children}
       </div>
     </div>

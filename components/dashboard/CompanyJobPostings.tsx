@@ -67,7 +67,7 @@ export default function CompanyJobPostings({ companies }: CompanyJobPostingsProp
                 </div>
                 {company.count > 0 && (
                   <div className="text-xs text-gray-500">
-                    공고 {company.count}개
+                    현재 채용 중인 공고가 {company.count}개 있습니다!
                   </div>
                 )}
               </div>

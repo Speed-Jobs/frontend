@@ -155,19 +155,15 @@ export default function HotJobsList({ jobs }: HotJobsListProps) {
 
                 {/* 마감 버튼 */}
                 <div className="flex-shrink-0 flex items-start">
-                  <button
-                    className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${
+                  <div
+                    className={`px-3 py-1.5 rounded text-xs font-medium flex items-center ${
                       isExpired
-                        ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200'
                     }`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                    }}
                   >
                     마감
-                    <span className="text-[10px]">▼</span>
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>

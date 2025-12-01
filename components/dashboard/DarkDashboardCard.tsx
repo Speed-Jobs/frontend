@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 
 interface DarkDashboardCardProps {
-  title: string
+  title: string | ReactNode
   children: ReactNode
   className?: string
 }

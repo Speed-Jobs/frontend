@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import NotificationToast from '@/components/NotificationToast'
@@ -12,17 +13,14 @@ import CompanyJobPostings from '@/components/dashboard/CompanyJobPostings'
 import CompanyNetworkBubble from '@/components/dashboard/CompanyNetworkBubble'
 import RecruitmentCalendar from '@/components/dashboard/RecruitmentCalendar'
 import CompanyRecruitmentTable from '@/components/dashboard/CompanyRecruitmentTable'
-import ShareBarChart from '@/components/dashboard/ShareBarChart'
-import GrowthRateList from '@/components/dashboard/GrowthRateList'
 import HotJobsList from '@/components/dashboard/HotJobsList'
-import WeeklyTrendAnalysis from '@/components/dashboard/WeeklyTrendAnalysis'
 import JobPostingsTrendChart from '@/components/dashboard/JobPostingsTrendChart'
 import CompanyRecruitmentChart from '@/components/dashboard/CompanyRecruitmentChart'
 import CombinedTrendChart from '@/components/dashboard/CombinedTrendChart'
 import CompanyInsightView from '@/components/dashboard/CompanyInsightView'
 import JobRoleStatisticsChart from '@/components/dashboard/JobRoleStatisticsChart'
 import SkillTrendAndCloud from '@/components/dashboard/SkillTrendAndCloud'
-import JobDifficultyIndex from '@/components/dashboard/JobDifficultyIndex'
+import JobDifficultyGauges from '@/components/dashboard/JobDifficultyGauges'
 
 export default function Dashboard() {
   const { newJobs, hasNewJobs, clearNewJobs } = useJobNotifications({
@@ -629,32 +627,6 @@ export default function Dashboard() {
       }))
   }, [])
 
-  // 주간 트렌드 분석
-  const weeklyTrendData = useMemo(() => {
-    return {
-      trends: [
-        {
-          icon: 'target' as const,
-          title: '토스의 Data/AI 대규모 채용',
-          description: '→ 금융 AI 시장 경쟁 가열',
-          color: 'red' as const,
-        },
-        {
-          icon: 'chart' as const,
-          title: "'Kubernetes' 요구 23% 증가",
-          description: '클라우드 네이티브 전환 가속',
-          color: 'green' as const,
-        },
-        {
-          icon: 'warning' as const,
-          title: "▲ 경쟁사 8곳이 'Backend' 동시 채용중",
-          description: '·채용 경쟁 심화 예상',
-          color: 'yellow' as const,
-        },
-      ],
-      suggestion: '연봉 상향 또는 복지 차별화 필요',
-    }
-  }, [])
 
   // timeframe 동기화: jobPostingsTrendTimeframe이 변경되면 companyRecruitmentTimeframe도 동기화
   useEffect(() => {
@@ -1324,31 +1296,102 @@ export default function Dashboard() {
           </div>
 
           {/* 오른쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3 space-y-6">
-            <DarkDashboardCard title="회사별 채용 점유율">
-              <ShareBarChart data={companyShareData} />
-            </DarkDashboardCard>
-
-            <DarkDashboardCard title="포지션별 성장률">
-              <GrowthRateList items={positionGrowthData} />
-            </DarkDashboardCard>
-
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">🔥 이번주 HOT 공고 Top 5</h2>
+                <Link 
+                  href="/jobs"
+                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
+                >
+                  전체 보기
+                  <span className="text-xs">→</span>
+                </Link>
+              </div>
+              <div className="text-gray-700">
+                <HotJobsList jobs={hotJobsData} />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 하단 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <DarkDashboardCard title="🔥 이번주 HOT 공고 Top 5">
-            <HotJobsList jobs={hotJobsData} />
+          {/* 직군별 통계 */}
+          <DarkDashboardCard title="직군별 통계">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setJobRoleStatisticsViewMode('Weekly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    jobRoleStatisticsViewMode === 'Weekly'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  주간별
+                </button>
+                <button
+                  onClick={() => setJobRoleStatisticsViewMode('Monthly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    jobRoleStatisticsViewMode === 'Monthly'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  월간별
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedExpertCategory('Tech')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    selectedExpertCategory === 'Tech'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  Tech
+                </button>
+                <button
+                  onClick={() => setSelectedExpertCategory('Biz')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    selectedExpertCategory === 'Biz'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  Biz
+                </button>
+                <button
+                  onClick={() => setSelectedExpertCategory('BizSupporting')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    selectedExpertCategory === 'BizSupporting'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  Biz Supporting
+                </button>
+              </div>
+            </div>
+            <JobRoleStatisticsChart
+              data={jobRoleStatisticsData}
+              selectedRole={selectedJobRole}
+              onRoleClick={setSelectedJobRole}
+              viewMode={jobRoleStatisticsViewMode}
+              isLoading={false}
+              error={null}
+            />
           </DarkDashboardCard>
 
-          <DarkDashboardCard title="📊 주간 트렌드 분석">
-            <WeeklyTrendAnalysis
-              trends={weeklyTrendData.trends}
-              suggestion={weeklyTrendData.suggestion}
+          <DarkDashboardCard title="직무 인재 수급 난이도 지수">
+            <JobDifficultyGauges 
+              data={jobDifficultyData}
             />
           </DarkDashboardCard>
         </div>
+
 
         {/* API 연동 차트 섹션 */}
         <div className="space-y-6">
@@ -1476,10 +1519,6 @@ export default function Dashboard() {
             )
           })()}
 
-          {/* 직무 인재 수급 난이도 지수 */}
-          <DarkDashboardCard title="직무 인재 수급 난이도 지수 (경력직)">
-            <JobDifficultyIndex data={jobDifficultyData} />
-          </DarkDashboardCard>
 
           {/* 상위 스킬 연도별 트렌드 및 스킬 클라우드 */}
           <DarkDashboardCard title="상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)">
@@ -1528,118 +1567,6 @@ export default function Dashboard() {
               trendError={skillTrendError}
               cloudError={skillsError}
             />
-          </DarkDashboardCard>
-
-          {/* 직군별 통계 */}
-          <DarkDashboardCard title="직군별 통계">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setJobRoleStatisticsViewMode('Weekly')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    jobRoleStatisticsViewMode === 'Weekly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
-                >
-                  주간
-                </button>
-                <button
-                  onClick={() => setJobRoleStatisticsViewMode('Monthly')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    jobRoleStatisticsViewMode === 'Monthly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
-                >
-                  월간
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => {
-                  setSelectedExpertCategory('Tech')
-                  setSelectedJobRole(null)
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  selectedExpertCategory === 'Tech'
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Tech 전문가
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedExpertCategory('Biz')
-                  setSelectedJobRole(null)
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  selectedExpertCategory === 'Biz'
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Biz 전문가
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedExpertCategory('BizSupporting')
-                  setSelectedJobRole(null)
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  selectedExpertCategory === 'BizSupporting'
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Biz.Supporting 전문가
-              </button>
-            </div>
-            <JobRoleStatisticsChart
-              data={jobRoleStatisticsData}
-              selectedRole={selectedJobRole}
-              onRoleClick={setSelectedJobRole}
-              viewMode={jobRoleStatisticsViewMode}
-            />
-            {selectedJobRole && (
-              <div className="mt-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {selectedJobRole} 상세 정보
-                </h3>
-                <div className="space-y-3">
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Industry</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {jobRoleStatisticsData.find(r => r.name === selectedJobRole)?.industries.map((industry, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
-                          <span className="text-sm text-gray-700">{industry}</span>
-                          <span className="text-xs text-gray-500 bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                            {Math.floor(Math.random() * 50) + 10}건
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">총 공고 수</span>
-                      <span className="text-lg font-bold text-gray-900">
-                        {jobRoleStatisticsData.find(r => r.name === selectedJobRole)?.value || 0}건
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-sm text-gray-600">전체 대비 비율</span>
-                      <span className="text-lg font-bold text-gray-900">
-                        {((jobRoleStatisticsData.find(r => r.name === selectedJobRole)?.value || 0) / 
-                          jobRoleStatisticsData.reduce((sum, r) => sum + r.value, 0) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </DarkDashboardCard>
 
         </div>

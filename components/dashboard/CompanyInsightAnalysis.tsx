@@ -20,6 +20,8 @@ interface InsightData {
   }>
   companyName: string
   timeframe: 'Daily' | 'Weekly' | 'Monthly'
+  // 새로운 API 형식의 인사이트 데이터
+  insightData?: any
 }
 
 export default function CompanyInsightAnalysis({
@@ -28,6 +30,7 @@ export default function CompanyInsightAnalysis({
   skillTrendData,
   companyName,
   timeframe,
+  insightData,
 }: InsightData) {
   // 1. 채용 활동 트렌드 분석
   const recruitmentTrend = useMemo(() => {
@@ -157,8 +160,174 @@ export default function CompanyInsightAnalysis({
     }
   }, [recruitmentData])
 
+  // 새로운 API 형식의 인사이트 데이터 활용
+  const apiInsights = useMemo(() => {
+    if (!insightData) return null
+    
+    return {
+      summary: insightData.summary,
+      keyFindings: insightData.key_findings || [],
+      causeAnalysis: insightData.cause_analysis,
+      strategicInsights: insightData.strategic_insights || [],
+      competitorComparison: insightData.competitor_comparison || [],
+      marketRank: insightData.market_rank,
+      totalPostings: insightData.total_postings,
+      averageDailyPostings: insightData.average_daily_postings,
+    }
+  }, [insightData])
+
   return (
     <div className="space-y-6">
+      {/* 새로운 API 형식의 요약 및 주요 발견사항 */}
+      {apiInsights && (
+        <>
+          {apiInsights.summary && (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-xl">📊</span>
+                요약
+              </h3>
+              <p className="text-gray-700 text-sm leading-relaxed">{apiInsights.summary}</p>
+            </div>
+          )}
+          
+          {apiInsights.keyFindings && apiInsights.keyFindings.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                주요 발견사항
+              </h3>
+              <ul className="space-y-2">
+                {apiInsights.keyFindings.map((finding: string, index: number) => (
+                  <li key={index} className="text-gray-700 text-sm leading-relaxed flex items-start gap-2">
+                    <span className="text-blue-400 mt-1">•</span>
+                    <span>{finding}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {apiInsights.causeAnalysis && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                원인 분석
+              </h3>
+              {apiInsights.causeAnalysis.possible_causes && apiInsights.causeAnalysis.possible_causes.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">가능한 원인:</p>
+                  <ul className="space-y-1">
+                    {apiInsights.causeAnalysis.possible_causes.map((cause: string, index: number) => (
+                      <li key={index} className="text-gray-700 text-sm leading-relaxed flex items-start gap-2">
+                        <span className="text-yellow-400 mt-1">•</span>
+                        <span>{cause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {apiInsights.causeAnalysis.news_evidence && apiInsights.causeAnalysis.news_evidence.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">뉴스 근거:</p>
+                  <div className="space-y-2">
+                    {apiInsights.causeAnalysis.news_evidence.map((news: any, index: number) => (
+                      <a
+                        key={index}
+                        href={news.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-gray-900 mb-1">{news.title}</p>
+                        {news.description && (
+                          <p className="text-xs text-gray-600 line-clamp-2">{news.description}</p>
+                        )}
+                        {news.pub_date && (
+                          <p className="text-xs text-gray-500 mt-1">{new Date(news.pub_date).toLocaleDateString('ko-KR')}</p>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {apiInsights.strategicInsights && apiInsights.strategicInsights.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                전략적 인사이트
+              </h3>
+              <div className="space-y-4">
+                {apiInsights.strategicInsights.map((insight: any, index: number) => (
+                  <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-gray-700 text-sm leading-relaxed mb-2">{insight.description}</p>
+                    {insight.implications && insight.implications.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-semibold text-gray-600 mb-1">시사점:</p>
+                        <ul className="space-y-1">
+                          {insight.implications.map((implication: string, impIndex: number) => (
+                            <li key={impIndex} className="text-xs text-gray-600 flex items-start gap-2">
+                              <span className="text-green-400 mt-1">•</span>
+                              <span>{implication}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {apiInsights.competitorComparison && apiInsights.competitorComparison.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                경쟁사 비교
+              </h3>
+              {apiInsights.marketRank && (
+                <p className="text-gray-700 text-sm mb-4">
+                  <span className="font-semibold text-gray-900">{companyName}</span>은(는) 시장에서 <span className="text-purple-400 font-medium">{apiInsights.marketRank}위</span>를 차지하고 있습니다.
+                </p>
+              )}
+              <div className="space-y-2">
+                {apiInsights.competitorComparison.slice(0, 5).map((comp: any, index: number) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border ${
+                      comp.company_name === companyName
+                        ? 'bg-purple-50 border-purple-300'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${
+                          comp.company_name === companyName ? 'text-purple-700' : 'text-gray-700'
+                        }`}>
+                          {comp.rank}위. {comp.company_name}
+                        </span>
+                        {comp.company_name === companyName && (
+                          <span className="text-xs px-2 py-0.5 bg-purple-200 text-purple-700 rounded">현재 회사</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-gray-600">{comp.total_count}건</span>
+                        <span className="text-gray-500">{comp.market_share.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      
       {/* 1. 채용 활동 트렌드 요약 */}
       {recruitmentTrend && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">

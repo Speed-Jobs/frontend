@@ -18,6 +18,8 @@ interface CompanyInsightViewProps {
     period: string
     count: number
   }>
+  // 새로운 API 형식의 인사이트 데이터
+  insightData?: any
   isLoading?: boolean
   error?: string | null
 }
@@ -29,6 +31,7 @@ export default function CompanyInsightView({
   timeframe,
   recruitmentData,
   totalTrendData,
+  insightData,
   isLoading,
   error,
 }: CompanyInsightViewProps) {

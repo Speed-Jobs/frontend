@@ -685,7 +685,9 @@ export default function Dashboard() {
         })
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          const errorText = await response.text()
+          console.error(`채용 공고 수 추이 API 에러 (${response.status}):`, errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText.substring(0, 200)}`)
         }
         
         const result = await response.json()
@@ -775,7 +777,8 @@ export default function Dashboard() {
         
         if (!response.ok) {
           const errorText = await response.text()
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+          console.error(`회사별 채용 활동 API 에러 (${response.status}):`, errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText.substring(0, 200)}`)
         }
         
         const result = await response.json()
@@ -809,9 +812,13 @@ export default function Dashboard() {
   // 스킬 트렌드 API 호출 (회사 선택 시, 최근 5년 데이터)
   useEffect(() => {
     if (!selectedSkillCompany || selectedSkillCompany === '') {
+      console.log('selectedSkillCompany가 비어있어서 API 호출을 건너뜁니다:', selectedSkillCompany)
       setSkillTrendData([])
       return
     }
+
+    console.log('=== 스킬 트렌드 API 호출 시작 ===')
+    console.log('선택된 회사:', selectedSkillCompany)
 
     const fetchSkillTrend = async () => {
       try {
@@ -940,6 +947,8 @@ export default function Dashboard() {
           }
         }
 
+        console.log('=== 스킬 트렌드 데이터 설정 완료 ===')
+        console.log('전체 트렌드 데이터 개수:', allTrends.length)
         setSkillTrendData(allTrends)
       } catch (err) {
         console.error('=== 스킬 트렌드 API 호출 에러 ===')
@@ -979,36 +988,173 @@ export default function Dashboard() {
 
   // 스킬 트렌드 회사 기본값 설정 (첫 번째 회사)
   useEffect(() => {
-    if (!selectedSkillCompany && recruitmentCompanies.length > 0) {
-      setSelectedSkillCompany(recruitmentCompanies[0].name)
+    if (recruitmentCompanies.length > 0) {
+      if (!selectedSkillCompany || selectedSkillCompany === '') {
+        console.log('스킬 트렌드 회사 기본값 설정:', recruitmentCompanies[0].name)
+        setSelectedSkillCompany(recruitmentCompanies[0].name)
+      }
     }
-  }, [recruitmentCompanies, selectedSkillCompany])
+  }, [recruitmentCompanies])
 
-  // 직군별 통계 데이터
+  // 직군별 통계 데이터 (주간/월간에 따라 실제 데이터 계산)
   const jobRoleStatisticsData = useMemo(() => {
-    const jobRoleData = {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    
+    let currentPeriodStart: Date
+    let currentPeriodEnd: Date
+    let previousPeriodStart: Date
+    let previousPeriodEnd: Date
+    
+    if (jobRoleStatisticsViewMode === 'Weekly') {
+      // 이번주: 오늘부터 7일 전까지
+      currentPeriodEnd = new Date(now)
+      currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      // 저번주: 7일 전부터 14일 전까지
+      previousPeriodEnd = new Date(currentPeriodStart)
+      previousPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+    } else {
+      // 이번달: 이번 달 1일부터 오늘까지
+      currentPeriodEnd = new Date(now)
+      currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      // 지난달: 지난 달 1일부터 마지막 날까지
+      previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+      previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    }
+    
+    // 현재 기간 공고 필터링
+    const currentPeriodJobs = jobPostingsData.filter(job => {
+      try {
+        const postedDate = new Date(job.posted_date)
+        postedDate.setHours(0, 0, 0, 0)
+        return postedDate >= currentPeriodStart && postedDate <= currentPeriodEnd
+      } catch {
+        return false
+      }
+    })
+    
+    // 이전 기간 공고 필터링
+    const previousPeriodJobs = jobPostingsData.filter(job => {
+      try {
+        const postedDate = new Date(job.posted_date)
+        postedDate.setHours(0, 0, 0, 0)
+        return postedDate >= previousPeriodStart && postedDate <= previousPeriodEnd
+      } catch {
+        return false
+      }
+    })
+    
+    // 최근 공고가 없으면 전체 데이터 사용 (최대 100개)
+    const jobsToAnalyze = currentPeriodJobs.length > 0 ? currentPeriodJobs : jobPostingsData.slice(0, 100)
+    const previousJobsToAnalyze = previousPeriodJobs.length > 0 ? previousPeriodJobs : []
+    
+    // 직군별 통계에 사용되는 모든 직군 목록 (SKAX 직무기술서 기준)
+    const allRoles = {
       Tech: [
-        { name: 'Software Development', value: 35, industries: ['Front-end Development', 'Back-end Development', 'Mobile Development'] },
-        { name: 'Factory AX Engineering', value: 18, industries: ['Simulation', '기구설계', '전장/제어'] },
-        { name: 'Solution Development', value: 22, industries: ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'] },
-        { name: 'Cloud/Infra Engineering', value: 15, industries: ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'] },
-        { name: 'Architect', value: 12, industries: ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'] },
-        { name: 'Project Management', value: 10, industries: ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'] },
-        { name: 'Quality Management', value: 8, industries: ['PMO', 'Quality Engineering', 'Offshoring Service Professional'] },
-        { name: 'AI', value: 20, industries: ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'] },
-        { name: '정보보호', value: 6, industries: ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'] },
+        'Software Development',
+        'Factory AX Engineering',
+        'Solution Development',
+        'Cloud/Infra Engineering',
+        'Architect',
+        'Project Management',
+        'Quality Management',
+        'AI',
+        '정보보호',
       ],
       Biz: [
-        { name: 'Sales', value: 40, industries: ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'] },
-        { name: 'Domain Expert', value: 25, industries: ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'] },
-        { name: 'Consulting', value: 35, industries: ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'] },
+        'Sales',
+        'Domain Expert',
+        'Consulting',
       ],
       BizSupporting: [
-        { name: 'Biz. Supporting', value: 100, industries: ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'] },
+        'Biz. Supporting',
       ],
     }
-    return jobRoleData[selectedExpertCategory] || []
-  }, [selectedExpertCategory])
+    
+    const rolesForCategory = allRoles[selectedExpertCategory] || []
+    
+    // 각 직군에 대한 키워드 매핑
+    const roleKeywords: Record<string, string[]> = {
+      'Software Development': ['software', 'development', '개발', '소프트웨어', '프로그래밍', 'programming', 'frontend', 'backend', 'fullstack', '프론트엔드', '백엔드', 'full-stack', 'developer', '개발자', 'react', 'vue', 'angular', 'node', 'java', 'python', 'javascript', 'typescript'],
+      'Factory AX Engineering': ['factory', 'ax', 'engineering', '공장', '제조', '시뮬레이션', 'simulation', '기구설계', '전장', '제어', '자동화', 'automation', 'plc', 'scada'],
+      'Solution Development': ['solution', '솔루션', 'erp', 'fcm', 'scm', 'hcm', 'biz', '비즈니스', 'sap', 'oracle'],
+      'Cloud/Infra Engineering': ['cloud', 'infra', 'infrastructure', '인프라', '클라우드', 'aws', 'azure', 'gcp', 'kubernetes', 'docker', 'devops', '시스템', '네트워크', 'database', '데이터베이스', 'postgresql', 'mysql', 'mongodb', 'redis'],
+      'Architect': ['architect', '아키텍트', '설계', 'architecture', 'system design', '시스템 설계', 'solution architect'],
+      'Project Management': ['project', 'management', 'pm', '프로젝트', '관리', '프로젝트 매니저', '프로젝트 관리', 'pmo', 'program manager'],
+      'Quality Management': ['quality', 'qa', 'qc', '품질', '테스트', 'test', 'testing', 'qa engineer', 'quality assurance'],
+      'AI': ['ai', 'artificial intelligence', '인공지능', 'machine learning', 'ml', '딥러닝', 'deep learning', '데이터', 'data', 'generative ai', '생성형 ai', 'tensorflow', 'pytorch', 'nlp', 'computer vision'],
+      '정보보호': ['정보보호', '보안', 'security', 'cybersecurity', 'cyber', '보안 진단', 'compliance', 'governance', 'security engineer'],
+      'Sales': ['sales', '영업', '세일즈', '영업사원', 'account', '고객', 'account manager', 'business development'],
+      'Domain Expert': ['domain', 'expert', '도메인', '전문가', '금융', '제조', '공공', 'b2c', 'industry expert'],
+      'Consulting': ['consulting', '컨설팅', '컨설턴트', 'esg', 'she', 'crm', 'scm', 'consultant'],
+      'Biz. Supporting': ['strategy', 'planning', '전략', '기획', 'hr', '인사', '재무', 'financial', 'management', '경영', 'human resources'],
+    }
+    
+    // Industries 매핑
+    const roleIndustries: Record<string, string[]> = {
+      'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
+      'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
+      'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
+      'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
+      'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
+      'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+      'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
+      'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
+      '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
+      'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
+      'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
+      'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
+      'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
+    }
+    
+    const roleCounts: Record<string, { current: number; previous: number }> = {}
+    
+    // 모든 직군 초기화
+    rolesForCategory.forEach(role => {
+      roleCounts[role] = { current: 0, previous: 0 }
+    })
+    
+    // 현재 기간 공고 카운트
+    jobsToAnalyze.forEach(job => {
+      const title = (job.title || '').toLowerCase()
+      const description = (job.description || '').toLowerCase()
+      const techStack = (job.meta_data?.tech_stack || []).join(' ').toLowerCase()
+      const jobCategory = (job.meta_data?.job_category || '').toLowerCase()
+      const text = `${title} ${description} ${techStack} ${jobCategory}`
+      
+      Object.entries(roleKeywords).forEach(([role, keywords]) => {
+        if (rolesForCategory.includes(role) && keywords.some(kw => text.includes(kw.toLowerCase()))) {
+          roleCounts[role].current++
+        }
+      })
+    })
+    
+    // 이전 기간 공고 카운트
+    previousJobsToAnalyze.forEach(job => {
+      const title = (job.title || '').toLowerCase()
+      const description = (job.description || '').toLowerCase()
+      const techStack = (job.meta_data?.tech_stack || []).join(' ').toLowerCase()
+      const jobCategory = (job.meta_data?.job_category || '').toLowerCase()
+      const text = `${title} ${description} ${techStack} ${jobCategory}`
+      
+      Object.entries(roleKeywords).forEach(([role, keywords]) => {
+        if (rolesForCategory.includes(role) && keywords.some(kw => text.includes(kw.toLowerCase()))) {
+          roleCounts[role].previous++
+        }
+      })
+    })
+    
+    // 데이터 변환 (모든 직군 포함, 0인 값도 포함)
+    return rolesForCategory.map(role => {
+      const counts = roleCounts[role] || { current: 0, previous: 0 }
+      return {
+        name: role,
+        value: counts.current,
+        previousValue: counts.previous,
+        industries: roleIndustries[role] || [],
+      }
+    })
+  }, [selectedExpertCategory, jobRoleStatisticsViewMode])
 
   // 스킬별 통계 API 상태
   const [skillsApiData, setSkillsApiData] = useState<Array<{
@@ -1115,19 +1261,27 @@ export default function Dashboard() {
     return skillsApiData.length > 0 ? skillsApiData : defaultSkillsData
   }, [skillsApiData])
 
-  // 현재 시간 표시
-  const currentTime = useMemo(() => {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const date = String(now.getDate()).padStart(2, '0')
-    const hours = String(now.getHours()).padStart(2, '0')
-    const minutes = String(now.getMinutes()).padStart(2, '0')
-    const seconds = String(now.getSeconds()).padStart(2, '0')
-    const ampm = parseInt(hours) < 12 ? '오전' : '오후'
-    const displayHours = parseInt(hours) % 12 || 12
+  // 현재 시간 표시 (클라이언트에서만 업데이트)
+  const [currentTime, setCurrentTime] = useState('')
+  
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const date = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const ampm = parseInt(hours) < 12 ? '오전' : '오후'
+      const displayHours = parseInt(hours) % 12 || 12
+      
+      setCurrentTime(`${year}. ${month}. ${date}. ${ampm} ${displayHours}:${minutes}:${seconds}`)
+    }
     
-    return `${year}. ${month}. ${date}. ${ampm} ${displayHours}:${minutes}:${seconds}`
+    updateTime()
+    const interval = setInterval(updateTime, 1000)
+    return () => clearInterval(interval)
   }, [])
 
   return (
@@ -1141,7 +1295,7 @@ export default function Dashboard() {
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <p className="text-gray-600">{currentTime} | 실시간 모니터링</p>
+            <p className="text-gray-600">{currentTime || '로딩 중...'} | 실시간 모니터링</p>
           </div>
         </div>
 
@@ -1334,12 +1488,19 @@ export default function Dashboard() {
                 <span className="text-sm text-gray-600">스킬 트렌드 회사:</span>
                 <select
                   value={selectedSkillCompany}
-                  onChange={(e) => setSelectedSkillCompany(e.target.value)}
+                  onChange={(e) => {
+                    console.log('회사 선택 변경:', e.target.value)
+                    setSelectedSkillCompany(e.target.value)
+                  }}
                   className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {recruitmentCompanies.map((company) => (
-                    <option key={company.key} value={company.name}>{company.name}</option>
-                  ))}
+                  {recruitmentCompanies.length === 0 ? (
+                    <option value="">회사 로딩 중...</option>
+                  ) : (
+                    recruitmentCompanies.map((company) => (
+                      <option key={company.key} value={company.name}>{company.name}</option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="flex items-center gap-2">
@@ -1440,6 +1601,7 @@ export default function Dashboard() {
               data={jobRoleStatisticsData}
               selectedRole={selectedJobRole}
               onRoleClick={setSelectedJobRole}
+              viewMode={jobRoleStatisticsViewMode}
             />
             {selectedJobRole && (
               <div className="mt-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">

@@ -2,6 +2,119 @@
 
 import { useState, useMemo } from 'react'
 
+// 반원형 게이지 차트 컴포넌트 (속도계 형태)
+function GaugeChart({ value }: { value: number }) {
+  const size = 200
+  const strokeWidth = 20
+  const radius = (size - strokeWidth) / 2
+  const centerX = size / 2
+  const centerY = size / 2
+  
+  // 반원형 호 (180도)
+  const startAngle = -180 // 왼쪽 끝
+  const endAngle = 0 // 오른쪽 끝
+  const percentage = Math.min(Math.max(value, 0), 100)
+  
+  // 바늘 각도 계산 (0% = -180도, 100% = 0도)
+  const needleAngle = startAngle + (percentage / 100) * (endAngle - startAngle)
+  
+  // 호 경로 생성
+  const createArcPath = (start: number, end: number, radius: number) => {
+    const startRad = (start * Math.PI) / 180
+    const endRad = (end * Math.PI) / 180
+    const x1 = centerX + radius * Math.cos(startRad)
+    const y1 = centerY + radius * Math.sin(startRad)
+    const x2 = centerX + radius * Math.cos(endRad)
+    const y2 = centerY + radius * Math.sin(endRad)
+    const largeArcFlag = end - start > 180 ? 1 : 0
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`
+  }
+  
+  // 그라데이션 색상 (빨강 -> 주황 -> 노랑 -> 연두 -> 초록)
+  const gradientId = `gauge-gradient-${value}`
+  
+  // 바늘 끝점 계산
+  const needleLength = radius - 10
+  const needleEndX = centerX + needleLength * Math.cos((needleAngle * Math.PI) / 180)
+  const needleEndY = centerY + needleLength * Math.sin((needleAngle * Math.PI) / 180)
+  
+  return (
+    <div className="flex items-center justify-center py-2">
+      <div className="relative" style={{ width: size, height: size / 2 + 20 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#dc2626" /> {/* 빨강 */}
+              <stop offset="25%" stopColor="#f97316" /> {/* 주황 */}
+              <stop offset="50%" stopColor="#eab308" /> {/* 노랑 */}
+              <stop offset="75%" stopColor="#84cc16" /> {/* 연두 */}
+              <stop offset="100%" stopColor="#22c55e" /> {/* 초록 */}
+            </linearGradient>
+          </defs>
+          
+          {/* 배경 호 (회색) */}
+          <path
+            d={createArcPath(startAngle, endAngle, radius)}
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+          
+          {/* 값에 따른 색상 호 */}
+          <path
+            d={createArcPath(startAngle, needleAngle, radius)}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            className="transition-all duration-500"
+          />
+          
+          {/* 바늘 */}
+          <line
+            x1={centerX}
+            y1={centerY}
+            x2={needleEndX}
+            y2={needleEndY}
+            stroke="#374151"
+            strokeWidth="3"
+            strokeLinecap="round"
+            className="transition-all duration-500"
+          />
+          
+          {/* 바늘 중심점 */}
+          <circle
+            cx={centerX}
+            cy={centerY}
+            r="8"
+            fill="#374151"
+          />
+        </svg>
+        
+        {/* 값 표시 (바늘 위) */}
+        <div 
+          className="absolute flex flex-col items-center justify-center"
+          style={{
+            left: `${needleEndX - 25}px`,
+            top: `${needleEndY - 30}px`,
+            width: '50px',
+          }}
+        >
+          <div className="bg-yellow-400 rounded-full px-2 py-1 shadow-md">
+            <div className="text-sm font-bold text-gray-900">{value}</div>
+          </div>
+        </div>
+        
+        {/* 중앙 하단 레이블 */}
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-center">
+          <div className="text-xs text-gray-500">난이도 지수</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const ITEMS_PER_PAGE = 3
 
 interface DifficultyData {
@@ -177,9 +290,27 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
               selectedViewMode === 'position' ? 'cursor-pointer' : ''
             } ${selectedPosition === item.name ? 'border-gray-900 bg-gray-50' : ''}`}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-start gap-6">
+              {/* 게이지 차트 */}
+              <div className="flex-shrink-0">
+                <GaugeChart value={item.difficulty} />
+                <div className="text-center mt-2">
+                  <div className={`text-xs font-semibold ${getDifficultyTextColor(item.difficulty)}`}>
+                    {getDifficultyLabel(item.difficulty)}
+                  </div>
+                  {item.yearOverYearChange !== undefined && (
+                    <div className={`text-xs mt-1 ${
+                      item.yearOverYearChange > 0 ? 'text-red-400' : 'text-green-400'
+                    }`}>
+                      작년 대비 {item.yearOverYearChange > 0 ? '+' : ''}{item.yearOverYearChange.toFixed(1)}p
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* 정보 영역 */}
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                   <h4 className="text-gray-900 font-semibold">{item.name}</h4>
                   {item.category && (
                     <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
@@ -187,7 +318,7 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-xs text-gray-600">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 mb-3">
                   <span>유사 공고: {item.similarPostings}개</span>
                   <span>경쟁사 비중: {item.competitorRatio.toFixed(1)}%</span>
                   <span className={item.recentGrowthRate > 0 ? 'text-red-400' : 'text-green-400'}>
@@ -198,27 +329,6 @@ export default function JobDifficultyIndex({ data, viewMode = 'all' }: JobDiffic
                   )}
                 </div>
               </div>
-              <div className="text-right ml-4">
-                <div className={`text-2xl font-bold ${getDifficultyTextColor(item.difficulty)}`}>
-                  {item.difficulty}
-                </div>
-                <div className="text-xs text-gray-400">{getDifficultyLabel(item.difficulty)}</div>
-                {item.yearOverYearChange !== undefined && (
-                  <div className={`text-xs mt-1 ${
-                    item.yearOverYearChange > 0 ? 'text-red-400' : 'text-green-400'
-                  }`}>
-                    작년 대비 {item.yearOverYearChange > 0 ? '+' : ''}{item.yearOverYearChange.toFixed(1)}p
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 난이도 게이지 */}
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-2">
-              <div
-                className={`h-full bg-gradient-to-r ${getDifficultyColor(item.difficulty)} rounded-full transition-all duration-500`}
-                style={{ width: `${item.difficulty}%` }}
-              />
             </div>
 
             {/* 인사이트 카드 (선택된 경우 또는 항상 표시) */}

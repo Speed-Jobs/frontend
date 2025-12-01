@@ -66,19 +66,31 @@ export default function CombinedTrendChart({
 
   // 두 데이터를 period 기준으로 병합
   const mergedData = useMemo(() => {
+    console.log('=== CombinedTrendChart 데이터 병합 시작 ===')
+    console.log('jobPostingsTrendData:', jobPostingsTrendData)
+    console.log('jobPostingsTrendData 길이:', jobPostingsTrendData?.length || 0)
+    console.log('companyRecruitmentData:', companyRecruitmentData)
+    console.log('companyRecruitmentData 길이:', companyRecruitmentData?.length || 0)
+    
     if (!jobPostingsTrendData || jobPostingsTrendData.length === 0) {
-      return (companyRecruitmentData || []).map(item => ({
+      console.log('jobPostingsTrendData가 비어있어서 companyRecruitmentData만 사용')
+      const result = (companyRecruitmentData || []).map(item => ({
         period: normalizePeriod(item.period),
         ...Object.fromEntries(
           Object.entries(item).filter(([key]) => key !== 'period')
         ),
       }))
+      console.log('병합 결과 (회사별만):', result)
+      return result
     }
     if (!companyRecruitmentData || companyRecruitmentData.length === 0) {
-      return jobPostingsTrendData.map(item => ({
+      console.log('companyRecruitmentData가 비어있어서 jobPostingsTrendData만 사용')
+      const result = jobPostingsTrendData.map(item => ({
         period: normalizePeriod(item.period),
         totalCount: item.count,
       }))
+      console.log('병합 결과 (전체 공고만):', result)
+      return result
     }
 
     // period를 키로 하는 맵 생성 (정규화된 period 사용)
@@ -117,7 +129,7 @@ export default function CombinedTrendChart({
     })
 
     // period 순서대로 정렬 (날짜 파싱 시도)
-    return Array.from(dataMap.values()).sort((a, b) => {
+    const sorted = Array.from(dataMap.values()).sort((a, b) => {
       // "M/D" 형식 파싱
       const parseMD = (period: string): number => {
         const match = period.match(/^(\d{1,2})\/(\d{1,2})$/)
@@ -136,6 +148,10 @@ export default function CombinedTrendChart({
       
       return parseMD(a.period) - parseMD(b.period)
     })
+    
+    console.log('병합 결과 (전체):', sorted)
+    console.log('병합된 데이터 개수:', sorted.length)
+    return sorted
   }, [jobPostingsTrendData, companyRecruitmentData])
 
   // 최대값 계산 (Y축 범위 설정용)
@@ -176,16 +192,29 @@ export default function CombinedTrendChart({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="text-red-500 text-sm">{error}</div>
+      <div className="flex flex-col items-center justify-center h-[400px]">
+        <div className="text-red-500 text-sm mb-2">데이터를 불러오는 중 오류가 발생했습니다.</div>
+        <div className="text-xs text-gray-500">{error}</div>
+        {error.includes('500') && (
+          <div className="text-xs text-gray-400 mt-2">
+            서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
+          </div>
+        )}
       </div>
     )
   }
 
   if (!mergedData || mergedData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-500 text-sm">데이터가 없습니다.</div>
+      <div className="flex flex-col items-center justify-center h-[400px]">
+        <div className="text-gray-500 text-sm mb-2">데이터가 없습니다.</div>
+        <div className="text-xs text-gray-400">
+          {!jobPostingsTrendData || jobPostingsTrendData.length === 0 ? '전체 공고 수 데이터가 없습니다. ' : ''}
+          {!companyRecruitmentData || companyRecruitmentData.length === 0 ? '회사별 채용 활동 데이터가 없습니다.' : ''}
+        </div>
+        {error && (
+          <div className="text-xs text-red-400 mt-2">에러: {error}</div>
+        )}
       </div>
     )
   }

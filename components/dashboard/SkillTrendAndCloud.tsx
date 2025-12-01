@@ -49,10 +49,13 @@ export default function SkillTrendAndCloud({
 }: SkillTrendAndCloudProps) {
   // 연도별로 데이터 집계 (스택 바 차트용)
   const yearlyData = useMemo(() => {
+    console.log('=== yearlyData 계산 시작 ===')
     console.log('skillTrendData:', skillTrendData)
+    console.log('skillTrendData 길이:', skillTrendData?.length || 0)
     
     if (!skillTrendData || skillTrendData.length === 0) {
       console.log('skillTrendData가 비어있습니다')
+      console.log('selectedCompany:', selectedCompany)
       return []
     }
 
@@ -225,11 +228,21 @@ export default function SkillTrendAndCloud({
           <div className="flex items-center justify-center h-[400px]">
             <div className="text-red-500 text-sm">{trendError}</div>
           </div>
-        ) : yearlyData.length === 0 ? (
-          <div className="flex items-center justify-center h-[400px]">
-            <div className="text-gray-500 text-sm">
-              {selectedCompany === '전체' ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
+        ) : yearlyData.length === 0 || topSkills.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[400px]">
+            <div className="text-gray-500 text-sm mb-2">
+              {selectedCompany === '전체' || !selectedCompany ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
             </div>
+            {skillTrendData.length === 0 && (
+              <div className="text-xs text-gray-400 mt-2">
+                API에서 데이터를 가져오지 못했습니다. 브라우저 콘솔을 확인해주세요.
+              </div>
+            )}
+            {skillTrendData.length > 0 && (
+              <div className="text-xs text-gray-400 mt-2">
+                데이터는 있지만 연도별 집계에 실패했습니다. (데이터 개수: {skillTrendData.length})
+              </div>
+            )}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={400}>

@@ -5,7 +5,6 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -13,9 +12,12 @@ interface JobRoleStatisticsChartProps {
   data: Array<{
     name: string
     value: number
+    previousValue: number
+    industries: string[]
   }>
   selectedRole: string | null
   onRoleClick: (roleName: string | null) => void
+  viewMode: 'Weekly' | 'Monthly'
   isLoading?: boolean
   error?: string | null
 }
@@ -37,6 +39,7 @@ export default function JobRoleStatisticsChart({
   data, 
   selectedRole, 
   onRoleClick,
+  viewMode,
   isLoading, 
   error 
 }: JobRoleStatisticsChartProps) {
@@ -64,74 +67,262 @@ export default function JobRoleStatisticsChart({
     )
   }
 
+  // 현재 기간과 이전 기간 데이터 분리 (모든 데이터 포함, 0도 포함)
+  const currentData = data.map(item => ({ name: item.name, value: item.value }))
+  const previousData = data.map(item => ({ name: item.name, value: item.previousValue }))
+  
+  // 차트에 표시할 데이터 (0보다 큰 값만)
+  const currentChartData = currentData.filter(item => item.value > 0)
+  const previousChartData = previousData.filter(item => item.value > 0)
+  
   // 총합 계산
-  const total = data.reduce((sum, item) => sum + item.value, 0)
+  const currentTotal = currentData.reduce((sum, item) => sum + item.value, 0)
+  const previousTotal = previousData.reduce((sum, item) => sum + item.value, 0)
+  
+  // 차트에 표시할 총합
+  const currentChartTotal = currentChartData.reduce((sum, item) => sum + item.value, 0)
+  const previousChartTotal = previousChartData.reduce((sum, item) => sum + item.value, 0)
+  
+  // 모든 직군 목록 (비교를 위해)
+  const allRoleNames = data.map(item => item.name)
+  
+  // 기간 레이블
+  const currentPeriodLabel = viewMode === 'Weekly' ? '이번주' : '이번달'
+  const previousPeriodLabel = viewMode === 'Weekly' ? '저번주' : '지난달'
+  
+  // 인사이트 생성
+  const generateInsights = () => {
+    const insights: string[] = []
+    
+    // 전체 변화율
+    if (previousTotal > 0) {
+      const totalChange = ((currentTotal - previousTotal) / previousTotal) * 100
+      if (totalChange > 10) {
+        insights.push(`전체 채용 공고가 ${totalChange.toFixed(1)}% 증가했습니다.`)
+      } else if (totalChange < -10) {
+        insights.push(`전체 채용 공고가 ${Math.abs(totalChange).toFixed(1)}% 감소했습니다.`)
+      } else {
+        insights.push(`전체 채용 공고가 안정적으로 유지되고 있습니다.`)
+      }
+    }
+    
+    // 가장 증가한 직군
+    const increasedRoles = data
+      .filter(item => item.previousValue > 0)
+      .map(item => ({
+        name: item.name,
+        change: ((item.value - item.previousValue) / item.previousValue) * 100,
+        changeCount: item.value - item.previousValue
+      }))
+      .filter(item => item.change > 0)
+      .sort((a, b) => b.change - a.change)
+    
+    if (increasedRoles.length > 0) {
+      const topIncreased = increasedRoles[0]
+      insights.push(`${topIncreased.name} 직군이 ${topIncreased.change.toFixed(1)}% 증가하여 가장 큰 성장세를 보였습니다.`)
+    }
+    
+    // 가장 감소한 직군
+    const decreasedRoles = data
+      .filter(item => item.previousValue > 0)
+      .map(item => ({
+        name: item.name,
+        change: ((item.value - item.previousValue) / item.previousValue) * 100,
+        changeCount: item.value - item.previousValue
+      }))
+      .filter(item => item.change < 0)
+      .sort((a, b) => a.change - b.change)
+    
+    if (decreasedRoles.length > 0) {
+      const topDecreased = decreasedRoles[0]
+      insights.push(`${topDecreased.name} 직군이 ${Math.abs(topDecreased.change).toFixed(1)}% 감소했습니다.`)
+    }
+    
+    // 가장 많은 공고를 차지하는 직군
+    const topRole = currentData.sort((a, b) => b.value - a.value)[0]
+    if (topRole && currentTotal > 0) {
+      const topRolePercent = (topRole.value / currentTotal) * 100
+      insights.push(`${topRole.name} 직군이 전체의 ${topRolePercent.toFixed(1)}%를 차지하며 가장 많은 공고를 보유하고 있습니다.`)
+    }
+    
+    return insights.length > 0 ? insights : ['변화가 미미합니다.']
+  }
+  
+  const insights = generateInsights()
 
   return (
     <div>
       <div className="mb-4">
         <h4 className="text-sm font-semibold text-gray-700 mb-2">직무</h4>
       </div>
-      <ResponsiveContainer width="100%" height={350}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="45%"
-            labelLine={false}
-            label={({ name, value }) => {
-              const percent = (value / total) * 100
-              return percent >= 5 ? `${(percent).toFixed(0)}%` : ''
-            }}
-            outerRadius={110}
-            innerRadius={50}
-            fill="#6b7280"
-            dataKey="value"
-            onClick={(data: any) => {
-              if (selectedRole === data.name) {
-                onRoleClick(null)
-              } else {
-                onRoleClick(data.name)
-              }
-            }}
-            style={{ cursor: 'pointer' }}
-          >
-            {data.map((entry, index) => {
-              const isSelected = selectedRole === entry.name
-              return (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={pieColors[index % pieColors.length]}
-                  stroke={isSelected ? '#111827' : '#ffffff'}
-                  strokeWidth={isSelected ? 3 : 2}
-                  opacity={isSelected ? 1 : 0.9}
-                />
-              )
-            })}
-          </Pie>
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#ffffff', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '8px', 
-              color: '#374151',
-              fontSize: '13px'
-            }}
-            formatter={(value: number, name: string) => {
-              const percent = ((value as number) / total * 100).toFixed(1)
-              return [`${name}: ${percent}%`, '']
-            }}
-          />
-          <Legend 
-            verticalAlign="bottom" 
-            height={100}
-            wrapperStyle={{ paddingTop: '20px', color: '#6b7280', fontSize: '12px' }}
-            formatter={(value) => <span style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{value}</span>}
-            iconType="circle"
-            iconSize={8}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      
+      {/* 두 개의 도넛 차트 나란히 표시 */}
+      <div className="grid grid-cols-2 gap-8 mb-4 w-full">
+        {/* 첫 번째 차트 */}
+        <div className="w-full">
+          <div style={{ width: '100%', height: '380px' }}>
+            {currentChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={currentChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => {
+                      const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
+                      return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
+                    }}
+                    outerRadius={110}
+                    innerRadius={50}
+                    fill="#6b7280"
+                    dataKey="value"
+                    onClick={(data: any) => {
+                      if (selectedRole === data.name) {
+                        onRoleClick(null)
+                      } else {
+                        onRoleClick(data.name)
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {currentChartData.map((entry, index) => {
+                      const isSelected = selectedRole === entry.name
+                      const roleIndex = allRoleNames.indexOf(entry.name)
+                      return (
+                        <Cell 
+                          key={`cell-1-${index}`} 
+                          fill={pieColors[roleIndex % pieColors.length]}
+                          stroke={isSelected ? '#111827' : '#ffffff'}
+                          strokeWidth={isSelected ? 3 : 2}
+                          opacity={isSelected ? 1 : 0.9}
+                        />
+                      )
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#ffffff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#374151',
+                      fontSize: '13px'
+                    }}
+                    formatter={(value: number, name: string) => {
+                      const percent = currentChartTotal > 0 ? ((value as number) / currentChartTotal * 100).toFixed(1) : '0.0'
+                      return [`${name}: ${percent}% (${value}건)`, '']
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-gray-400 text-sm">데이터가 없습니다</div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* 두 번째 차트 (같은 데이터) */}
+        <div className="w-full">
+          <div style={{ width: '100%', height: '380px' }}>
+            {currentChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={currentChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => {
+                      const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
+                      return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
+                    }}
+                    outerRadius={110}
+                    innerRadius={50}
+                    fill="#6b7280"
+                    dataKey="value"
+                    onClick={(data: any) => {
+                      if (selectedRole === data.name) {
+                        onRoleClick(null)
+                      } else {
+                        onRoleClick(data.name)
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {currentChartData.map((entry, index) => {
+                      const isSelected = selectedRole === entry.name
+                      const roleIndex = allRoleNames.indexOf(entry.name)
+                      return (
+                        <Cell 
+                          key={`cell-2-${index}`} 
+                          fill={pieColors[roleIndex % pieColors.length]}
+                          stroke={isSelected ? '#111827' : '#ffffff'}
+                          strokeWidth={isSelected ? 3 : 2}
+                          opacity={isSelected ? 1 : 0.9}
+                        />
+                      )
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#ffffff', 
+                      border: '1px solid #e5e7eb', 
+                      borderRadius: '8px', 
+                      color: '#374151',
+                      fontSize: '13px'
+                    }}
+                    formatter={(value: number, name: string) => {
+                      const percent = currentChartTotal > 0 ? ((value as number) / currentChartTotal * 100).toFixed(1) : '0.0'
+                      return [`${name}: ${percent}% (${value}건)`, '']
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-gray-400 text-sm">데이터가 없습니다</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* 범례 */}
+      <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+        {allRoleNames.map((roleName, index) => {
+          const hasCurrent = currentChartData.some(d => d.name === roleName)
+          const hasPrevious = previousChartData.some(d => d.name === roleName)
+          if (!hasCurrent && !hasPrevious) return null
+          
+          return (
+            <div key={roleName} className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: pieColors[index % pieColors.length] }}
+              />
+              <span className="text-xs text-gray-600 whitespace-nowrap">{roleName}</span>
+            </div>
+          )
+        })}
+      </div>
+      
+      {/* 인사이트 섹션 */}
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">💡</span>
+          {currentPeriodLabel} vs {previousPeriodLabel} 비교 인사이트
+        </h4>
+        <ul className="space-y-2">
+          {insights.map((insight, index) => (
+            <li key={index} className="text-sm text-blue-800 flex items-start gap-2">
+              <span className="text-blue-500 mt-1">•</span>
+              <span>{insight}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }

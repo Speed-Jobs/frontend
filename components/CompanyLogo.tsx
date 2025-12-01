@@ -11,6 +11,17 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
   const [imgError, setImgError] = useState(false)
   const [useFallback, setUseFallback] = useState(false)
 
+  // name이 없거나 undefined인 경우 처리
+  if (!name || typeof name !== 'string') {
+    return (
+      <div className={`flex items-center justify-center ${className}`}>
+        <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+          <span className="text-xs font-semibold text-gray-600">?</span>
+        </div>
+      </div>
+    )
+  }
+
   // 회사명 정규화 (공백 제거, (주) 제거 등)
   const normalizedName = name.replace(/\(주\)/g, '').replace(/\s+/g, ' ').trim()
 

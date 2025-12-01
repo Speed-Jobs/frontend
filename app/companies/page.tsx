@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
@@ -30,9 +31,18 @@ interface CompanyStats {
 }
 
 export default function CompaniesPage() {
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
   const [selectedJobRole, setSelectedJobRole] = useState('전체')
+  
+  // URL 쿼리 파라미터에서 회사명 읽기
+  useEffect(() => {
+    const companyParam = searchParams.get('company')
+    if (companyParam) {
+      setSelectedCompany(decodeURIComponent(companyParam))
+    }
+  }, [searchParams])
   const [selectedImage, setSelectedImage] = useState<{ src: string; title: string; date: string } | null>(null)
   const [imageZoom, setImageZoom] = useState(1)
   const [imageGalleryPage, setImageGalleryPage] = useState(1)

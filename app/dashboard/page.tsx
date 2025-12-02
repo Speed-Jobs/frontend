@@ -12,7 +12,6 @@ import JobRoleBarChart from '@/components/dashboard/JobRoleBarChart'
 import CompanyJobPostings from '@/components/dashboard/CompanyJobPostings'
 import CompanyNetworkBubble from '@/components/dashboard/CompanyNetworkBubble'
 import RecruitmentCalendar from '@/components/dashboard/RecruitmentCalendar'
-import CompanyRecruitmentTable from '@/components/dashboard/CompanyRecruitmentTable'
 import HotJobsList from '@/components/dashboard/HotJobsList'
 import JobRoleSkillSetGuide from '@/components/dashboard/JobRoleSkillSetGuide'
 import JobPostingsTrendChart from '@/components/dashboard/JobPostingsTrendChart'
@@ -51,6 +50,7 @@ export default function Dashboard() {
     trends: Array<{ period: string; count: number }>
     insight: any
     selectedCompany: { company_id: number; company_name: string; total_count: number } | null
+    top_companies?: Array<{ company_id?: number; company_name: string; total_count?: number; market_share?: number }>
   } | null>(null)
 
   // 스킬 트렌드 관련 상태 (기본값: 첫 번째 회사 또는 빈 문자열)
@@ -612,7 +612,7 @@ export default function Dashboard() {
   }, [jobRoleData])
 
 
-  // HOT 공고 Top 5 - 실제 공고 데이터 사용
+  // 경쟁사 최신 공고 - 실제 공고 데이터 사용
   const hotJobsData = useMemo(() => {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
@@ -732,22 +732,68 @@ export default function Dashboard() {
             setCombinedTrendData({
               trends: trends || [],
               insight: insight,
-              selectedCompany: selected_company || null
+              selectedCompany: selected_company || null,
+              top_companies: top_companies || []
             })
             
-            // 경쟁사 비교 데이터를 회사 목록으로 변환
-            if (insight.competitor_comparison && Array.isArray(insight.competitor_comparison)) {
-              const companies = insight.competitor_comparison.map((comp: any, index: number) => ({
-                id: comp.rank || index + 1,
+            // top_companies 또는 competitor_comparison을 사용하여 회사 목록 구성
+            let companies: any[] = []
+            
+            // top_companies가 있으면 우선 사용
+            if (top_companies && Array.isArray(top_companies) && top_companies.length > 0) {
+              companies = top_companies.map((comp: any, index: number) => ({
+                id: comp.company_id || comp.id || index + 1,
+                name: comp.company_name || comp.name,
+                key: (comp.company_name || comp.name).toLowerCase().replace(/\s+/g, '_'),
+                total_count: comp.total_count || comp.count || 0,
+                market_share: comp.market_share || 0
+              }))
+            }
+            // competitor_comparison이 있으면 사용
+            else if (insight.competitor_comparison && Array.isArray(insight.competitor_comparison)) {
+              companies = insight.competitor_comparison.map((comp: any, index: number) => ({
+                id: comp.company_id || comp.rank || index + 1,
                 name: comp.company_name,
                 key: comp.company_name.toLowerCase().replace(/\s+/g, '_'),
                 total_count: comp.total_count || 0,
                 market_share: comp.market_share || 0
               }))
+            }
+            
+            // 회사별 채용 활동 데이터 구성 (insight.trend_analysis 사용)
+            if (companies.length > 0 && insight.trend_analysis) {
+              const activities = insight.trend_analysis.map((item: any) => {
+                const activityData: { period: string; counts: Record<string, number> } = {
+                  period: item.period,
+                  counts: {}
+                }
+                
+                // 각 회사의 company_count를 counts에 추가
+                companies.forEach((comp: any) => {
+                  // 선택된 회사인 경우 company_count 사용
+                  if (selected_company && comp.name === selected_company.company_name) {
+                    activityData.counts[comp.key] = item.company_count || 0
+                  } else {
+                    // 다른 회사는 competitor_comparison의 market_share를 사용하여 추정
+                    const competitor = insight.competitor_comparison?.find((c: any) => 
+                      c.company_name === comp.name
+                    )
+                    if (competitor && item.total_count && competitor.market_share) {
+                      // 전체 시장에서 해당 회사의 시장 점유율을 기반으로 추정
+                      const estimatedCount = Math.round((item.total_count * competitor.market_share) / 100)
+                      activityData.counts[comp.key] = estimatedCount
+                    } else {
+                      activityData.counts[comp.key] = 0
+                    }
+                  }
+                })
+                
+                return activityData
+              })
               
               setCompanyRecruitmentApiData({
                 companies: companies,
-                activities: insight.trend_analysis || []
+                activities: activities
               })
               
               // 초기 선택: 선택된 회사만 선택 (새로운 API 형식에서는 단일 회사만 지원)
@@ -1012,24 +1058,84 @@ export default function Dashboard() {
     fetchSkillTrend()
   }, [selectedSkillCompany])
 
+  // 회사별 채용 활동 회사 목록 (색상 포함)
+  const recruitmentCompanies = useMemo(() => {
+    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
+    
+    // 새로운 API 형식: top_companies 우선, 없으면 competitor_comparison 사용
+    if (combinedTrendData?.insight) {
+      let companies: any[] = []
+      
+      // top_companies가 있으면 우선 사용
+      if (combinedTrendData.top_companies && Array.isArray(combinedTrendData.top_companies) && combinedTrendData.top_companies.length > 0) {
+        companies = combinedTrendData.top_companies.map((comp: any, index: number) => ({
+          id: comp.company_id || comp.id || index + 1,
+          key: (comp.company_name || comp.name).toLowerCase().replace(/\s+/g, '_'),
+          name: comp.company_name || comp.name,
+          color: colors[index % colors.length]
+        }))
+      }
+      // competitor_comparison 사용
+      else if (combinedTrendData.insight.competitor_comparison && Array.isArray(combinedTrendData.insight.competitor_comparison)) {
+        companies = combinedTrendData.insight.competitor_comparison.map((comp: any, index: number) => ({
+          id: comp.company_id || comp.rank || index + 1,
+          key: comp.company_name.toLowerCase().replace(/\s+/g, '_'),
+          name: comp.company_name,
+          color: colors[index % colors.length]
+        }))
+      }
+      
+      if (companies.length > 0) {
+        return companies
+      }
+    }
+    
+    // 기존 형식 데이터 사용
+    return companyRecruitmentApiData?.companies.map((company, index) => ({
+      key: company.key,
+      name: company.name,
+      color: colors[index % colors.length]
+    })) || []
+  }, [companyRecruitmentApiData, combinedTrendData])
+
   // 회사별 채용 활동 차트 데이터 변환
   const companyRecruitmentChartData = useMemo(() => {
-    // 새로운 형식의 데이터 사용 (insight.trend_analysis)
+    // 새로운 API 형식: insight.trend_analysis 사용
     if (combinedTrendData?.insight?.trend_analysis) {
       const trendAnalysis = combinedTrendData.insight.trend_analysis
-      const selectedCompanyName = combinedTrendData.insight.company_name || combinedTrendData.selectedCompany?.company_name
+      const competitorComparison = combinedTrendData.insight.competitor_comparison || []
       
-      if (!selectedCompanyName) return []
-      
-      // 선택된 회사의 company_count를 사용하여 차트 데이터 생성
-      const companyKey = selectedCompanyName.toLowerCase().replace(/\s+/g, '_')
+      // 선택된 회사들에 대한 데이터만 구성
+      if (selectedRecruitmentCompanies.length === 0) return []
       
       return trendAnalysis.map((item: any) => {
         const data: { period: string; [key: string]: string | number } = { 
           period: item.period 
         }
-        // 선택된 회사의 데이터만 추가
-        data[companyKey] = item.company_count || 0
+        
+        // 선택된 각 회사의 데이터 추가
+        selectedRecruitmentCompanies.forEach((companyKey: string) => {
+          const companyName = recruitmentCompanies.find((c: { key: string }) => c.key === companyKey)?.name
+          if (companyName) {
+            // 선택된 회사인 경우 company_count 사용
+            if (combinedTrendData.selectedCompany?.company_name === companyName) {
+              data[companyKey] = item.company_count || 0
+            } else {
+              // 다른 회사는 competitor_comparison의 market_share를 사용하여 추정
+              const competitor = competitorComparison.find((c: any) => 
+                c.company_name === companyName
+              )
+              if (competitor && item.total_count && competitor.market_share) {
+                // 전체 시장 점유율을 기반으로 추정
+                const estimatedCount = Math.round((item.total_count * competitor.market_share) / 100)
+                data[companyKey] = estimatedCount
+              } else {
+                data[companyKey] = 0
+              }
+            }
+          }
+        })
+        
         return data
       })
     }
@@ -1044,31 +1150,7 @@ export default function Dashboard() {
       })
       return data
     })
-  }, [companyRecruitmentApiData, combinedTrendData])
-
-  // 회사별 채용 활동 회사 목록 (색상 포함)
-  const recruitmentCompanies = useMemo(() => {
-    // 새로운 형식의 데이터 사용 (insight.competitor_comparison)
-    if (combinedTrendData?.insight?.competitor_comparison) {
-      const companies = combinedTrendData.insight.competitor_comparison
-      const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
-      
-      return companies.map((comp: any, index: number) => ({
-        id: comp.rank || index + 1,
-        key: comp.company_name.toLowerCase().replace(/\s+/g, '_'),
-        name: comp.company_name,
-        color: colors[index % colors.length]
-      }))
-    }
-    
-    // 기존 형식 데이터 사용
-    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
-    return companyRecruitmentApiData?.companies.map((company, index) => ({
-      key: company.key,
-      name: company.name,
-      color: colors[index % colors.length]
-    })) || []
-  }, [companyRecruitmentApiData, combinedTrendData])
+  }, [companyRecruitmentApiData, combinedTrendData, selectedRecruitmentCompanies, recruitmentCompanies])
 
   // 스킬 트렌드 회사 기본값 설정 (첫 번째 회사)
   useEffect(() => {
@@ -1168,9 +1250,9 @@ export default function Dashboard() {
       'Quality Management': ['quality', 'qa', 'qc', '품질', '테스트', 'test', 'testing', 'qa engineer', 'quality assurance'],
       'AI': ['ai', 'artificial intelligence', '인공지능', 'machine learning', 'ml', '딥러닝', 'deep learning', '데이터', 'data', 'generative ai', '생성형 ai', 'tensorflow', 'pytorch', 'nlp', 'computer vision'],
       '정보보호': ['정보보호', '보안', 'security', 'cybersecurity', 'cyber', '보안 진단', 'compliance', 'governance', 'security engineer'],
-      'Sales': ['sales', '영업', '세일즈', '영업사원', 'account', '고객', 'account manager', 'business development'],
-      'Domain Expert': ['domain', 'expert', '도메인', '전문가', '금융', '제조', '공공', 'b2c', 'industry expert'],
-      'Consulting': ['consulting', '컨설팅', '컨설턴트', 'esg', 'she', 'crm', 'scm', 'consultant'],
+      'Sales': ['sales', '영업', '세일즈', '영업사원', 'account', '고객', 'account manager', 'business development', '영업대표', '영업담당', '영업팀', '세일즈매니저', '영업관리', '영업지원', '영업기획', '영업전략', '영업운영', '영업관리자', '영업본부', '영업부서', '영업직', '영업직무', '영업업무', '영업활동', '영업채용', '영업모집'],
+      'Domain Expert': ['domain', 'expert', '도메인', '전문가', '금융', '제조', '공공', 'b2c', 'industry expert', '금융전문가', '제조전문가', '공공전문가', '도메인전문가', '업무전문가', '분야전문가', '산업전문가', '영역전문가', '금융도메인', '제조도메인', '공공도메인', 'b2c도메인', '금융분야', '제조분야', '공공분야', 'b2c분야'],
+      'Consulting': ['consulting', '컨설팅', '컨설턴트', 'esg', 'she', 'crm', 'scm', 'consultant', '컨설팅사', '컨설팅업체', '컨설팅회사', '컨설팅기업', '컨설팅팀', '컨설팅부서', '컨설팅서비스', '컨설팅업무', 'esg컨설팅', 'she컨설팅', 'crm컨설팅', 'scm컨설팅', 'erp컨설팅', 'ai컨설팅', 'esg컨설턴트', 'she컨설턴트', 'crm컨설턴트', 'scm컨설턴트', 'erp컨설턴트', 'ai컨설턴트'],
       'Biz. Supporting': ['strategy', 'planning', '전략', '기획', 'hr', '인사', '재무', 'financial', 'management', '경영', 'human resources'],
     }
     
@@ -1404,10 +1486,130 @@ export default function Dashboard() {
               <RecruitmentCalendar events={recruitmentScheduleData} />
             </DarkDashboardCard>
 
-            <DarkDashboardCard title="회사별 금주 채용 현황" className="flex-1 flex flex-col min-h-[450px]">
-              <div className="flex-1 min-h-0">
-                <CompanyRecruitmentTable data={companyRecruitmentTableData} />
+            {/* 통합 차트: 채용 공고 수 추이 + 회사별 채용 활동 */}
+            <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동" className="flex-1 flex flex-col min-h-[450px]">
+              <div className="mb-4 flex flex-wrap gap-2 items-center">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setJobPostingsTrendTimeframe('Weekly')
+                      setCompanyRecruitmentTimeframe('Weekly')
+                    }}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      jobPostingsTrendTimeframe === 'Weekly'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    주간
+                  </button>
+                  <button
+                    onClick={() => {
+                      setJobPostingsTrendTimeframe('Monthly')
+                      setCompanyRecruitmentTimeframe('Monthly')
+                    }}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      jobPostingsTrendTimeframe === 'Monthly'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    월간
+                  </button>
+                </div>
+                {recruitmentCompanies.length > 0 && (
+                  <div className="flex flex-wrap gap-2 ml-auto items-center">
+                    <button
+                      onClick={() => {
+                        // 전체 선택: 모든 회사 선택
+                        setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.key))
+                      }}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        selectedRecruitmentCompanies.length === recruitmentCompanies.length || selectedRecruitmentCompanies.length === 0
+                          ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
+                          : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      전체
+                    </button>
+                    {recruitmentCompanies.map((company: { key: string; name: string; color: string }) => {
+                      const isSelected = selectedRecruitmentCompanies.length === 1 && selectedRecruitmentCompanies.includes(company.key)
+                      return (
+                        <button
+                          key={company.key}
+                          onClick={() => {
+                            if (isSelected) {
+                              // 이미 선택된 회사를 다시 클릭하면 전체 선택으로 변경
+                              setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.key))
+                            } else {
+                              // 단일 회사 선택: 다른 회사들은 자동 해제
+                              setSelectedRecruitmentCompanies([company.key])
+                            }
+                          }}
+                          className={`text-xs px-2 py-1 rounded transition-colors ${
+                            isSelected
+                              ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
+                              : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
+                          }`}
+                        >
+                          {company.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
+              <div className="flex-1 min-h-0">
+                <CombinedTrendChart
+                  jobPostingsTrendData={jobPostingsTrendApiData}
+                  companyRecruitmentData={companyRecruitmentChartData}
+                  companies={recruitmentCompanies}
+                  selectedCompanies={selectedRecruitmentCompanies}
+                  timeframe={jobPostingsTrendTimeframe}
+                  isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
+                  error={jobPostingsTrendError || companyRecruitmentError}
+                />
+              </div>
+              
+              {/* 선택된 회사 인사이트 (단일 회사 선택 시에만 표시) */}
+              {selectedRecruitmentCompanies.length === 1 && (() => {
+                const selectedCompany = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])
+                if (!selectedCompany) return null
+
+                // 선택된 회사의 채용 활동 데이터 필터링
+                let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
+                
+                // 새로운 형식의 데이터 사용
+                if (combinedTrendData?.insight?.trend_analysis) {
+                  // trend_analysis는 이미 선택된 회사의 데이터만 포함
+                  singleCompanyRecruitmentData = combinedTrendData.insight.trend_analysis.map((item: { period: string; company_count: number }) => ({
+                    period: String(item.period),
+                    count: item.company_count || 0,
+                  }))
+                } else {
+                  // 기존 형식 데이터 사용
+                  singleCompanyRecruitmentData = companyRecruitmentChartData.map((item: { period: string; [key: string]: string | number }) => ({
+                    period: String(item.period),
+                    count: Number(item[selectedCompany.key] || 0),
+                  }))
+                }
+
+                return (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <CompanyInsightView
+                      companyKey={selectedCompany.key}
+                      companyName={selectedCompany.name}
+                      companyColor={selectedCompany.color}
+                      timeframe={jobPostingsTrendTimeframe}
+                      recruitmentData={singleCompanyRecruitmentData}
+                      totalTrendData={jobPostingsTrendApiData}
+                      insightData={combinedTrendData?.insight}
+                      isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
+                      error={jobPostingsTrendError || companyRecruitmentError}
+                    />
+                  </div>
+                )
+              })()}
             </DarkDashboardCard>
           </div>
 
@@ -1415,7 +1617,7 @@ export default function Dashboard() {
           <div className="lg:col-span-3 flex flex-col space-y-6">
             <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col min-h-[450px]">
               <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h2 className="text-lg font-semibold text-gray-900">🔥 이번주 HOT 공고</h2>
+                <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
                 <Link 
                   href="/jobs"
                   className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
@@ -1516,132 +1718,6 @@ export default function Dashboard() {
 
         {/* API 연동 차트 섹션 */}
         <div className="space-y-6">
-          {/* 통합 차트: 채용 공고 수 추이 + 회사별 채용 활동 */}
-          <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동">
-            <div className="mb-4 flex flex-wrap gap-2 items-center">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setJobPostingsTrendTimeframe('Weekly')
-                    setCompanyRecruitmentTimeframe('Weekly')
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    jobPostingsTrendTimeframe === 'Weekly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
-                >
-                  주간
-                </button>
-                <button
-                  onClick={() => {
-                    setJobPostingsTrendTimeframe('Monthly')
-                    setCompanyRecruitmentTimeframe('Monthly')
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    jobPostingsTrendTimeframe === 'Monthly'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
-                >
-                  월간
-                </button>
-              </div>
-              {recruitmentCompanies.length > 0 && (
-                <div className="flex flex-wrap gap-2 ml-auto items-center">
-                  <button
-                    onClick={() => {
-                      // 전체 선택: 모든 회사 선택
-                      setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.key))
-                    }}
-                    className={`text-xs px-2 py-1 rounded transition-colors ${
-                      selectedRecruitmentCompanies.length === recruitmentCompanies.length || selectedRecruitmentCompanies.length === 0
-                        ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
-                        : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    전체
-                  </button>
-                  {recruitmentCompanies.map((company: { key: string; name: string; color: string }) => {
-                    const isSelected = selectedRecruitmentCompanies.length === 1 && selectedRecruitmentCompanies.includes(company.key)
-                    return (
-                      <button
-                        key={company.key}
-                        onClick={() => {
-                          if (isSelected) {
-                            // 이미 선택된 회사를 다시 클릭하면 전체 선택으로 변경
-                            setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.key))
-                          } else {
-                            // 단일 회사 선택: 다른 회사들은 자동 해제
-                            setSelectedRecruitmentCompanies([company.key])
-                          }
-                        }}
-                        className={`text-xs px-2 py-1 rounded transition-colors ${
-                          isSelected
-                            ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
-                            : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
-                        }`}
-                      >
-                        {company.name}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-            <CombinedTrendChart
-              jobPostingsTrendData={jobPostingsTrendApiData}
-              companyRecruitmentData={companyRecruitmentChartData}
-              companies={recruitmentCompanies}
-              selectedCompanies={selectedRecruitmentCompanies}
-              timeframe={jobPostingsTrendTimeframe}
-              isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
-              error={jobPostingsTrendError || companyRecruitmentError}
-            />
-          </DarkDashboardCard>
-
-          {/* 선택된 회사 인사이트 (단일 회사 선택 시에만 표시) */}
-          {selectedRecruitmentCompanies.length === 1 && (() => {
-            const selectedCompany = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])
-            if (!selectedCompany) return null
-
-            // 선택된 회사의 채용 활동 데이터 필터링
-            // 선택된 회사의 채용 활동 데이터 필터링
-            let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
-            
-            // 새로운 형식의 데이터 사용
-            if (combinedTrendData?.insight?.trend_analysis) {
-              // trend_analysis는 이미 선택된 회사의 데이터만 포함
-              singleCompanyRecruitmentData = combinedTrendData.insight.trend_analysis.map((item: { period: string; company_count: number }) => ({
-                period: String(item.period),
-                count: item.company_count || 0,
-              }))
-            } else {
-              // 기존 형식 데이터 사용
-              singleCompanyRecruitmentData = companyRecruitmentChartData.map((item: { period: string; [key: string]: string | number }) => ({
-                period: String(item.period),
-                count: Number(item[selectedCompany.key] || 0),
-              }))
-            }
-
-            return (
-              <DarkDashboardCard title={`${selectedCompany.name} 인사이트`}>
-                <CompanyInsightView
-                  companyKey={selectedCompany.key}
-                  companyName={selectedCompany.name}
-                  companyColor={selectedCompany.color}
-                  timeframe={jobPostingsTrendTimeframe}
-                  recruitmentData={singleCompanyRecruitmentData}
-                  totalTrendData={jobPostingsTrendApiData}
-                  insightData={combinedTrendData?.insight}
-                  isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
-                  error={jobPostingsTrendError || companyRecruitmentError}
-                />
-              </DarkDashboardCard>
-            )
-          })()}
-
-
           {/* 상위 스킬 연도별 트렌드 및 스킬 클라우드 */}
           <DarkDashboardCard title="상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)">
             <div className="mb-4 flex flex-wrap gap-3 items-center">

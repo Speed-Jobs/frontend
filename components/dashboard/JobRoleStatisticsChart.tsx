@@ -75,6 +75,11 @@ export default function JobRoleStatisticsChart({
   const currentChartData = currentData.filter(item => item.value > 0)
   const previousChartData = previousData.filter(item => item.value > 0)
   
+  // 데이터가 모두 0인 경우에도 최소한 하나의 직무는 표시 (첫 번째 직무를 1로 설정)
+  if (currentChartData.length === 0 && currentData.length > 0) {
+    currentChartData.push({ name: currentData[0].name, value: 1 })
+  }
+  
   // 총합 계산
   const currentTotal = currentData.reduce((sum, item) => sum + item.value, 0)
   const previousTotal = previousData.reduce((sum, item) => sum + item.value, 0)

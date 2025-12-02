@@ -616,21 +616,24 @@ export default function JobDifficultyGauges({
       <div className="flex flex-col md:flex-row gap-4">
         {/* 전체 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <GaugeChart
-            value={overallDifficulty}
-            label="전체 난이도 지수"
-            onClick={() => handleGaugeClick('overall')}
-          />
+          <div className="mb-3 h-[28px] flex-shrink-0"></div>
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <GaugeChart
+              value={overallDifficulty}
+              label="전체 난이도 지수"
+              onClick={() => handleGaugeClick('overall')}
+            />
+          </div>
         </div>
 
         {/* 직군 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-700">직군 선택</div>
+          <div className="mb-3 flex items-center gap-2 flex-shrink-0">
+            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap">직군 선택</div>
             <select
               value={selectedJobRoleFilter}
               onChange={(e) => handleJobRoleChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
               onClick={(e) => e.stopPropagation()}
             >
               <option value="전체">전체</option>
@@ -639,7 +642,7 @@ export default function JobDifficultyGauges({
               ))}
             </select>
           </div>
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={selectedJobRoleDifficulty}
               label={selectedJobRoleFilter === '전체' ? '전체 직군 난이도 지수' : `${selectedJobRoleFilter} 난이도 지수`}
@@ -650,13 +653,13 @@ export default function JobDifficultyGauges({
 
         {/* 직무(Skill set) 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex flex-col gap-2">
-            <div className="text-xs font-semibold text-gray-700">직무 선택</div>
+          <div className="mb-3 flex items-center gap-2 flex-shrink-0">
+            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap">직무 선택</div>
             <select
               value={selectedSkillSetFilter}
               onChange={(e) => setSelectedSkillSetFilter(e.target.value)}
               disabled={selectedJobRoleFilter === '전체'}
-              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 ${
                 selectedJobRoleFilter === '전체' ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -669,7 +672,7 @@ export default function JobDifficultyGauges({
               ))}
             </select>
           </div>
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={selectedSkillSetDifficulty}
               label={

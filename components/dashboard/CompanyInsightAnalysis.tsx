@@ -373,7 +373,7 @@ export default function CompanyInsightAnalysis({
           </h3>
           <div className="space-y-3 text-gray-700 text-sm leading-relaxed">
             <p>
-              전체 시장 대비 <span className="font-semibold text-white">{companyName}</span>의 채용 공고 점유율은 <span className="text-purple-400 font-medium">{marketAnalysis.marketShare}%</span>입니다.
+              전체 시장 대비 <span className="font-semibold text-gray-900">{companyName}</span>의 채용 공고 점유율은 <span className="text-purple-400 font-medium">{marketAnalysis.marketShare}%</span>입니다.
               {marketAnalysis.shareChange > 0 ? (
                 <span> 최근 기간 점유율이 <span className="text-green-400 font-medium">{marketAnalysis.shareChange.toFixed(1)}%p 상승</span>하여 시장에서의 영향력이 증가하고 있습니다.</span>
               ) : marketAnalysis.shareChange < 0 ? (

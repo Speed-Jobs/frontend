@@ -181,7 +181,6 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                     x2={lineEndX}
                     y2={lineEndY}
                     stroke="#9ca3af"
-                    opacity="0.3"
                     strokeWidth="2"
                     strokeDasharray="4 4"
                     opacity="0.5"

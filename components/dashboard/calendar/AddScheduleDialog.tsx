@@ -189,19 +189,9 @@ export function AddScheduleDialog({ open, onClose, onAdd }: AddScheduleDialogPro
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>
-              {step === 'company' && '기업 정보 입력'}
-              {step === 'dates' && currentStage && `${STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label} 기간 설정 (${currentStageIndex + 1}/${selectedArray.length})`}
-            </span>
-            {step === 'dates' && (
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <span className="text-xl">×</span>
-              </button>
-            )}
+          <DialogTitle>
+            {step === 'company' && '기업 정보 입력'}
+            {step === 'dates' && currentStage && `${STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label} 기간 설정 (${currentStageIndex + 1}/${selectedArray.length})`}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">

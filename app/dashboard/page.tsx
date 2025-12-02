@@ -8,10 +8,8 @@ import NotificationToast from '@/components/NotificationToast'
 import jobPostingsData from '@/data/jobPostings.json'
 import { useJobNotifications } from '@/hooks/useJobNotifications'
 import DarkDashboardCard from '@/components/dashboard/DarkDashboardCard'
-import JobRoleBarChart from '@/components/dashboard/JobRoleBarChart'
-import CompanyJobPostings from '@/components/dashboard/CompanyJobPostings'
 import CompanyNetworkBubble from '@/components/dashboard/CompanyNetworkBubble'
-import RecruitmentCalendar from '@/components/dashboard/RecruitmentCalendar'
+import NewRecruitmentCalendar from '@/components/dashboard/NewRecruitmentCalendar'
 import HotJobsList from '@/components/dashboard/HotJobsList'
 import JobRoleSkillSetGuide from '@/components/dashboard/JobRoleSkillSetGuide'
 import JobPostingsTrendChart from '@/components/dashboard/JobPostingsTrendChart'
@@ -1467,27 +1465,16 @@ export default function Dashboard() {
 
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
-          {/* 왼쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3 space-y-6 flex flex-col">
-            <DarkDashboardCard title="회사별 공고">
-              <CompanyJobPostings companies={companyJobPostingsData} />
-            </DarkDashboardCard>
-
-            <DarkDashboardCard title="직군별 채용 공고" className="flex-1 flex flex-col min-h-[450px]">
+          {/* 중앙 컬럼 (9열) - 확장 */}
+          <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6">
+            <DarkDashboardCard title="신입 공채 일정" className="lg:w-[42%] h-[600px] flex flex-col">
               <div className="flex-1 min-h-0">
-                <JobRoleBarChart data={jobRoleData} />
+                <NewRecruitmentCalendar events={recruitmentScheduleData} />
               </div>
-            </DarkDashboardCard>
-          </div>
-
-          {/* 중앙 컬럼 (6열) */}
-          <div className="lg:col-span-6 space-y-6 flex flex-col">
-            <DarkDashboardCard title="신입 공채 일정" className="h-[450px]">
-              <RecruitmentCalendar events={recruitmentScheduleData} />
             </DarkDashboardCard>
 
             {/* 통합 차트: 채용 공고 수 추이 + 회사별 채용 활동 */}
-            <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동" className="flex-1 flex flex-col min-h-[450px]">
+            <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동" className="lg:w-[58%] flex-1 flex flex-col min-h-[600px]">
               <div className="mb-4 flex flex-wrap gap-2 items-center">
                 <div className="flex gap-2">
                   <button
@@ -1571,44 +1558,72 @@ export default function Dashboard() {
                 />
               </div>
               
-              {/* 선택된 회사 인사이트 (단일 회사 선택 시에만 표시) */}
-              {selectedRecruitmentCompanies.length === 1 && (() => {
-                const selectedCompany = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])
-                if (!selectedCompany) return null
-
-                // 선택된 회사의 채용 활동 데이터 필터링
-                let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
+              {/* 인사이트 표시 (전체 또는 단일 회사 선택 시) */}
+              {(() => {
+                // 전체 선택인지 확인 (length가 0이거나 모든 회사가 선택된 경우)
+                const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
+                  (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
                 
-                // 새로운 형식의 데이터 사용
-                if (combinedTrendData?.insight?.trend_analysis) {
-                  // trend_analysis는 이미 선택된 회사의 데이터만 포함
-                  singleCompanyRecruitmentData = combinedTrendData.insight.trend_analysis.map((item: { period: string; company_count: number }) => ({
-                    period: String(item.period),
-                    count: item.company_count || 0,
-                  }))
-                } else {
-                  // 기존 형식 데이터 사용
-                  singleCompanyRecruitmentData = companyRecruitmentChartData.map((item: { period: string; [key: string]: string | number }) => ({
-                    period: String(item.period),
-                    count: Number(item[selectedCompany.key] || 0),
-                  }))
+                // 전체 인사이트 표시
+                if (isAllSelected) {
+                  return (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <CompanyInsightView
+                        companyKey="all"
+                        companyName="전체"
+                        companyColor="#6b7280"
+                        timeframe={jobPostingsTrendTimeframe}
+                        recruitmentData={jobPostingsTrendApiData}
+                        totalTrendData={jobPostingsTrendApiData}
+                        insightData={combinedTrendData?.insight}
+                        isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
+                        error={jobPostingsTrendError || companyRecruitmentError}
+                      />
+                    </div>
+                  )
                 }
+                
+                // 단일 회사 선택 시
+                if (selectedRecruitmentCompanies.length === 1) {
+                  const selectedCompany = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])
+                  if (!selectedCompany) return null
 
-                return (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <CompanyInsightView
-                      companyKey={selectedCompany.key}
-                      companyName={selectedCompany.name}
-                      companyColor={selectedCompany.color}
-                      timeframe={jobPostingsTrendTimeframe}
-                      recruitmentData={singleCompanyRecruitmentData}
-                      totalTrendData={jobPostingsTrendApiData}
-                      insightData={combinedTrendData?.insight}
-                      isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
-                      error={jobPostingsTrendError || companyRecruitmentError}
-                    />
-                  </div>
-                )
+                  // 선택된 회사의 채용 활동 데이터 필터링
+                  let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
+                  
+                  // 새로운 형식의 데이터 사용
+                  if (combinedTrendData?.insight?.trend_analysis) {
+                    // trend_analysis는 이미 선택된 회사의 데이터만 포함
+                    singleCompanyRecruitmentData = combinedTrendData.insight.trend_analysis.map((item: { period: string; company_count: number }) => ({
+                      period: String(item.period),
+                      count: item.company_count || 0,
+                    }))
+                  } else {
+                    // 기존 형식 데이터 사용
+                    singleCompanyRecruitmentData = companyRecruitmentChartData.map((item: { period: string; [key: string]: string | number }) => ({
+                      period: String(item.period),
+                      count: Number(item[selectedCompany.key] || 0),
+                    }))
+                  }
+
+                  return (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <CompanyInsightView
+                        companyKey={selectedCompany.key}
+                        companyName={selectedCompany.name}
+                        companyColor={selectedCompany.color}
+                        timeframe={jobPostingsTrendTimeframe}
+                        recruitmentData={singleCompanyRecruitmentData}
+                        totalTrendData={jobPostingsTrendApiData}
+                        insightData={combinedTrendData?.insight}
+                        isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
+                        error={jobPostingsTrendError || companyRecruitmentError}
+                      />
+                    </div>
+                  )
+                }
+                
+                return null
               })()}
             </DarkDashboardCard>
           </div>

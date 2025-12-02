@@ -44,6 +44,13 @@ export default function CompanyInsightView({
 
   // 회사별 스킬 트렌드 API 호출
   useEffect(() => {
+    // 전체 선택 시에는 스킬 트렌드 API 호출하지 않음
+    if (companyName === '전체' || companyKey === 'all') {
+      setSkillTrendData([])
+      setIsLoadingSkillTrend(false)
+      return
+    }
+
     const fetchSkillTrend = async () => {
       try {
         setIsLoadingSkillTrend(true)

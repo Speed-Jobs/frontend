@@ -37,6 +37,7 @@ interface CalendarCellProps {
   companySchedules: CompanySchedule[];
   userPins: UserPin[];
   onDateClick: (date: Date) => void;
+  allowLinkNavigation?: boolean; // Link 네비게이션 허용 여부
 }
 
 export function CalendarCell({
@@ -45,6 +46,7 @@ export function CalendarCell({
   companySchedules,
   userPins,
   onDateClick,
+  allowLinkNavigation = false,
 }: CalendarCellProps) {
   if (!day || !date) {
     return <div className="border border-slate-100 bg-white" style={{ aspectRatio: '1' }} />;
@@ -134,8 +136,11 @@ export function CalendarCell({
     date.toDateString() === new Date().toDateString();
 
   const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    // Link 네비게이션이 허용된 경우 preventDefault를 하지 않음
+    if (!allowLinkNavigation) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (date) {
       onDateClick(date);
     }

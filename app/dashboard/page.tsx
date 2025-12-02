@@ -701,8 +701,8 @@ export default function Dashboard() {
           : null
         
         // API URL 구성 (회사 파라미터가 있으면 추가)
-        // 인사이트 API 호출 일시 중지 (API 키 사용량 절감)
-        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=false`
+        // 인사이트 API 호출
+        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=true`
         if (selectedCompanyName) {
           // company 파라미터 대신 company_keyword 사용 (백엔드 API 형식에 맞춤)
           apiUrl += `&company_keyword=${encodeURIComponent(selectedCompanyName)}`
@@ -1646,15 +1646,25 @@ export default function Dashboard() {
                 />
               </div>
               
-              {/* 인사이트 표시 (일시 중지 - API 키 사용량 절감) */}
-              {/* {(() => {
+              {/* 인사이트 표시 */}
+              {(() => {
                 // 전체 선택인지 확인 (length가 0이거나 모든 회사가 선택된 경우)
                 const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
                   (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
                 
-                // 전체 선택 시에는 인사이트 표시하지 않음
+                // 전체 선택 시에는 안내 멘트 표시
                 if (isAllSelected) {
-                  return null
+                  return (
+                    <div className="mt-3 pt-3 border-t border-gray-200 pb-0 flex-shrink-0">
+                      <div className="bg-blue-50 rounded-lg border border-blue-200 px-5 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-blue-600 text-sm font-medium">
+                            💡 회사를 선택하여 회사별 인사이트를 확인하세요
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 }
                 
                 // 단일 회사 선택 시
@@ -1713,7 +1723,7 @@ export default function Dashboard() {
                 }
                 
                 return null
-              })()} */}
+              })()}
             </DarkDashboardCard>
           </div>
 

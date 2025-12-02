@@ -13,6 +13,7 @@ interface CalendarProps {
   onPreviousMonth: (e?: React.MouseEvent) => void;
   onNextMonth: (e?: React.MouseEvent) => void;
   onDateClick: (date: Date) => void;
+  allowLinkNavigation?: boolean; // Link 네비게이션 허용 여부
 }
 
 export function Calendar({
@@ -22,6 +23,7 @@ export function Calendar({
   onPreviousMonth,
   onNextMonth,
   onDateClick,
+  allowLinkNavigation = false,
 }: CalendarProps) {
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -142,6 +144,7 @@ export function Calendar({
                 companySchedules={companySchedules}
                 userPins={userPins}
                 onDateClick={onDateClick}
+                allowLinkNavigation={allowLinkNavigation}
               />
             ))}
           </div>

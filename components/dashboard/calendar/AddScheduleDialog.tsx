@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { CompanySchedule, ScheduleStage } from './types'
+import { DateRangePicker } from './DateRangePicker'
 
 interface AddScheduleDialogProps {
   open: boolean
@@ -188,9 +189,19 @@ export function AddScheduleDialog({ open, onClose, onAdd }: AddScheduleDialogPro
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {step === 'company' && '기업 정보 입력'}
-            {step === 'dates' && currentStage && `${STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label} 기간 설정 (${currentStageIndex + 1}/${selectedArray.length})`}
+          <DialogTitle className="flex items-center justify-between">
+            <span>
+              {step === 'company' && '기업 정보 입력'}
+              {step === 'dates' && currentStage && `${STAGE_OPTIONS.find(opt => opt.value === currentStage)?.label} 기간 설정 (${currentStageIndex + 1}/${selectedArray.length})`}
+            </span>
+            {step === 'dates' && (
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className="text-xl">×</span>
+              </button>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -274,35 +285,26 @@ export function AddScheduleDialog({ open, onClose, onAdd }: AddScheduleDialogPro
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>시작일</Label>
-                  <Input
-                    type="date"
-                    value={currentStageDates?.startDate || ''}
-                    onChange={(e) => updateStageDate(currentStage, 'startDate', e.target.value)}
-                    min={minStartDate}
-                    max={maxEndDate || undefined}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>종료일</Label>
-                  <Input
-                    type="date"
-                    value={currentStageDates?.endDate || ''}
-                    onChange={(e) => updateStageDate(currentStage, 'endDate', e.target.value)}
-                    min={currentStageDates?.startDate || minStartDate}
-                    max={maxEndDate || undefined}
-                  />
-                </div>
-              </div>
-              {currentStageDates?.startDate && currentStageDates?.endDate && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-900">
-                    선택된 기간: {new Date(currentStageDates.startDate).toLocaleDateString('ko-KR')} ~ {new Date(currentStageDates.endDate).toLocaleDateString('ko-KR')}
-                  </p>
-                </div>
-              )}
+              <DateRangePicker
+                startDate={currentStageDates?.startDate}
+                endDate={currentStageDates?.endDate}
+                minDate={minStartDate || undefined}
+                maxDate={maxEndDate || undefined}
+                onChange={(startDate, endDate) => {
+                  setStageDates({
+                    ...stageDates,
+                    [currentStage]: {
+                      startDate,
+                      endDate,
+                    },
+                  })
+                }}
+                onReset={() => {
+                  const newDates = { ...stageDates }
+                  delete newDates[currentStage]
+                  setStageDates(newDates)
+                }}
+              />
             </div>
           )}
         </div>
@@ -316,7 +318,7 @@ export function AddScheduleDialog({ open, onClose, onAdd }: AddScheduleDialogPro
           <div className="flex gap-2 ml-auto">
             {step === 'dates' && currentStageIndex < selectedArray.length - 1 && (
               <Button onClick={handleNextStage} disabled={!currentStageDates?.startDate || !currentStageDates?.endDate}>
-                다음 단계
+                다음 전형 &gt;
               </Button>
             )}
             {step === 'dates' && currentStageIndex === selectedArray.length - 1 && (

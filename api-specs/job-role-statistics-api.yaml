@@ -1,0 +1,422 @@
+openapi: 3.0.3
+info:
+  title: 직군별 통계 API
+  description: |
+    채용 공고를 직군별로 분류하여 통계를 제공하는 API입니다.
+    주간/월간 단위로 현재 기간과 이전 기간의 직군별 채용 공고 수를 비교할 수 있습니다.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1
+    description: Production server
+
+paths:
+  /dashboard/job-role-statistics:
+    get:
+      summary: 직군별 통계 조회
+      description: |
+        지정된 기간(주간/월간)과 카테고리에 따른 직군별 채용 공고 통계를 조회합니다.
+        현재 기간과 이전 기간의 데이터를 함께 반환하여 비교 분석이 가능합니다.
+      operationId: getJobRoleStatistics
+      tags:
+        - Dashboard
+        - Job Role Statistics
+      parameters:
+        - name: timeframe
+          in: query
+          required: true
+          description: |
+            통계 기간 단위
+            - weekly: 주간 (이번주 vs 저번주)
+            - monthly: 월간 (이번달 vs 지난달)
+          schema:
+            type: string
+            enum: [weekly, monthly]
+            default: weekly
+          example: weekly
+        
+        - name: category
+          in: query
+          required: true
+          description: |
+            직군 카테고리
+            - Tech: 기술 직군 (Software Development, Factory AX Engineering, Solution Development 등)
+            - Biz: 비즈니스 직군 (Sales, Domain Expert, Consulting)
+            - BizSupporting: 비즈니스 지원 직군 (Biz. Supporting)
+          schema:
+            type: string
+            enum: [Tech, Biz, BizSupporting]
+            default: Tech
+          example: Tech
+        
+        - name: start_date
+          in: query
+          required: false
+          description: |
+            현재 기간 시작일 (YYYY-MM-DD 형식)
+            지정하지 않으면 timeframe에 따라 자동 계산됩니다.
+            - weekly: 오늘로부터 7일 전
+            - monthly: 이번 달 1일
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2024-12-01"
+        
+        - name: end_date
+          in: query
+          required: false
+          description: |
+            현재 기간 종료일 (YYYY-MM-DD 형식)
+            지정하지 않으면 오늘 날짜로 설정됩니다.
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2024-12-08"
+        
+        - name: company
+          in: query
+          required: false
+          description: |
+            특정 회사 필터링 (선택사항)
+            지정하지 않으면 전체 회사의 공고를 집계합니다.
+          schema:
+            type: string
+          example: "토스"
+      
+      responses:
+        '200':
+          description: 성공적으로 직군별 통계 데이터를 반환합니다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRoleStatisticsResponse'
+              examples:
+                weeklyTechExample:
+                  summary: 주간 Tech 카테고리 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "직군별 통계 조회 성공"
+                    data:
+                      timeframe: "weekly"
+                      category: "Tech"
+                      current_period:
+                        start_date: "2024-12-01"
+                        end_date: "2024-12-08"
+                      previous_period:
+                        start_date: "2024-11-24"
+                        end_date: "2024-11-30"
+                      statistics:
+                        - name: "Software Development"
+                          value: 45
+                          previousValue: 38
+                          change_rate: 18.4
+                          industries:
+                            - "Front-end Development"
+                            - "Back-end Development"
+                            - "Mobile Development"
+                        - name: "Factory AX Engineering"
+                          value: 12
+                          previousValue: 15
+                          change_rate: -20.0
+                          industries:
+                            - "Simulation"
+                            - "기구설계"
+                            - "전장/제어"
+                        - name: "Solution Development"
+                          value: 28
+                          previousValue: 25
+                          change_rate: 12.0
+                          industries:
+                            - "ERP_FCM"
+                            - "ERP_SCM"
+                            - "ERP_HCM"
+                            - "ERP_T&E"
+                            - "Biz. Solution"
+                        - name: "Cloud/Infra Engineering"
+                          value: 33
+                          previousValue: 30
+                          change_rate: 10.0
+                          industries:
+                            - "System/Network Engineering"
+                            - "Middleware/Database Engineering"
+                            - "Data Center Engineering"
+                        - name: "Architect"
+                          value: 15
+                          previousValue: 12
+                          change_rate: 25.0
+                          industries:
+                            - "Software Architect"
+                            - "Data Architect"
+                            - "Infra Architect"
+                            - "AI Architect"
+                            - "Automation Architect"
+                        - name: "Project Management"
+                          value: 20
+                          previousValue: 18
+                          change_rate: 11.1
+                          industries:
+                            - "Application PM"
+                            - "Infra PM"
+                            - "Solution PM"
+                            - "AI PM"
+                            - "Automation PM"
+                        - name: "Quality Management"
+                          value: 8
+                          previousValue: 10
+                          change_rate: -20.0
+                          industries:
+                            - "PMO"
+                            - "Quality Engineering"
+                            - "Offshoring Service Professional"
+                        - name: "AI"
+                          value: 25
+                          previousValue: 22
+                          change_rate: 13.6
+                          industries:
+                            - "AI/Data Development"
+                            - "Generative AI Development"
+                            - "Physical AI Development"
+                        - name: "정보보호"
+                          value: 10
+                          previousValue: 8
+                          change_rate: 25.0
+                          industries:
+                            - "보안 Governance / Compliance"
+                            - "보안 진단/Consulting"
+                            - "보안 Solution Service"
+                
+                monthlyBizExample:
+                  summary: 월간 Biz 카테고리 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "직군별 통계 조회 성공"
+                    data:
+                      timeframe: "monthly"
+                      category: "Biz"
+                      current_period:
+                        start_date: "2024-12-01"
+                        end_date: "2024-12-08"
+                      previous_period:
+                        start_date: "2024-11-01"
+                        end_date: "2024-11-30"
+                      statistics:
+                        - name: "Sales"
+                          value: 52
+                          previousValue: 48
+                          change_rate: 8.3
+                          industries:
+                            - "[금융] 제1금융"
+                            - "[금융] 제2금융"
+                            - "[공공/Global] 공공"
+                            - "[공공/Global] Global"
+                            - "[제조] 대외"
+                            - "[제조] 대내 Hi-Tech"
+                            - "[제조] 대내 Process"
+                            - "[B2C] 통신"
+                            - "[B2C] 유통/물류/서비스"
+                            - "[B2C] 미디어/콘텐츠"
+                        - name: "Domain Expert"
+                          value: 18
+                          previousValue: 15
+                          change_rate: 20.0
+                          industries:
+                            - "금융 도메인"
+                            - "제조 도메인"
+                            - "공공 도메인"
+                            - "B2C 도메인"
+                        - name: "Consulting"
+                          value: 22
+                          previousValue: 20
+                          change_rate: 10.0
+                          industries:
+                            - "ESG"
+                            - "SHE"
+                            - "CRM"
+                            - "SCM"
+                            - "ERP"
+                            - "AI"
+        
+        '400':
+          description: 잘못된 요청 파라미터
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                code: "BAD_REQUEST"
+                message: "잘못된 요청 파라미터입니다."
+                errors:
+                  - field: "timeframe"
+                    message: "timeframe은 'weekly' 또는 'monthly'만 가능합니다."
+        
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 500
+                code: "INTERNAL_SERVER_ERROR"
+                message: "서버 내부 오류가 발생했습니다."
+
+components:
+  schemas:
+    JobRoleStatisticsResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - data
+      properties:
+        status:
+          type: integer
+          description: HTTP 상태 코드
+          example: 200
+        code:
+          type: string
+          description: 응답 코드
+          enum: [SUCCESS, BAD_REQUEST, INTERNAL_SERVER_ERROR]
+          example: "SUCCESS"
+        message:
+          type: string
+          description: 응답 메시지
+          example: "직군별 통계 조회 성공"
+        data:
+          $ref: '#/components/schemas/JobRoleStatisticsData'
+    
+    JobRoleStatisticsData:
+      type: object
+      required:
+        - timeframe
+        - category
+        - current_period
+        - previous_period
+        - statistics
+      properties:
+        timeframe:
+          type: string
+          enum: [weekly, monthly]
+          description: 통계 기간 단위
+          example: "weekly"
+        category:
+          type: string
+          enum: [Tech, Biz, BizSupporting]
+          description: 직군 카테고리
+          example: "Tech"
+        current_period:
+          $ref: '#/components/schemas/Period'
+        previous_period:
+          $ref: '#/components/schemas/Period'
+        statistics:
+          type: array
+          description: 직군별 통계 데이터 배열
+          items:
+            $ref: '#/components/schemas/JobRoleStatistic'
+    
+    Period:
+      type: object
+      required:
+        - start_date
+        - end_date
+      properties:
+        start_date:
+          type: string
+          format: date
+          description: 기간 시작일 (YYYY-MM-DD)
+          example: "2024-12-01"
+        end_date:
+          type: string
+          format: date
+          description: 기간 종료일 (YYYY-MM-DD)
+          example: "2024-12-08"
+    
+    JobRoleStatistic:
+      type: object
+      required:
+        - name
+        - current_count
+        - previous_count
+        - change_rate
+        - industries
+      properties:
+        name:
+          type: string
+          description: 직군 이름
+          example: "Software Development"
+        current_count:
+          type: integer
+          description: 현재 기간의 채용 공고 수
+          minimum: 0
+          example: 45
+        previous_count:
+          type: integer
+          description: 이전 기간의 채용 공고 수
+          minimum: 0
+          example: 38
+        change_rate:
+          type: number
+          format: float
+          description: |
+            변화율 (백분율)
+            계산식: ((current_count - previous_count) / previous_count) * 100
+            previous_count가 0인 경우 null 반환
+          nullable: true
+          example: 18.4
+        industries:
+          type: array
+          description: 해당 직군에 속하는 산업/세부 분야 목록
+          items:
+            type: string
+          example:
+            - "Front-end Development"
+            - "Back-end Development"
+            - "Mobile Development"
+    
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: integer
+          description: HTTP 상태 코드
+          example: 400
+        code:
+          type: string
+          description: 에러 코드
+          example: "BAD_REQUEST"
+        message:
+          type: string
+          description: 에러 메시지
+          example: "잘못된 요청 파라미터입니다."
+        errors:
+          type: array
+          description: 상세 에러 정보 (선택사항)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: 에러가 발생한 필드명
+              message:
+                type: string
+                description: 에러 메시지
+
+tags:
+  - name: Dashboard
+    description: 대시보드 관련 API
+  - name: Job Role Statistics
+    description: 직군별 통계 API
+

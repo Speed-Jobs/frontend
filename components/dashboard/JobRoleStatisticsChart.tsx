@@ -18,6 +18,10 @@ interface JobRoleStatisticsChartProps {
   selectedRole: string | null
   onRoleClick: (roleName: string | null) => void
   viewMode: 'Weekly' | 'Monthly'
+  currentPeriodStart?: Date
+  currentPeriodEnd?: Date
+  previousPeriodStart?: Date
+  previousPeriodEnd?: Date
   isLoading?: boolean
   error?: string | null
 }
@@ -40,6 +44,10 @@ export default function JobRoleStatisticsChart({
   selectedRole, 
   onRoleClick,
   viewMode,
+  currentPeriodStart,
+  currentPeriodEnd,
+  previousPeriodStart,
+  previousPeriodEnd,
   isLoading, 
   error 
 }: JobRoleStatisticsChartProps) {
@@ -75,9 +83,16 @@ export default function JobRoleStatisticsChart({
   const currentChartData = currentData.filter(item => item.value > 0)
   const previousChartData = previousData.filter(item => item.value > 0)
   
-  // 데이터가 모두 0인 경우에도 최소한 하나의 직무는 표시 (첫 번째 직무를 1로 설정)
+  // 현재 기간 데이터가 모두 0인 경우에도 최소한 하나의 직무는 표시 (첫 번째 직무를 1로 설정)
   if (currentChartData.length === 0 && currentData.length > 0) {
     currentChartData.push({ name: currentData[0].name, value: 1 })
+  }
+  
+  // 이전 기간 데이터가 모두 0인 경우: 모든 직군을 균등하게 표시 (각각 1씩)
+  // 이렇게 하면 실제 데이터가 없을 때도 모든 직군이 표시되고, 실제 데이터가 있으면 정상적으로 표시됨
+  if (previousChartData.length === 0 && previousData.length > 0) {
+    // 모든 직군을 균등하게 표시 (각각 1씩)
+    previousChartData.push(...previousData.map(item => ({ name: item.name, value: 1 })))
   }
   
   // 총합 계산
@@ -91,9 +106,21 @@ export default function JobRoleStatisticsChart({
   // 모든 직군 목록 (비교를 위해)
   const allRoleNames = data.map(item => item.name)
   
-  // 기간 레이블
-  const currentPeriodLabel = viewMode === 'Weekly' ? '이번주' : '이번달'
-  const previousPeriodLabel = viewMode === 'Weekly' ? '저번주' : '지난달'
+  // 기간 레이블 및 날짜 포맷팅
+  const formatDate = (date: Date | undefined): string => {
+    if (!date) return ''
+    return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}.`
+  }
+  
+  const formatPeriodRange = (start: Date | undefined, end: Date | undefined): string => {
+    if (!start || !end) {
+      return viewMode === 'Weekly' ? '이번주' : '이번달'
+    }
+    return `${formatDate(start)} ~ ${formatDate(end)}`
+  }
+  
+  const currentPeriodLabel = formatPeriodRange(currentPeriodStart, currentPeriodEnd)
+  const previousPeriodLabel = formatPeriodRange(previousPeriodStart, previousPeriodEnd)
   
   // 인사이트 생성
   const generateInsights = () => {
@@ -163,23 +190,26 @@ export default function JobRoleStatisticsChart({
       
       {/* 두 개의 도넛 차트 나란히 표시 */}
       <div className="grid grid-cols-2 gap-8 mb-4 w-full">
-        {/* 첫 번째 차트 */}
+        {/* 첫 번째 차트 (지난주/지난달) */}
         <div className="w-full">
+          <div className="text-center mb-2">
+            <p className="text-sm font-medium text-gray-700">{previousPeriodLabel}</p>
+          </div>
           <div style={{ width: '100%', height: '380px' }}>
-            {currentChartData.length > 0 ? (
+            {previousChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={currentChartData}
+                    data={previousChartData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
                     label={({ name, value }) => {
-                      const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
+                      const percent = previousChartTotal > 0 ? (value / previousChartTotal) * 100 : 0
                       return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
                     }}
-                    outerRadius={110}
-                    innerRadius={50}
+                    outerRadius={100}
+                    innerRadius={45}
                     fill="#6b7280"
                     dataKey="value"
                     onClick={(data: any) => {
@@ -191,7 +221,7 @@ export default function JobRoleStatisticsChart({
                     }}
                     style={{ cursor: 'pointer' }}
                   >
-                    {currentChartData.map((entry, index) => {
+                    {previousChartData.map((entry, index) => {
                       const isSelected = selectedRole === entry.name
                       const roleIndex = allRoleNames.indexOf(entry.name)
                       return (
@@ -214,7 +244,7 @@ export default function JobRoleStatisticsChart({
                       fontSize: '13px'
                     }}
                     formatter={(value: number, name: string) => {
-                      const percent = currentChartTotal > 0 ? ((value as number) / currentChartTotal * 100).toFixed(1) : '0.0'
+                      const percent = previousChartTotal > 0 ? ((value as number) / previousChartTotal * 100).toFixed(1) : '0.0'
                       return [`${name}: ${percent}% (${value}건)`, '']
                     }}
                   />
@@ -228,9 +258,12 @@ export default function JobRoleStatisticsChart({
           </div>
         </div>
         
-        {/* 두 번째 차트 (같은 데이터) */}
+        {/* 두 번째 차트 (이번주/이번달) - 더 크게 강조 */}
         <div className="w-full">
-          <div style={{ width: '100%', height: '380px' }}>
+          <div className="text-center mb-2">
+            <p className="text-sm font-semibold text-gray-900">{currentPeriodLabel}</p>
+          </div>
+          <div style={{ width: '100%', height: '450px' }}>
             {currentChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -243,8 +276,8 @@ export default function JobRoleStatisticsChart({
                       const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
                       return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
                     }}
-                    outerRadius={110}
-                    innerRadius={50}
+                    outerRadius={130}
+                    innerRadius={60}
                     fill="#6b7280"
                     dataKey="value"
                     onClick={(data: any) => {

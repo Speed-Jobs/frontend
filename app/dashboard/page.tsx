@@ -1246,6 +1246,8 @@ export default function Dashboard() {
     
     // 최근 공고가 없으면 전체 데이터 사용 (최대 100개)
     const jobsToAnalyze = currentPeriodJobs.length > 0 ? currentPeriodJobs : jobPostingsData.slice(0, 100)
+    // 이전 기간 공고가 없으면 전체 데이터에서 이전 기간에 해당하는 데이터를 찾거나, 빈 배열 사용
+    // 이전 기간 데이터가 없어도 직군별로 0으로 표시되도록 하기 위해 빈 배열 사용
     const previousJobsToAnalyze = previousPeriodJobs.length > 0 ? previousPeriodJobs : []
     
     // 직군별 통계에 사용되는 모든 직군 목록 (SKAX 직무기술서 기준)
@@ -1355,6 +1357,40 @@ export default function Dashboard() {
       }
     })
   }, [selectedExpertCategory, jobRoleStatisticsViewMode])
+
+  // 직군별 통계 기간 정보 계산
+  const jobRoleStatisticsPeriods = useMemo(() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    
+    let currentPeriodStart: Date
+    let currentPeriodEnd: Date
+    let previousPeriodStart: Date
+    let previousPeriodEnd: Date
+    
+    if (jobRoleStatisticsViewMode === 'Weekly') {
+      // 이번주: 오늘부터 7일 전까지
+      currentPeriodEnd = new Date(now)
+      currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      // 저번주: 7일 전부터 14일 전까지
+      previousPeriodEnd = new Date(currentPeriodStart)
+      previousPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+    } else {
+      // 이번달: 이번 달 1일부터 오늘까지
+      currentPeriodEnd = new Date(now)
+      currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      // 지난달: 지난 달 1일부터 마지막 날까지
+      previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+      previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    }
+    
+    return {
+      currentPeriodStart,
+      currentPeriodEnd,
+      previousPeriodStart,
+      previousPeriodEnd,
+    }
+  }, [jobRoleStatisticsViewMode])
 
   // 스킬별 통계 API 상태
   const [skillsApiData, setSkillsApiData] = useState<Array<{
@@ -1766,6 +1802,10 @@ export default function Dashboard() {
               selectedRole={selectedJobRole}
               onRoleClick={setSelectedJobRole}
               viewMode={jobRoleStatisticsViewMode}
+              currentPeriodStart={jobRoleStatisticsPeriods.currentPeriodStart}
+              currentPeriodEnd={jobRoleStatisticsPeriods.currentPeriodEnd}
+              previousPeriodStart={jobRoleStatisticsPeriods.previousPeriodStart}
+              previousPeriodEnd={jobRoleStatisticsPeriods.previousPeriodEnd}
               isLoading={false}
               error={null}
             />

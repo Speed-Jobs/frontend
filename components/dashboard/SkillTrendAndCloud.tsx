@@ -289,9 +289,18 @@ export default function SkillTrendAndCloud({
 
       {/* 스킬 클라우드 */}
       <div className="w-[600px] bg-white rounded-lg border border-gray-200 p-4">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          스킬 클라우드{selectedCloudCompany !== '전체' ? ` - ${selectedCloudCompany}` : ''}
-        </h4>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-gray-900">
+            스킬 클라우드
+          </h4>
+          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+            selectedCloudCompany === '전체' 
+              ? 'bg-blue-100 text-blue-700' 
+              : 'bg-purple-100 text-purple-700'
+          }`}>
+            {selectedCloudCompany === '전체' ? '전체 대상' : `${selectedCloudCompany} 대상`}
+          </span>
+        </div>
         {isLoadingCloud ? (
           <div className="flex items-center justify-center h-[400px]">
             <div className="text-gray-500">데이터를 불러오는 중...</div>

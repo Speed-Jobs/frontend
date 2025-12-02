@@ -14,6 +14,7 @@ import CompanyNetworkBubble from '@/components/dashboard/CompanyNetworkBubble'
 import RecruitmentCalendar from '@/components/dashboard/RecruitmentCalendar'
 import CompanyRecruitmentTable from '@/components/dashboard/CompanyRecruitmentTable'
 import HotJobsList from '@/components/dashboard/HotJobsList'
+import JobRoleSkillSetGuide from '@/components/dashboard/JobRoleSkillSetGuide'
 import JobPostingsTrendChart from '@/components/dashboard/JobPostingsTrendChart'
 import CompanyRecruitmentChart from '@/components/dashboard/CompanyRecruitmentChart'
 import CombinedTrendChart from '@/components/dashboard/CombinedTrendChart'
@@ -31,12 +32,12 @@ export default function Dashboard() {
   const ourCompany = 'SK AX'
 
   // API 상태 관리
-  const [jobPostingsTrendTimeframe, setJobPostingsTrendTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily')
+  const [jobPostingsTrendTimeframe, setJobPostingsTrendTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Weekly')
   const [jobPostingsTrendApiData, setJobPostingsTrendApiData] = useState<Array<{ period: string; count: number }>>([])
   const [isLoadingJobPostingsTrend, setIsLoadingJobPostingsTrend] = useState(false)
   const [jobPostingsTrendError, setJobPostingsTrendError] = useState<string | null>(null)
 
-  const [companyRecruitmentTimeframe, setCompanyRecruitmentTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily')
+  const [companyRecruitmentTimeframe, setCompanyRecruitmentTimeframe] = useState<'Daily' | 'Weekly' | 'Monthly'>('Weekly')
   const [companyRecruitmentApiData, setCompanyRecruitmentApiData] = useState<{
     companies: Array<{ id: number; name: string; key: string }>
     activities: Array<{ period: string; counts: Record<string, number> }>
@@ -318,10 +319,31 @@ export default function Dashboard() {
       'Solution Development': ['solution', 'erp', 'scm', 'crm', '솔루션'],
       'Cloud/Infra Engineering': ['cloud', 'infra', 'aws', 'kubernetes', 'docker', '인프라'],
       'Architect': ['architect', '아키텍트', '설계'],
+      'Project Management': ['project', 'management', 'pm', '프로젝트', '관리'],
+      'Quality Management': ['quality', 'qa', 'qc', '품질', '테스트'],
       'AI': ['ai', 'ml', '인공지능', '머신러닝', '딥러닝'],
+      '정보보호': ['정보보호', '보안', 'security', 'cybersecurity'],
       'Sales': ['sales', '영업', '세일즈'],
       'Consulting': ['consulting', '컨설팅', '컨설턴트'],
       'Domain Expert': ['domain', '도메인', '전문가'],
+      'Biz. Supporting': ['strategy', 'planning', '전략', '기획', 'hr', '인사'],
+    }
+
+    // 직군별 직무(Skill set) 매핑
+    const positionIndustries: Record<string, string[]> = {
+      'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
+      'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
+      'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
+      'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
+      'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
+      'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+      'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
+      'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
+      '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
+      'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
+      'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
+      'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
+      'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
     }
 
     // 경쟁사 목록
@@ -399,15 +421,18 @@ export default function Dashboard() {
 
       // 카테고리 분류
       let category: 'Tech' | 'Biz' | 'BizSupporting' | undefined
-      if (['Software Development', 'Factory AX Engineering', 'Solution Development', 'Cloud/Infra Engineering', 'Architect', 'AI'].includes(position)) {
+      if (['Software Development', 'Factory AX Engineering', 'Solution Development', 'Cloud/Infra Engineering', 'Architect', 'Project Management', 'Quality Management', 'AI', '정보보호'].includes(position)) {
         category = 'Tech'
       } else if (['Sales', 'Consulting', 'Domain Expert'].includes(position)) {
         category = 'Biz'
+      } else if (position === 'Biz. Supporting') {
+        category = 'BizSupporting'
       }
 
       return {
         name: position,
         category,
+        industries: positionIndustries[position] || [],
         difficulty: Math.min(100, Math.max(0, difficulty)),
         similarPostings,
         competitorRatio: Math.round(competitorRatio * 10) / 10,
@@ -627,7 +652,6 @@ export default function Dashboard() {
         employmentType: job.employment_type || '',
       }))
       .sort((a, b) => b.views - a.views) // 조회수 기준 정렬
-      .slice(0, 5)
       .map((job, index) => ({
         ...job,
         rank: index + 1,
@@ -1360,34 +1384,38 @@ export default function Dashboard() {
         </div>
 
         {/* 메인 3열 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
           {/* 왼쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-6 flex flex-col">
             <DarkDashboardCard title="회사별 공고">
               <CompanyJobPostings companies={companyJobPostingsData} />
             </DarkDashboardCard>
 
-            <DarkDashboardCard title="직군별 채용 공고">
-              <JobRoleBarChart data={jobRoleData} />
+            <DarkDashboardCard title="직군별 채용 공고" className="flex-1 flex flex-col min-h-[450px]">
+              <div className="flex-1 min-h-0">
+                <JobRoleBarChart data={jobRoleData} />
+              </div>
             </DarkDashboardCard>
           </div>
 
           {/* 중앙 컬럼 (6열) */}
-          <div className="lg:col-span-6 space-y-6">
+          <div className="lg:col-span-6 space-y-6 flex flex-col">
             <DarkDashboardCard title="신입 공채 일정" className="h-[450px]">
               <RecruitmentCalendar events={recruitmentScheduleData} />
             </DarkDashboardCard>
 
-            <DarkDashboardCard title="회사별 금주 채용 현황">
-              <CompanyRecruitmentTable data={companyRecruitmentTableData} />
+            <DarkDashboardCard title="회사별 금주 채용 현황" className="flex-1 flex flex-col min-h-[450px]">
+              <div className="flex-1 min-h-0">
+                <CompanyRecruitmentTable data={companyRecruitmentTableData} />
+              </div>
             </DarkDashboardCard>
           </div>
 
           {/* 오른쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">🔥 이번주 HOT 공고 Top 5</h2>
+          <div className="lg:col-span-3 flex flex-col space-y-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col min-h-[450px]">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <h2 className="text-lg font-semibold text-gray-900">🔥 이번주 HOT 공고</h2>
                 <Link 
                   href="/jobs"
                   className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
@@ -1396,10 +1424,15 @@ export default function Dashboard() {
                   <span className="text-xs">→</span>
                 </Link>
               </div>
-              <div className="text-gray-700">
+              <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
                 <HotJobsList jobs={hotJobsData} />
               </div>
             </div>
+
+            {/* 우리 회사 직무 기술서 보기 */}
+            <DarkDashboardCard title="우리 회사 직무 기술서 보기" className="flex-1 flex flex-col min-h-[450px]">
+              <JobRoleSkillSetGuide />
+            </DarkDashboardCard>
           </div>
         </div>
 
@@ -1483,23 +1516,10 @@ export default function Dashboard() {
 
         {/* API 연동 차트 섹션 */}
         <div className="space-y-6">
-          {/* 통합 차트: 일간 채용 공고 수 추이 + 회사별 채용 활동 */}
-          <DarkDashboardCard title="일간 채용 공고 수 추이 및 주요 회사별 채용 활동">
+          {/* 통합 차트: 채용 공고 수 추이 + 회사별 채용 활동 */}
+          <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동">
             <div className="mb-4 flex flex-wrap gap-2 items-center">
               <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setJobPostingsTrendTimeframe('Daily')
-                    setCompanyRecruitmentTimeframe('Daily')
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    jobPostingsTrendTimeframe === 'Daily'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                  }`}
-                >
-                  일간
-                </button>
                 <button
                   onClick={() => {
                     setJobPostingsTrendTimeframe('Weekly')

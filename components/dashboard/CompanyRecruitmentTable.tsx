@@ -33,10 +33,9 @@ export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTabl
   const isNegative = (change: number) => change < 0
 
   return (
-    <div className="h-[400px] overflow-auto">
-      <div className="overflow-x-auto h-full">
-        <table className="w-full">
-        <thead>
+    <div className="h-full overflow-x-auto overflow-y-hidden flex flex-col">
+      <table className="w-full table-fixed">
+        <thead className="sticky top-0 bg-white z-20">
           <tr className="border-b border-gray-200">
             <th className="text-left py-3 px-3 text-gray-700 font-semibold text-xs sticky left-0 bg-white z-10">회사</th>
             <th className="text-center py-3 px-1.5 text-gray-700 font-semibold text-[10px] whitespace-nowrap">Software<br/>Dev</th>
@@ -135,7 +134,6 @@ export default function CompanyRecruitmentTable({ data }: CompanyRecruitmentTabl
           ))}
         </tbody>
       </table>
-      </div>
     </div>
   )
 }

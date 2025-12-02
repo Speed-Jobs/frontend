@@ -102,7 +102,6 @@ const jobRoleData: CategoryData[] = [
 
 export default function JobRoleSkillSetGuide() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tech 전문가')
-  const [expandedJobRole, setExpandedJobRole] = useState<string | null>(null)
 
   const currentCategoryData = jobRoleData.find(cat => cat.category === selectedCategory)
 
@@ -113,10 +112,7 @@ export default function JobRoleSkillSetGuide() {
         {jobRoleData.map((category) => (
           <button
             key={category.category}
-            onClick={() => {
-              setSelectedCategory(category.category)
-              setExpandedJobRole(null)
-            }}
+            onClick={() => setSelectedCategory(category.category)}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
               selectedCategory === category.category
                 ? 'border-blue-500 text-blue-600'
@@ -134,51 +130,25 @@ export default function JobRoleSkillSetGuide() {
           {currentCategoryData?.jobRoles.map((jobRole) => (
             <div
               key={jobRole.name}
-              className="border border-gray-200 rounded-lg overflow-hidden"
+              className="border border-gray-200 rounded-lg px-4 py-3 bg-white flex items-center gap-4"
             >
-              <button
-                onClick={() => setExpandedJobRole(
-                  expandedJobRole === jobRole.name ? null : jobRole.name
-                )}
-                className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between"
-              >
+              <div className="flex-shrink-0 min-w-[200px]">
                 <span className="text-sm font-semibold text-gray-900">{jobRole.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">
-                    {jobRole.skillSets.length}개 Skill set
-                  </span>
-                  <svg
-                    className={`w-4 h-4 text-gray-500 transition-transform ${
-                      expandedJobRole === jobRole.name ? 'rotate-180' : ''
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </button>
+                <span className="ml-2 text-xs text-gray-500">
+                  ({jobRole.skillSets.length}개)
+                </span>
+              </div>
               
-              {expandedJobRole === jobRole.name && (
-                <div className="px-4 py-3 bg-white border-t border-gray-200">
-                  <div className="grid grid-cols-2 gap-2">
-                    {jobRole.skillSets.map((skillSet, index) => (
-                      <div
-                        key={index}
-                        className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700"
-                      >
-                        {skillSet}
-                      </div>
-                    ))}
+              <div className="flex-1 flex flex-wrap gap-2">
+                {jobRole.skillSets.map((skillSet, index) => (
+                  <div
+                    key={index}
+                    className="px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700"
+                  >
+                    {skillSet}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           ))}
         </div>

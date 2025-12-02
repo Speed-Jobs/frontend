@@ -25,14 +25,14 @@ export function CompanyScheduleManager({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <CardTitle className="text-lg">경쟁사 채용 일정</CardTitle>
           {schedules.length > 0 && (
             <Button 
               variant="outline" 
               size="sm"
               onClick={onClearAll}
-              className="text-xs"
+              className="text-xs flex-shrink-0"
             >
               <RotateCcw className="size-3 mr-1" />
               초기화

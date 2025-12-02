@@ -20,10 +20,12 @@ export function UserPinManager({ pins, onAdd, onRemove, onClearAll }: UserPinMan
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">우리 회사 일정 시뮬레이션</CardTitle>
-        <p className="text-xs text-slate-500 mt-1">
-          일정을 설정하고 경쟁사와 비교한 인사이트를 확인하세요
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <CardTitle className="text-lg">우리 회사 일정 시뮬레이션</CardTitle>
+          <span className="text-xs text-slate-500">
+            일정을 설정하고 경쟁사와 비교한 인사이트를 확인하세요
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={() => setIsDialogOpen(true)} className="w-full">
@@ -39,13 +41,13 @@ export function UserPinManager({ pins, onAdd, onRemove, onClearAll }: UserPinMan
           ) : (
             <div className="bg-slate-50 rounded-lg border border-slate-200">
               {/* Header with title and delete button */}
-              <div className="flex items-center justify-between p-3 border-b border-slate-200">
+              <div className="flex items-center justify-between gap-4 p-3 border-b border-slate-200">
                 <div className="text-sm font-medium text-slate-900">우리 채용 일정</div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClearAll}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 flex-shrink-0"
                 >
                   <X className="size-4" />
                 </Button>

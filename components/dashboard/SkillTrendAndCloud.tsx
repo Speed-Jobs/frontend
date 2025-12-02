@@ -30,6 +30,8 @@ interface SkillTrendAndCloudProps {
   selectedCompany: string
   selectedCloudCompany?: string
   selectedYear: string
+  selectedCloudYear?: string
+  onYearSelect?: (year: string) => void
   isLoadingTrend?: boolean
   isLoadingCloud?: boolean
   trendError?: string | null
@@ -42,6 +44,8 @@ export default function SkillTrendAndCloud({
   selectedCompany,
   selectedCloudCompany = '전체',
   selectedYear,
+  selectedCloudYear = '전체',
+  onYearSelect,
   isLoadingTrend,
   isLoadingCloud,
   trendError,
@@ -231,7 +235,7 @@ export default function SkillTrendAndCloud({
         ) : yearlyData.length === 0 || topSkills.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[400px]">
             <div className="text-gray-500 text-sm mb-2">
-              {selectedCompany === '전체' || !selectedCompany ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
+              {!selectedCompany || selectedCompany === '' ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
             </div>
             {skillTrendData.length === 0 && (
               <div className="text-xs text-gray-400 mt-2">
@@ -246,7 +250,15 @@ export default function SkillTrendAndCloud({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={yearlyData}>
+            <BarChart 
+              data={yearlyData}
+              onClick={(data: any) => {
+                if (data && data.activePayload && data.activePayload[0] && onYearSelect) {
+                  const year = data.activePayload[0].payload.year
+                  onYearSelect(year)
+                }
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
                 dataKey="year" 
@@ -267,6 +279,7 @@ export default function SkillTrendAndCloud({
                   fontSize: '13px'
                 }}
                 formatter={(value: number) => [`${value}회`, '']}
+                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
               <Legend 
                 wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#6b7280' }}
@@ -289,17 +302,15 @@ export default function SkillTrendAndCloud({
 
       {/* 스킬 클라우드 */}
       <div className="w-[600px] bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold text-gray-900">
+        <div className="mb-4">
+          <h4 className="text-lg font-semibold text-gray-900 mb-2">
             스킬 클라우드
           </h4>
-          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-            selectedCloudCompany === '전체' 
-              ? 'bg-blue-100 text-blue-700' 
-              : 'bg-purple-100 text-purple-700'
-          }`}>
-            {selectedCloudCompany === '전체' ? '전체 대상' : `${selectedCloudCompany} 대상`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {selectedCloudYear !== '전체' ? selectedCloudYear : selectedYear} {selectedCloudCompany === '전체' ? '전체' : selectedCloudCompany} 스킬 클라우드
+            </span>
+          </div>
         </div>
         {isLoadingCloud ? (
           <div className="flex items-center justify-center h-[400px]">

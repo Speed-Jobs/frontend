@@ -195,47 +195,53 @@ export default function RecruitmentSchedulePage() {
           </div>
         </div>
 
+        {/* 필터링 기능 - 중앙 배치 */}
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
+            <div className="flex justify-center mb-4">
+              <TabsList className="inline-flex h-9 w-auto">
+                <TabsTrigger value="신입" className="text-sm px-6">
+                  신입 공고
+                </TabsTrigger>
+                <TabsTrigger value="경력" className="text-sm px-6">
+                  경력 공고
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </Tabs>
+
+          {activeTab === '신입' && (
+            <div className="flex justify-center gap-2">
+              <Button
+                variant={dataFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDataFilter('all')}
+              >
+                전체 보기
+              </Button>
+              <Button
+                variant={dataFilter === 'actual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDataFilter('actual')}
+              >
+                실제 공고만
+              </Button>
+              <Button
+                variant={dataFilter === 'predicted' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDataFilter('predicted')}
+              >
+                예측치만
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
-                <div className="flex justify-center mb-4">
-                  <TabsList className="inline-flex h-9 w-auto">
-                    <TabsTrigger value="신입" className="text-sm px-6">
-                      신입 공고
-                    </TabsTrigger>
-                    <TabsTrigger value="경력" className="text-sm px-6">
-                      경력 공고
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-
                 <TabsContent value="신입" className="mt-0">
-                  {/* 데이터 필터 버튼 */}
-                  <div className="flex justify-center gap-2 mb-4">
-                    <Button
-                      variant={dataFilter === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDataFilter('all')}
-                    >
-                      전체 보기
-                    </Button>
-                    <Button
-                      variant={dataFilter === 'actual' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDataFilter('actual')}
-                    >
-                      실제 공고만
-                    </Button>
-                    <Button
-                      variant={dataFilter === 'predicted' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setDataFilter('predicted')}
-                    >
-                      예측치만
-                    </Button>
-                  </div>
-                  
                   <Calendar
                     currentDate={currentDate}
                     companySchedules={finalFilteredSchedules}
@@ -268,7 +274,7 @@ export default function RecruitmentSchedulePage() {
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 pt-[130px]">
             <CompanyScheduleManager
               schedules={userSchedules.filter((s) => s.type === activeTab)}
               onAdd={addCompanySchedule}

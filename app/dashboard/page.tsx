@@ -51,10 +51,12 @@ export default function Dashboard() {
     top_companies?: Array<{ company_id?: number; company_name: string; total_count?: number; market_share?: number }>
   } | null>(null)
 
-  // 스킬 트렌드 관련 상태 (기본값: 첫 번째 회사 또는 빈 문자열)
-  const [selectedSkillCompany, setSelectedSkillCompany] = useState<string>('')
-  // 스킬 클라우드용 회사 선택 (기본값: 전체)
+  // 스킬 트렌드 관련 상태 (기본값: 전체)
+  const [selectedSkillCompany, setSelectedSkillCompany] = useState<string>('전체')
+  // 스킬 클라우드용 회사 선택 (스킬 트렌드 회사와 동기화)
   const [selectedSkillCloudCompany, setSelectedSkillCloudCompany] = useState<string>('전체')
+  // 스킬 클라우드용 연도 선택 (기본값: 전체)
+  const [selectedSkillCloudYear, setSelectedSkillCloudYear] = useState<string>('전체')
   const [skillTrendData, setSkillTrendData] = useState<Array<{
     month: string
     [skill: string]: string | number
@@ -670,6 +672,21 @@ export default function Dashboard() {
       setIsLoadingJobPostingsTrend(true)
       setJobPostingsTrendError(null)
       
+      // 회사가 변경되면 이전 인사이트 데이터 초기화 (로딩 상태 표시를 위해)
+      if (selectedRecruitmentCompanies.length === 1) {
+        const selectedCompanyName = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])?.name
+        const currentInsightCompany = combinedTrendData?.selectedCompany?.company_name
+        // 선택된 회사가 변경되면 인사이트 데이터 초기화
+        if (selectedCompanyName && currentInsightCompany && selectedCompanyName !== currentInsightCompany) {
+          setCombinedTrendData(prev => prev ? { ...prev, insight: null } : null)
+        }
+      } else {
+        // 전체 선택으로 변경되면 인사이트 데이터 초기화
+        if (combinedTrendData?.insight) {
+          setCombinedTrendData(prev => prev ? { ...prev, insight: null } : null)
+        }
+      }
+      
       try {
         const timeframeMap: Record<string, string> = {
           'Daily': 'daily',
@@ -684,9 +701,11 @@ export default function Dashboard() {
           : null
         
         // API URL 구성 (회사 파라미터가 있으면 추가)
-        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}`
+        // 인사이트 API 호출 일시 중지 (API 키 사용량 절감)
+        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=false`
         if (selectedCompanyName) {
-          apiUrl += `&company=${encodeURIComponent(selectedCompanyName)}`
+          // company 파라미터 대신 company_keyword 사용 (백엔드 API 형식에 맞춤)
+          apiUrl += `&company_keyword=${encodeURIComponent(selectedCompanyName)}`
         }
         
         console.log('=== 채용 공고 수 추이 API 호출 ===')
@@ -716,16 +735,21 @@ export default function Dashboard() {
         if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
           const { trends, insight, selected_company, top_companies } = result.data
           
-          // 전체 추이 데이터 설정
+          // 전체 추이 데이터 설정 (즉시 표시)
           if (Array.isArray(trends)) {
             const formattedData = trends.map(item => ({
               period: item.period,
               count: item.count
             }))
             setJobPostingsTrendApiData(formattedData)
+            // 그래프는 trends 데이터가 있으면 바로 표시할 수 있도록 로딩 상태 해제
+            // 단, insight가 없으면 인사이트는 아직 로딩 중
+            if (insight) {
+              setIsLoadingJobPostingsTrend(false)
+            }
           }
           
-          // 인사이트 데이터 저장
+          // 인사이트 데이터 저장 (나중에 로드될 수 있음)
           if (insight) {
             setCombinedTrendData({
               trends: trends || [],
@@ -733,6 +757,8 @@ export default function Dashboard() {
               selectedCompany: selected_company || null,
               top_companies: top_companies || []
             })
+            // 인사이트가 로드되면 로딩 상태 해제
+            setIsLoadingJobPostingsTrend(false)
             
             // top_companies 또는 competitor_comparison을 사용하여 회사 목록 구성
             let companies: any[] = []
@@ -799,6 +825,17 @@ export default function Dashboard() {
                 const selectedCompanyKey = selected_company.company_name.toLowerCase().replace(/\s+/g, '_')
                 setSelectedRecruitmentCompanies([selectedCompanyKey])
               }
+            }
+          } else {
+            // trends는 있지만 insight가 없는 경우, 인사이트는 아직 생성 중
+            // combinedTrendData는 업데이트하지 않고 trends만 저장
+            if (Array.isArray(trends)) {
+              setCombinedTrendData(prev => ({
+                trends: trends || [],
+                insight: prev?.insight || null,
+                selectedCompany: selected_company || prev?.selectedCompany || null,
+                top_companies: top_companies || prev?.top_companies || []
+              }))
             }
           }
         } else {
@@ -927,8 +964,15 @@ export default function Dashboard() {
 
         for (const year of years) {
           try {
-            // API 엔드포인트: skill-trends (복수형) 사용
-            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?year=${year}&top_n=10`
+            // API 엔드포인트: 전체 선택 시 다른 URL 사용
+            let apiUrl: string
+            if (selectedSkillCompany === '전체') {
+              // 전체 데이터를 가져오는 API (회사 파라미터 없음)
+              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?year=${year}&top_n=10`
+            } else {
+              // 특정 회사 데이터를 가져오는 API
+              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?year=${year}&top_n=10`
+            }
             console.log(`=== 스킬 트렌드 API 호출 (${year}) ===`)
             console.log('호출 URL:', apiUrl)
             
@@ -1150,15 +1194,7 @@ export default function Dashboard() {
     })
   }, [companyRecruitmentApiData, combinedTrendData, selectedRecruitmentCompanies, recruitmentCompanies])
 
-  // 스킬 트렌드 회사 기본값 설정 (첫 번째 회사)
-  useEffect(() => {
-    if (recruitmentCompanies.length > 0) {
-      if (!selectedSkillCompany || selectedSkillCompany === '') {
-        console.log('스킬 트렌드 회사 기본값 설정:', recruitmentCompanies[0].name)
-        setSelectedSkillCompany(recruitmentCompanies[0].name)
-      }
-    }
-  }, [recruitmentCompanies])
+  // 스킬 트렌드 회사 기본값 설정 (전체가 기본값이므로 자동 설정 로직 제거)
 
   // 직군별 통계 데이터 (주간/월간에 따라 실제 데이터 계산)
   const jobRoleStatisticsData = useMemo(() => {
@@ -1355,7 +1391,7 @@ export default function Dashboard() {
     { name: 'terraform', count: 92, percentage: 8.6, change: 2.5, relatedSkills: ['iac', 'aws', 'infrastructure'] },
   ].sort((a, b) => b.count - a.count)
 
-  // 스킬 통계 API 호출 (회사 필터 적용, 연도 필터 제거 - 최근 5년 전체)
+  // 스킬 통계 API 호출 (회사 및 연도 필터 적용)
   useEffect(() => {
     const fetchSkillsStatistics = async () => {
       try {
@@ -1363,11 +1399,20 @@ export default function Dashboard() {
         setSkillsError(null)
         
         const params = new URLSearchParams()
-        // 연도 필터 제거 - 최근 5년 전체 데이터
-        const startDate = '2021-01-01'
-        const endDate = '2025-12-31'
-        params.append('start_date', startDate)
-        params.append('end_date', endDate)
+        
+        // 연도 필터 추가
+        if (selectedSkillCloudYear !== '전체') {
+          const startDate = `${selectedSkillCloudYear}-01-01`
+          const endDate = `${selectedSkillCloudYear}-12-31`
+          params.append('start_date', startDate)
+          params.append('end_date', endDate)
+        } else {
+          // 전체 선택 시 최근 5년 전체 데이터
+          const startDate = '2021-01-01'
+          const endDate = '2025-12-31'
+          params.append('start_date', startDate)
+          params.append('end_date', endDate)
+        }
         
         // 회사 필터 추가 (스킬 클라우드용)
         if (selectedSkillCloudCompany !== '전체') {
@@ -1379,6 +1424,8 @@ export default function Dashboard() {
         const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skills/statistics?${params.toString()}`
         console.log('=== 스킬 통계 API 호출 ===')
         console.log('호출 URL:', apiUrl)
+        console.log('선택된 회사:', selectedSkillCloudCompany)
+        console.log('선택된 연도:', selectedSkillCloudYear)
         
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -1418,7 +1465,12 @@ export default function Dashboard() {
     }
 
     fetchSkillsStatistics()
-  }, [selectedSkillCloudCompany])
+  }, [selectedSkillCloudCompany, selectedSkillCloudYear])
+  
+  // 스킬 트렌드 회사 변경 시 스킬 클라우드 회사도 동기화
+  useEffect(() => {
+    setSelectedSkillCloudCompany(selectedSkillCompany)
+  }, [selectedSkillCompany])
 
   // 스킬 클라우드에 사용할 데이터 (선택된 회사에 따라 필터링)
   const skillCloudData = useMemo(() => {
@@ -1466,16 +1518,16 @@ export default function Dashboard() {
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
           {/* 중앙 컬럼 (9열) - 확장 */}
-          <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6">
-            <DarkDashboardCard title="신입 공채 일정" className="lg:w-[42%] h-[600px] flex flex-col">
+          <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch">
+            <DarkDashboardCard title="신입 공채 일정" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
                 <NewRecruitmentCalendar events={recruitmentScheduleData} />
               </div>
             </DarkDashboardCard>
 
             {/* 통합 차트: 채용 공고 수 추이 + 회사별 채용 활동 */}
-            <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동" className="lg:w-[58%] flex-1 flex flex-col min-h-[600px]">
-              <div className="mb-4 flex flex-wrap gap-2 items-center">
+            <DarkDashboardCard title="채용 공고 수 추이 및 주요 회사별 채용 활동" className="lg:w-[58%] flex flex-col">
+              <div className="mb-4 flex flex-wrap gap-2 items-center flex-shrink-0">
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -1546,47 +1598,39 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-shrink-0" style={{ minHeight: '400px' }}>
                 <CombinedTrendChart
                   jobPostingsTrendData={jobPostingsTrendApiData}
                   companyRecruitmentData={companyRecruitmentChartData}
                   companies={recruitmentCompanies}
                   selectedCompanies={selectedRecruitmentCompanies}
                   timeframe={jobPostingsTrendTimeframe}
-                  isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
+                  isLoading={jobPostingsTrendApiData.length === 0 && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment)}
                   error={jobPostingsTrendError || companyRecruitmentError}
                 />
               </div>
               
-              {/* 인사이트 표시 (전체 또는 단일 회사 선택 시) */}
-              {(() => {
+              {/* 인사이트 표시 (일시 중지 - API 키 사용량 절감) */}
+              {/* {(() => {
                 // 전체 선택인지 확인 (length가 0이거나 모든 회사가 선택된 경우)
                 const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
                   (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
                 
-                // 전체 인사이트 표시
+                // 전체 선택 시에는 인사이트 표시하지 않음
                 if (isAllSelected) {
-                  return (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <CompanyInsightView
-                        companyKey="all"
-                        companyName="전체"
-                        companyColor="#6b7280"
-                        timeframe={jobPostingsTrendTimeframe}
-                        recruitmentData={jobPostingsTrendApiData}
-                        totalTrendData={jobPostingsTrendApiData}
-                        insightData={combinedTrendData?.insight}
-                        isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
-                        error={jobPostingsTrendError || companyRecruitmentError}
-                      />
-                    </div>
-                  )
+                  return null
                 }
                 
                 // 단일 회사 선택 시
                 if (selectedRecruitmentCompanies.length === 1) {
                   const selectedCompany = recruitmentCompanies.find((c: { key: string; name: string }) => c.key === selectedRecruitmentCompanies[0])
                   if (!selectedCompany) return null
+
+                  // 인사이트 로딩 상태 확인
+                  // 선택된 회사와 현재 인사이트 데이터의 회사가 일치하지 않거나 인사이트가 없으면 로딩 중
+                  const currentInsightCompany = combinedTrendData?.selectedCompany?.company_name
+                  const isCompanyChanged = selectedCompany.name !== currentInsightCompany
+                  const isInsightLoading = (isCompanyChanged || !combinedTrendData?.insight) && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment) && jobPostingsTrendApiData.length > 0
 
                   // 선택된 회사의 채용 활동 데이터 필터링
                   let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
@@ -1607,24 +1651,33 @@ export default function Dashboard() {
                   }
 
                   return (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <CompanyInsightView
-                        companyKey={selectedCompany.key}
-                        companyName={selectedCompany.name}
-                        companyColor={selectedCompany.color}
-                        timeframe={jobPostingsTrendTimeframe}
-                        recruitmentData={singleCompanyRecruitmentData}
-                        totalTrendData={jobPostingsTrendApiData}
-                        insightData={combinedTrendData?.insight}
-                        isLoading={isLoadingJobPostingsTrend || isLoadingCompanyRecruitment}
-                        error={jobPostingsTrendError || companyRecruitmentError}
-                      />
+                    <div className="mt-3 pt-3 border-t border-gray-200 pb-0 flex-shrink-0">
+                      {isInsightLoading ? (
+                        <div className="bg-white rounded-lg border border-gray-200 px-5 py-3">
+                          <div className="flex items-center justify-center gap-3">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                            <span className="text-gray-600 text-sm">인사이트 생성 중...</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <CompanyInsightView
+                          companyKey={selectedCompany.key}
+                          companyName={selectedCompany.name}
+                          companyColor={selectedCompany.color}
+                          timeframe={jobPostingsTrendTimeframe}
+                          recruitmentData={singleCompanyRecruitmentData}
+                          totalTrendData={jobPostingsTrendApiData}
+                          insightData={combinedTrendData?.insight}
+                          isLoading={false}
+                          error={jobPostingsTrendError || companyRecruitmentError}
+                        />
+                      )}
                     </div>
                   )
                 }
                 
                 return null
-              })()}
+              })()} */}
             </DarkDashboardCard>
           </div>
 
@@ -1645,11 +1698,6 @@ export default function Dashboard() {
                 <HotJobsList jobs={hotJobsData} />
               </div>
             </div>
-
-            {/* 우리 회사 직무 기술서 보기 */}
-            <DarkDashboardCard title="우리 회사 직무 기술서 보기" className="flex-1 flex flex-col min-h-[450px]">
-              <JobRoleSkillSetGuide />
-            </DarkDashboardCard>
           </div>
         </div>
 
@@ -1746,6 +1794,7 @@ export default function Dashboard() {
                   }}
                   className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">전체</option>
                   {recruitmentCompanies.length === 0 ? (
                     <option value="">회사 로딩 중...</option>
                   ) : (
@@ -1755,19 +1804,6 @@ export default function Dashboard() {
                   )}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">스킬 클라우드 회사:</span>
-                <select
-                  value={selectedSkillCloudCompany}
-                  onChange={(e) => setSelectedSkillCloudCompany(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="전체">전체</option>
-                  {recruitmentCompanies.map((company: { key: string; name: string }) => (
-                    <option key={company.key} value={company.name}>{company.name}</option>
-                  ))}
-                </select>
-              </div>
             </div>
             <SkillTrendAndCloud
               skillTrendData={skillTrendData}
@@ -1775,6 +1811,8 @@ export default function Dashboard() {
               selectedCompany={selectedSkillCompany}
               selectedCloudCompany={selectedSkillCloudCompany}
               selectedYear="2021-2025"
+              selectedCloudYear={selectedSkillCloudYear}
+              onYearSelect={(year: string) => setSelectedSkillCloudYear(year)}
               isLoadingTrend={isLoadingSkillTrend}
               isLoadingCloud={isLoadingSkills}
               trendError={skillTrendError}
@@ -1782,6 +1820,13 @@ export default function Dashboard() {
             />
           </DarkDashboardCard>
 
+        </div>
+
+        {/* 우리 회사 직무 기술서 보기 - 제일 아래 */}
+        <div className="mt-8 mb-6">
+          <DarkDashboardCard title="우리 회사 직무 기술서 보기" className="flex flex-col min-h-[450px]">
+            <JobRoleSkillSetGuide />
+          </DarkDashboardCard>
         </div>
       </div>
 

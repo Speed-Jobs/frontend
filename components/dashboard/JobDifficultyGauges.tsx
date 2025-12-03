@@ -628,12 +628,12 @@ export default function JobDifficultyGauges({
 
         {/* 직군 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex items-center gap-2 flex-shrink-0">
-            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap">직군 선택</div>
+          <div className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0">
+            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직군 선택</div>
             <select
               value={selectedJobRoleFilter}
               onChange={(e) => handleJobRoleChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0"
               onClick={(e) => e.stopPropagation()}
             >
               <option value="전체">전체</option>
@@ -653,13 +653,13 @@ export default function JobDifficultyGauges({
 
         {/* 직무(Skill set) 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex items-center gap-2 flex-shrink-0">
-            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap">직무 선택</div>
+          <div className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0">
+            <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직무 선택</div>
             <select
               value={selectedSkillSetFilter}
               onChange={(e) => setSelectedSkillSetFilter(e.target.value)}
               disabled={selectedJobRoleFilter === '전체'}
-              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 ${
+              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 ${
                 selectedJobRoleFilter === '전체' ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
               }`}
               onClick={(e) => e.stopPropagation()}

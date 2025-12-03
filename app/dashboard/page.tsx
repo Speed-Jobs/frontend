@@ -68,6 +68,10 @@ export default function Dashboard() {
   const [selectedExpertCategory, setSelectedExpertCategory] = useState<'Tech' | 'Biz' | 'BizSupporting'>('Tech')
   const [selectedJobRole, setSelectedJobRole] = useState<string | null>(null)
   const [jobRoleStatisticsViewMode, setJobRoleStatisticsViewMode] = useState<'Weekly' | 'Monthly'>('Weekly')
+  const [selectedJobRoleCompanyFilter, setSelectedJobRoleCompanyFilter] = useState<string>('전체') // 직군별 통계 경쟁사 필터
+  const [jobRoleStatisticsApiData, setJobRoleStatisticsApiData] = useState<any>(null)
+  const [isLoadingJobRoleStatistics, setIsLoadingJobRoleStatistics] = useState(false)
+  const [jobRoleStatisticsError, setJobRoleStatisticsError] = useState<string | null>(null)
 
   // 직군별 채용 공고 데이터 계산 (직군별 통계의 직군 종류 사용)
   const jobRoleData = useMemo(() => {
@@ -1196,8 +1200,63 @@ export default function Dashboard() {
 
   // 스킬 트렌드 회사 기본값 설정 (전체가 기본값이므로 자동 설정 로직 제거)
 
-  // 직군별 통계 데이터 (주간/월간에 따라 실제 데이터 계산)
-  const jobRoleStatisticsData = useMemo(() => {
+  // 직군별 통계 API 호출
+  useEffect(() => {
+    const fetchJobRoleStatistics = async () => {
+      try {
+        setIsLoadingJobRoleStatistics(true)
+        setJobRoleStatisticsError(null)
+        
+        // timeframe 매핑: Weekly -> quarterly_same_period, Monthly -> monthly_same_period
+        const timeframe = jobRoleStatisticsViewMode === 'Weekly' ? 'quarterly_same_period' : 'monthly_same_period'
+        
+        // category 매핑
+        const category = selectedExpertCategory
+        
+        // API 파라미터 구성
+        const params = new URLSearchParams()
+        params.append('timeframe', timeframe)
+        params.append('category', category)
+        
+        // 경쟁사 필터가 있으면 추가
+        if (selectedJobRoleCompanyFilter && selectedJobRoleCompanyFilter !== '전체') {
+          params.append('company', selectedJobRoleCompanyFilter)
+        }
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-role-statistics?${params.toString()}`
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        
+        if (result.status === 200 && result.data) {
+          setJobRoleStatisticsApiData(result.data)
+        } else {
+          throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+        }
+      } catch (error: any) {
+        console.error('Error fetching job role statistics:', error)
+        setJobRoleStatisticsError(error.message || '직군별 통계 데이터를 불러오는데 실패했습니다.')
+        setJobRoleStatisticsApiData(null)
+      } finally {
+        setIsLoadingJobRoleStatistics(false)
+      }
+    }
+    
+    fetchJobRoleStatistics()
+  }, [jobRoleStatisticsViewMode, selectedExpertCategory, selectedJobRoleCompanyFilter])
+
+  // 기존 로컬 계산 로직 (fallback용)
+  const jobRoleStatisticsDataFallback = useMemo(() => {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     
@@ -1207,14 +1266,28 @@ export default function Dashboard() {
     let previousPeriodEnd: Date
     
     if (jobRoleStatisticsViewMode === 'Weekly') {
-      // 이번주: 오늘부터 7일 전까지
+      // QoQ (전분기 대비): 현재 분기 vs 이전 분기
+      const currentQuarter = Math.floor(now.getMonth() / 3) // 0~3 (1분기~4분기)
+      const currentYear = now.getFullYear()
+      
+      // 현재 분기 시작일과 종료일
+      const quarterStartMonth = currentQuarter * 3 // 0, 3, 6, 9
+      currentPeriodStart = new Date(currentYear, quarterStartMonth, 1)
       currentPeriodEnd = new Date(now)
-      currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      // 저번주: 7일 전부터 14일 전까지
-      previousPeriodEnd = new Date(currentPeriodStart)
-      previousPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      
+      // 이전 분기 시작일과 종료일
+      let previousQuarter = currentQuarter - 1
+      let previousYear = currentYear
+      if (previousQuarter < 0) {
+        previousQuarter = 3 // 4분기
+        previousYear = currentYear - 1
+      }
+      const previousQuarterStartMonth = previousQuarter * 3
+      const previousQuarterEndMonth = previousQuarterStartMonth + 2
+      previousPeriodStart = new Date(previousYear, previousQuarterStartMonth, 1)
+      previousPeriodEnd = new Date(previousYear, previousQuarterEndMonth + 1, 0) // 해당 월의 마지막 날
     } else {
-      // 이번달: 이번 달 1일부터 오늘까지
+      // MoM (전월 대비): 이번 달 vs 지난 달
       currentPeriodEnd = new Date(now)
       currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1)
       // 지난달: 지난 달 1일부터 마지막 날까지
@@ -1222,8 +1295,11 @@ export default function Dashboard() {
       previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     }
     
+    // 경쟁사 목록 (필터링용)
+    const competitors = ['네이버', '카카오', '토스', '라인', '우아한형제들', '삼성', 'LG CNS', '한화시스템']
+    
     // 현재 기간 공고 필터링
-    const currentPeriodJobs = jobPostingsData.filter(job => {
+    let currentPeriodJobs = jobPostingsData.filter(job => {
       try {
         const postedDate = new Date(job.posted_date)
         postedDate.setHours(0, 0, 0, 0)
@@ -1233,8 +1309,17 @@ export default function Dashboard() {
       }
     })
     
+    // 경쟁사 필터 적용 (전체가 아닌 경우)
+    if (selectedJobRoleCompanyFilter !== '전체') {
+      currentPeriodJobs = currentPeriodJobs.filter(job => {
+        const jobCompany = (job.company || '').toLowerCase()
+        return jobCompany.includes(selectedJobRoleCompanyFilter.toLowerCase()) || 
+               selectedJobRoleCompanyFilter.toLowerCase().includes(jobCompany)
+      })
+    }
+    
     // 이전 기간 공고 필터링
-    const previousPeriodJobs = jobPostingsData.filter(job => {
+    let previousPeriodJobs = jobPostingsData.filter(job => {
       try {
         const postedDate = new Date(job.posted_date)
         postedDate.setHours(0, 0, 0, 0)
@@ -1243,6 +1328,15 @@ export default function Dashboard() {
         return false
       }
     })
+    
+    // 경쟁사 필터 적용 (전체가 아닌 경우)
+    if (selectedJobRoleCompanyFilter !== '전체') {
+      previousPeriodJobs = previousPeriodJobs.filter(job => {
+        const jobCompany = (job.company || '').toLowerCase()
+        return jobCompany.includes(selectedJobRoleCompanyFilter.toLowerCase()) || 
+               selectedJobRoleCompanyFilter.toLowerCase().includes(jobCompany)
+      })
+    }
     
     // 최근 공고가 없으면 전체 데이터 사용 (최대 100개)
     const jobsToAnalyze = currentPeriodJobs.length > 0 ? currentPeriodJobs : jobPostingsData.slice(0, 100)
@@ -1356,10 +1450,37 @@ export default function Dashboard() {
         industries: roleIndustries[role] || [],
       }
     })
-  }, [selectedExpertCategory, jobRoleStatisticsViewMode])
+  }, [selectedExpertCategory, jobRoleStatisticsViewMode, selectedJobRoleCompanyFilter])
 
-  // 직군별 통계 기간 정보 계산
+  // 직군별 통계 데이터 변환 (API 응답을 컴포넌트 형식으로 변환)
+  const jobRoleStatisticsData = useMemo(() => {
+    // API 데이터가 있으면 사용
+    if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.statistics) {
+      return jobRoleStatisticsApiData.statistics.map((stat: any) => ({
+        name: stat.name,
+        value: stat.current_count,
+        previousValue: stat.previous_count,
+        industries: stat.industries || [],
+      }))
+    }
+    
+    // API 데이터가 없으면 로컬 더미 데이터 사용
+    return jobRoleStatisticsDataFallback
+  }, [jobRoleStatisticsApiData, jobRoleStatisticsDataFallback])
+
+  // 직군별 통계 기간 정보 (API 응답에서 가져오기, 없으면 로컬 계산)
   const jobRoleStatisticsPeriods = useMemo(() => {
+    // API 데이터가 있으면 API에서 기간 정보 사용
+    if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.current_period) {
+      return {
+        currentPeriodStart: new Date(jobRoleStatisticsApiData.current_period.start_date),
+        currentPeriodEnd: new Date(jobRoleStatisticsApiData.current_period.end_date),
+        previousPeriodStart: new Date(jobRoleStatisticsApiData.previous_period.start_date),
+        previousPeriodEnd: new Date(jobRoleStatisticsApiData.previous_period.end_date),
+      }
+    }
+    
+    // API 데이터가 없으면 로컬 계산
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     
@@ -1369,17 +1490,27 @@ export default function Dashboard() {
     let previousPeriodEnd: Date
     
     if (jobRoleStatisticsViewMode === 'Weekly') {
-      // 이번주: 오늘부터 7일 전까지
+      // QoQ (전분기 대비): 현재 분기 vs 이전 분기
+      const currentQuarter = Math.floor(now.getMonth() / 3)
+      const currentYear = now.getFullYear()
+      const quarterStartMonth = currentQuarter * 3
+      currentPeriodStart = new Date(currentYear, quarterStartMonth, 1)
       currentPeriodEnd = new Date(now)
-      currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      // 저번주: 7일 전부터 14일 전까지
-      previousPeriodEnd = new Date(currentPeriodStart)
-      previousPeriodStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      
+      let previousQuarter = currentQuarter - 1
+      let previousYear = currentYear
+      if (previousQuarter < 0) {
+        previousQuarter = 3
+        previousYear = currentYear - 1
+      }
+      const previousQuarterStartMonth = previousQuarter * 3
+      const previousQuarterEndMonth = previousQuarterStartMonth + 2
+      previousPeriodStart = new Date(previousYear, previousQuarterStartMonth, 1)
+      previousPeriodEnd = new Date(previousYear, previousQuarterEndMonth + 1, 0)
     } else {
-      // 이번달: 이번 달 1일부터 오늘까지
+      // MoM (전월 대비): 이번 달 vs 지난 달
       currentPeriodEnd = new Date(now)
       currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      // 지난달: 지난 달 1일부터 마지막 날까지
       previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0)
       previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     }
@@ -1390,7 +1521,9 @@ export default function Dashboard() {
       previousPeriodStart,
       previousPeriodEnd,
     }
-  }, [jobRoleStatisticsViewMode])
+  }, [jobRoleStatisticsApiData, jobRoleStatisticsViewMode])
+
+
 
   // 스킬별 통계 API 상태
   const [skillsApiData, setSkillsApiData] = useState<Array<{
@@ -1749,8 +1882,8 @@ export default function Dashboard() {
 
         {/* 하단 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* 직군별 통계 */}
-          <DarkDashboardCard title="직군별 통계">
+          {/* 직군 비중 변화 분석 */}
+          <DarkDashboardCard title="직군 비중 변화 분석">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex gap-2">
                 <button
@@ -1761,7 +1894,7 @@ export default function Dashboard() {
                       : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
-                  주간별
+                  QoQ (전분기 대비)
                 </button>
                 <button
                   onClick={() => setJobRoleStatisticsViewMode('Monthly')}
@@ -1771,7 +1904,7 @@ export default function Dashboard() {
                       : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
-                  월간별
+                  MoM (전월 대비)
                 </button>
               </div>
               <div className="flex gap-2">
@@ -1818,6 +1951,9 @@ export default function Dashboard() {
               previousPeriodEnd={jobRoleStatisticsPeriods.previousPeriodEnd}
               isLoading={false}
               error={null}
+              selectedCompanyFilter={selectedJobRoleCompanyFilter}
+              onCompanyFilterChange={setSelectedJobRoleCompanyFilter}
+              availableCompanies={recruitmentCompanies}
             />
           </DarkDashboardCard>
 

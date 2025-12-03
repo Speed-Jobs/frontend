@@ -56,7 +56,7 @@ export default function CompaniesPage() {
 
   // 공고 리스트 필터링 상태
   const [jobListFilter, setJobListFilter] = useState('')
-  const [sortOrder, setSortOrder] = useState<'name' | 'date-asc' | 'date-desc'>('date-desc')
+  const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'company-name' | 'job-name'>('date-desc')
   const [selectedJobYear, setSelectedJobYear] = useState<string>('') // 년 필터
   const [selectedJobMonth, setSelectedJobMonth] = useState<string>('') // 월 필터
 
@@ -256,93 +256,166 @@ export default function CompaniesPage() {
       })
   }, [selectedJobRole])
 
-  // 선택된 회사의 공고 목록 (필터링 및 정렬 적용)
-  const selectedCompanyJobs = useMemo(() => {
-    if (!selectedCompany) return []
+  // 전체 공고 목록 (필터링 및 정렬 적용) - 회사명과 직무 필터도 포함
+  const filteredJobs = useMemo(() => {
+    // 전체 공고에서 시작
+    let jobs = jobPostingsData
     
-    // companyStats에서 찾기
-    let companyStat = companyStats.find((stat) => stat.company === selectedCompany)
-    
-    // companyStats에서 찾지 못하면 원본 데이터에서 직접 찾기
-    if (!companyStat) {
-      const companyJobs = jobPostingsData.filter((job) => {
+    // 회사명 필터 적용
+    if (selectedCompany) {
+      jobs = jobs.filter((job) => {
         const companyName = job.company.replace('(주)', '').trim()
         return companyName === selectedCompany
       })
-      
-      if (companyJobs.length === 0) return []
-      
-      // 직무 필터 적용 (companyStats의 로직과 동일)
-      let filteredJobs = companyJobs
-      if (selectedJobRole !== '전체') {
-        filteredJobs = companyJobs.filter((job) => {
-          const title = job.title.toLowerCase()
-          const normalizedJobRole = selectedJobRole.toLowerCase()
-          const jobCategory = job.meta_data?.job_category?.toLowerCase() || ''
-          
-          if (title.includes(normalizedJobRole) || job.title.includes(selectedJobRole)) {
-            return true
-          }
-          if (jobCategory && (
-            jobCategory.includes(normalizedJobRole) ||
-            normalizedJobRole.includes(jobCategory)
-          )) {
-            return true
-          }
-          return false
-        })
-      }
-      
-      if (filteredJobs.length === 0) return []
-      
-      // 임시 companyStat 생성
-      companyStat = {
-        company: selectedCompany,
-        count: filteredJobs.length,
-        percentage: 0,
-        trend: 0,
-        recentJobs: 0,
-        oldestDate: new Date(),
-        newestDate: new Date(),
-        jobs: filteredJobs,
-      }
+    } else if (searchQuery.trim()) {
+      // 회사명 검색어가 있으면 필터링
+      jobs = jobs.filter((job) => {
+        const companyName = job.company.replace('(주)', '').trim()
+        return companyName.toLowerCase().includes(searchQuery.toLowerCase())
+      })
     }
     
-    // 필터링
-    let filtered = companyStat.jobs
+    // 직무 필터 적용
+    if (selectedJobRole !== '전체') {
+      jobs = jobs.filter((job) => {
+        const title = job.title.toLowerCase()
+        const normalizedJobRole = selectedJobRole.toLowerCase()
+        const jobCategory = job.meta_data?.job_category?.toLowerCase() || ''
+        
+        // 1. 제목에 직무명이 직접 포함되어 있는지 확인
+        if (title.includes(normalizedJobRole) || job.title.includes(selectedJobRole)) {
+          return true
+        }
+        // 2. job_category와 직무명 매칭
+        if (jobCategory && (
+          jobCategory.includes(normalizedJobRole) ||
+          normalizedJobRole.includes(jobCategory)
+        )) {
+          return true
+        }
+        // 3. 각 직무별 세부 매칭 로직
+        if (selectedJobRole === 'Software Development') {
+          return title.includes('개발') || 
+            title.includes('developer') ||
+            title.includes('engineer') ||
+            jobCategory === '개발' ||
+            jobCategory.includes('software') ||
+            jobCategory.includes('development')
+        }
+        else if (selectedJobRole === 'Factory AX Engineering') {
+          return title.includes('factory') ||
+            title.includes('ax') ||
+            title.includes('제조') ||
+            title.includes('공장') ||
+            title.includes('simulation') ||
+            title.includes('기구설계') ||
+            title.includes('전장') ||
+            jobCategory.includes('factory')
+        }
+        else if (selectedJobRole === 'Solution Development') {
+          return title.includes('solution') ||
+            title.includes('erp') ||
+            title.includes('시스템') ||
+            jobCategory === '기획' ||
+            jobCategory.includes('solution')
+        }
+        else if (selectedJobRole === 'Cloud/Infra Engineering') {
+          return title.includes('cloud') ||
+            title.includes('클라우드') ||
+            title.includes('infra') ||
+            title.includes('인프라') ||
+            title.includes('devops') ||
+            jobCategory === '인프라' ||
+            jobCategory.includes('cloud') ||
+            jobCategory.includes('infra')
+        }
+        else if (selectedJobRole === 'Architect') {
+          return title.includes('architect') ||
+            title.includes('아키텍트') ||
+            title.includes('설계') ||
+            jobCategory.includes('architect')
+        }
+        else if (selectedJobRole === 'Project Management') {
+          return title.includes('pm') ||
+            title.includes('project') ||
+            title.includes('프로젝트') ||
+            title.includes('관리') ||
+            jobCategory === '기획' ||
+            jobCategory.includes('project') ||
+            jobCategory.includes('management')
+        }
+        else if (selectedJobRole === 'Quality Management') {
+          return title.includes('quality') ||
+            title.includes('품질') ||
+            title.includes('qa') ||
+            title.includes('테스트') ||
+            jobCategory.includes('quality')
+        }
+        else if (selectedJobRole === 'AI') {
+          return title.includes('ai') ||
+            title.includes('ml') ||
+            title.includes('머신러닝') ||
+            title.includes('인공지능') ||
+            jobCategory === 'ai/ml' ||
+            jobCategory.includes('ai')
+        }
+        else if (selectedJobRole === '정보보호') {
+          return title.includes('보안') ||
+            title.includes('security') ||
+            title.includes('정보보호') ||
+            jobCategory === '보안' ||
+            jobCategory.includes('보안')
+        }
+        else if (selectedJobRole === 'Sales') {
+          return title.includes('sales') ||
+            title.includes('영업') ||
+            title.includes('세일즈') ||
+            jobCategory === '마케팅' ||
+            jobCategory.includes('sales')
+        }
+        else if (selectedJobRole === 'Domain Expert') {
+          return title.includes('domain') ||
+            title.includes('도메인') ||
+            title.includes('전문가') ||
+            jobCategory === '기획' ||
+            jobCategory.includes('domain') ||
+            jobCategory.includes('expert')
+        }
+        else if (selectedJobRole === 'Consulting') {
+          return title.includes('consulting') ||
+            title.includes('컨설팅') ||
+            title.includes('esg') ||
+            title.includes('crm') ||
+            title.includes('scm') ||
+            jobCategory.includes('consulting')
+        }
+        else if (selectedJobRole === 'Biz. Supporting') {
+          return title.includes('supporting') ||
+            title.includes('지원') ||
+            title.includes('strategy') ||
+            title.includes('전략') ||
+            jobCategory === '기획' ||
+            jobCategory.includes('supporting') ||
+            jobCategory.includes('biz')
+        }
+        
+        return false
+      })
+    }
+    
+    // 공고 이름/날짜 검색 필터 적용
     if (jobListFilter.trim()) {
       const filterLower = jobListFilter.toLowerCase()
-      filtered = filtered.filter((job) => 
+      jobs = jobs.filter((job) => 
         job.title.toLowerCase().includes(filterLower) ||
+        job.company.toLowerCase().includes(filterLower) ||
         new Date(job.posted_date).toLocaleDateString('ko-KR').includes(filterLower)
       )
     }
     
     // 년/월 필터 적용
     if (selectedJobYear || selectedJobMonth) {
-      const beforeFilterCount = filtered.length
-      
-      // 디버깅: 필터링 전 공고들의 연도 분포 확인
-      if (beforeFilterCount > 0 && selectedJobYear) {
-        const yearDistribution: Record<string, number> = {}
-        filtered.forEach((job) => {
-          if (job.posted_date) {
-            try {
-              const jobDate = new Date(job.posted_date)
-              if (!isNaN(jobDate.getTime())) {
-                const year = jobDate.getFullYear().toString()
-                yearDistribution[year] = (yearDistribution[year] || 0) + 1
-              }
-            } catch (e) {
-              // 무시
-            }
-          }
-        })
-        console.log('Available years in filtered jobs:', yearDistribution)
-        console.log('Looking for year:', selectedJobYear)
-      }
-      
-      filtered = filtered.filter((job) => {
+      jobs = jobs.filter((job) => {
         if (!job.posted_date) {
           return false
         }
@@ -352,7 +425,6 @@ export default function CompaniesPage() {
           
           // 유효한 날짜인지 확인
           if (isNaN(jobDate.getTime())) {
-            console.warn('Invalid date:', job.posted_date, 'for job:', job.id)
             return false
           }
           
@@ -364,29 +436,26 @@ export default function CompaniesPage() {
             return false
           }
           
-          // 월 필터: 선택된 월이 있으면 매칭 확인 (연도가 선택된 경우에만 의미 있음)
+          // 월 필터: 선택된 월이 있으면 매칭 확인
           if (selectedJobMonth && jobMonth !== selectedJobMonth) {
             return false
           }
           
           return true
         } catch (error) {
-          console.warn('Error parsing date:', job.posted_date, 'for job:', job.id, error)
           return false
         }
       })
-      
-      console.log(`Year/Month filter: ${beforeFilterCount} -> ${filtered.length} jobs (Year: ${selectedJobYear || 'all'}, Month: ${selectedJobMonth || 'all'})`)
-      
-      if (filtered.length === 0 && beforeFilterCount > 0) {
-        console.warn(`No jobs found for selected filters. Before filter: ${beforeFilterCount} jobs`)
-      }
     }
     
     // 정렬
-    const sorted = [...filtered].sort((a, b) => {
-      if (sortOrder === 'name') {
+    const sorted = [...jobs].sort((a, b) => {
+      if (sortOrder === 'job-name') {
         return a.title.localeCompare(b.title, 'ko')
+      } else if (sortOrder === 'company-name') {
+        const companyA = a.company.replace('(주)', '').trim()
+        const companyB = b.company.replace('(주)', '').trim()
+        return companyA.localeCompare(companyB, 'ko')
       } else if (sortOrder === 'date-asc') {
         const dateA = new Date(a.posted_date).getTime()
         const dateB = new Date(b.posted_date).getTime()
@@ -399,11 +468,18 @@ export default function CompaniesPage() {
     })
     
     return sorted
-  }, [selectedCompany, companyStats, jobListFilter, sortOrder, selectedJobYear, selectedJobMonth])
+  }, [selectedCompany, searchQuery, selectedJobRole, jobListFilter, sortOrder, selectedJobYear, selectedJobMonth])
 
-  // 검색 핸들러
+  // 선택된 회사의 공고 목록 (하위 호환성을 위해 유지)
+  const selectedCompanyJobs = filteredJobs
+
+  // 검색 핸들러 (회사명 검색 시에만 사용, 필터는 실시간 적용)
   const handleSearch = () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim()) {
+      // 검색어가 없으면 선택된 회사 해제
+      setSelectedCompany(null)
+      return
+    }
     
     // 먼저 companyStats에서 검색 (직무 필터가 적용된 결과)
     let filtered = companyStats.filter((stat) => 
@@ -424,16 +500,15 @@ export default function CompaniesPage() {
         // 첫 번째 매칭되는 회사 선택
         const matchedCompany = Array.from(allCompanies)[0]
         setSelectedCompany(matchedCompany)
-        setImageGalleryPage(1)
         return
       }
     }
     
     if (filtered.length > 0) {
       setSelectedCompany(filtered[0].company)
-      setImageGalleryPage(1)
     } else {
-      alert('검색 결과가 없습니다. 다른 회사명을 시도해보세요.')
+      // 검색 결과가 없어도 필터는 계속 적용됨
+      setSelectedCompany(null)
     }
   }
 
@@ -495,97 +570,185 @@ export default function CompaniesPage() {
       <div className="px-8 py-8 max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">옛날 공고 검색</h1>
-          <p className="text-gray-600">회사명과 직무를 검색하여 과거 공고 이미지를 확인하세요</p>
+          <p className="text-gray-600">다양한 필터를 사용하여 과거 공고를 검색하고 확인하세요</p>
         </div>
 
         {/* 검색 섹션 */}
         <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 회사명 검색 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">회사명</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
+          <div className="space-y-6">
+            {/* 첫 번째 행: 회사명, 직무, 공고 이름 검색 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 회사명 검색 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">회사명</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearch()
+                      }
+                    }}
+                    placeholder="예: 토스, 카카오, 네이버"
+                    className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
+                  />
+                  <svg
+                    className="w-6 h-6 text-gray-400 absolute left-4 top-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 직무 선택 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">직무</label>
+                <select
+                  value={selectedJobRole}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value)
+                    setSelectedJobRole(e.target.value)
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSearch()
-                    }
-                  }}
-                  placeholder="예: 토스, 카카오, 네이버"
-                  className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
-                />
-                <svg
-                  className="w-6 h-6 text-gray-400 absolute left-4 top-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                  <option value="전체">전체 직무</option>
+                  <option value="Software Development">Software Development</option>
+                  <option value="Factory AX Engineering">Factory AX Engineering</option>
+                  <option value="Solution Development">Solution Development</option>
+                  <option value="Cloud/Infra Engineering">Cloud/Infra Engineering</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Project Management">Project Management</option>
+                  <option value="Quality Management">Quality Management</option>
+                  <option value="AI">AI</option>
+                  <option value="정보보호">정보보호</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Domain Expert">Domain Expert</option>
+                  <option value="Consulting">Consulting</option>
+                  <option value="Biz. Supporting">Biz. Supporting</option>
+                </select>
+              </div>
+
+              {/* 공고 이름 검색 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">공고 이름</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={jobListFilter}
+                    onChange={(e) => setJobListFilter(e.target.value)}
+                    placeholder="공고 이름으로 검색..."
+                    className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
+                  />
+                  <svg
+                    className="w-6 h-6 text-gray-400 absolute left-4 top-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
               </div>
             </div>
 
-            {/* 직무 선택 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-3">직무</label>
-              <select
-                value={selectedJobRole}
-                onChange={(e) => {
-                  setSelectedJobRole(e.target.value)
-                }}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
-              >
-                <option value="전체">전체 직무</option>
-                <option value="Software Development">Software Development</option>
-                <option value="Factory AX Engineering">Factory AX Engineering</option>
-                <option value="Solution Development">Solution Development</option>
-                <option value="Cloud/Infra Engineering">Cloud/Infra Engineering</option>
-                <option value="Architect">Architect</option>
-                <option value="Project Management">Project Management</option>
-                <option value="Quality Management">Quality Management</option>
-                <option value="AI">AI</option>
-                <option value="정보보호">정보보호</option>
-                <option value="Sales">Sales</option>
-                <option value="Domain Expert">Domain Expert</option>
-                <option value="Consulting">Consulting</option>
-                <option value="Biz. Supporting">Biz. Supporting</option>
-              </select>
-            </div>
+            {/* 두 번째 행: 기간 필터, 정렬 옵션, 검색 버튼 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 기간 필터 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">기간 필터</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedJobYear}
+                    onChange={(e) => {
+                      setSelectedJobYear(e.target.value)
+                      if (!e.target.value) {
+                        setSelectedJobMonth('')
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700"
+                  >
+                    <option value="">전체 연도</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                    <option value="2024">2024</option>
+                    <option value="2025">2025</option>
+                  </select>
+                  <select
+                    value={selectedJobMonth}
+                    onChange={(e) => setSelectedJobMonth(e.target.value)}
+                    disabled={!selectedJobYear}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    <option value="">전체 월</option>
+                    <option value="01">1월</option>
+                    <option value="02">2월</option>
+                    <option value="03">3월</option>
+                    <option value="04">4월</option>
+                    <option value="05">5월</option>
+                    <option value="06">6월</option>
+                    <option value="07">7월</option>
+                    <option value="08">8월</option>
+                    <option value="09">9월</option>
+                    <option value="10">10월</option>
+                    <option value="11">11월</option>
+                    <option value="12">12월</option>
+                  </select>
+                </div>
+              </div>
 
-            {/* 검색 버튼 */}
-            <div className="flex items-end">
-              <button
-                onClick={handleSearch}
-                disabled={!searchQuery.trim()}
-                className="w-full px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base"
-              >
-                공고 검색
-              </button>
+              {/* 정렬 옵션 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">정렬</label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'date-desc' | 'date-asc' | 'company-name' | 'job-name')}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
+                >
+                  <option value="date-desc">최신순</option>
+                  <option value="date-asc">오래된순</option>
+                  <option value="company-name">회사 이름순</option>
+                  <option value="job-name">공고이름순</option>
+                </select>
+              </div>
+
+              {/* 검색 버튼 */}
+              <div className="flex items-end">
+                <button
+                  onClick={handleSearch}
+                  className="w-full px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors text-base"
+                >
+                  공고 검색
+                </button>
+              </div>
             </div>
           </div>
 
           {/* 검색 결과 요약 */}
-          {selectedCompany && (
+          {(selectedCompany || searchQuery.trim() || selectedJobRole !== '전체') && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white">
-                    <CompanyLogo name={selectedCompany} className="w-full h-full" />
-                  </div>
+                  {selectedCompany && (
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+                      <CompanyLogo name={selectedCompany} className="w-full h-full" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
-                      {selectedCompany}
+                      {selectedCompany || '전체 회사'}
                       {selectedJobRole !== '전체' && (
                         <span className="text-gray-600 font-normal ml-2">· {selectedJobRole}</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {selectedCompanyJobs.length}개의 공고 이미지를 확인할 수 있습니다
+                      {filteredJobs.length}개의 공고를 확인할 수 있습니다
                     </p>
                   </div>
                 </div>
@@ -594,6 +757,10 @@ export default function CompaniesPage() {
                     setSelectedCompany(null)
                     setSearchQuery('')
                     setSelectedJobRole('전체')
+                    setJobListFilter('')
+                    setSelectedJobYear('')
+                    setSelectedJobMonth('')
+                    setSortOrder('date-desc')
                   }}
                   className="text-sm text-gray-500 hover:text-gray-700"
                 >
@@ -606,31 +773,32 @@ export default function CompaniesPage() {
 
         {/* 검색 안내 및 공고 목록 */}
         <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm">
-          {!selectedCompany ? (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">회사명과 직무를 검색하세요</h3>
-              <p className="text-gray-600 text-sm">
-                위 검색창에 회사명을 입력하고 직무를 선택한 후 검색 버튼을 클릭하면<br />
-                해당 회사의 공고 목록을 확인할 수 있습니다.
-              </p>
-            </div>
-          ) : selectedCompanyJobs.length > 0 ? (
+          {filteredJobs.length > 0 ? (
             <>
               <div className="mb-6 pb-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
-                      <CompanyLogo name={selectedCompany} className="w-full h-full" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
-                      <p className="text-sm text-gray-600 mt-1">
-                        총 {selectedCompanyJobs.length}개의 공고
-                      </p>
-                    </div>
+                    {selectedCompany && (
+                      <>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                          <CompanyLogo name={selectedCompany} className="w-full h-full" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
+                          <p className="text-sm text-gray-600 mt-1">
+                            총 {filteredJobs.length}개의 공고
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {!selectedCompany && (
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">전체 공고</h2>
+                        <p className="text-sm text-gray-600 mt-1">
+                          총 {filteredJobs.length}개의 공고
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => {
@@ -641,6 +809,7 @@ export default function CompaniesPage() {
                       setJobListFilter('')
                       setSelectedJobYear('')
                       setSelectedJobMonth('')
+                      setSortOrder('date-desc')
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                   >
@@ -648,106 +817,27 @@ export default function CompaniesPage() {
                   </button>
                 </div>
                 
-                {/* 필터 및 정렬 */}
-                <div className="space-y-3 mt-4">
-                  {/* 검색 및 정렬 */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        value={jobListFilter}
-                        onChange={(e) => setJobListFilter(e.target.value)}
-                        placeholder="공고 이름 또는 수집일로 검색..."
-                        className="w-full px-4 py-2 pl-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-                      />
-                      <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value as 'name' | 'date-asc' | 'date-desc')}
-                      className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-                    >
-                      <option value="date-desc">최신순</option>
-                      <option value="date-asc">오래된순</option>
-                      <option value="name">이름순</option>
-                    </select>
-                  </div>
-                  
-                  {/* 년/월 필터 */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">기간 필터:</label>
-                    <select
-                      value={selectedJobYear}
-                      onChange={(e) => {
-                        setSelectedJobYear(e.target.value)
-                        if (!e.target.value) {
-                          setSelectedJobMonth('')
-                        }
-                      }}
-                      className="px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-700"
-                    >
-                      <option value="">전체</option>
-                      <option value="2021">2021</option>
-                      <option value="2022">2022</option>
-                      <option value="2023">2023</option>
-                      <option value="2024">2024</option>
-                      <option value="2025">2025</option>
-                    </select>
-                    <select
-                      value={selectedJobMonth}
-                      onChange={(e) => setSelectedJobMonth(e.target.value)}
-                      disabled={!selectedJobYear}
-                      className="px-3 py-1.5 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    >
-                      <option value="">전체</option>
-                      <option value="01">1월</option>
-                      <option value="02">2월</option>
-                      <option value="03">3월</option>
-                      <option value="04">4월</option>
-                      <option value="05">5월</option>
-                      <option value="06">6월</option>
-                      <option value="07">7월</option>
-                      <option value="08">8월</option>
-                      <option value="09">9월</option>
-                      <option value="10">10월</option>
-                      <option value="11">11월</option>
-                      <option value="12">12월</option>
-                    </select>
-                    {(selectedJobYear || selectedJobMonth) && (
-                      <button
-                        onClick={() => {
-                          setSelectedJobYear('')
-                          setSelectedJobMonth('')
-                        }}
-                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        필터 초기화
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
               
               {/* 파일 탐색기 스타일 리스트 */}
               <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
                 {/* 헤더 */}
-                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 grid grid-cols-[40px_1fr_100px_140px] gap-4 text-sm font-semibold text-gray-700">
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 text-sm font-semibold text-gray-700">
                   <div></div>
                   <div>공고 이름</div>
+                  <div>회사명</div>
                   <div className="text-center">고용 형태</div>
                   <div className="text-center">수집일</div>
                 </div>
                 
                 {/* 리스트 아이템 */}
                 <div className="divide-y divide-gray-200">
-                  {selectedCompanyJobs.length > 0 ? (
-                    selectedCompanyJobs.map((job, index) => {
+                  {filteredJobs.length > 0 ? (
+                    filteredJobs.map((job, index) => {
                       return (
                         <div
                           key={job.id}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_100px_140px] gap-4 items-center group"
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 items-center group"
                           onClick={() => setSelectedJobDetail(job)}
                         >
                           {/* 파일 아이콘 */}
@@ -761,6 +851,13 @@ export default function CompaniesPage() {
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
                               {job.title}
+                            </p>
+                          </div>
+                          
+                          {/* 회사명 */}
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-600 truncate">
+                              {job.company.replace('(주)', '').trim()}
                             </p>
                           </div>
                           
@@ -797,7 +894,7 @@ export default function CompaniesPage() {
               </svg>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">공고가 없습니다</h3>
               <p className="text-gray-600 text-sm">
-                {selectedCompany}의 {selectedJobRole !== '전체' ? selectedJobRole + ' ' : ''}공고가 없습니다.
+                {selectedCompany ? `${selectedCompany}의 ` : ''}{selectedJobRole !== '전체' ? selectedJobRole + ' ' : ''}공고가 없습니다.
               </p>
             </div>
           )}
@@ -846,7 +943,7 @@ export default function CompaniesPage() {
           }
           
           // 공고의 인덱스 찾기
-          const jobIndex = selectedCompanyJobs.findIndex(job => job.id === selectedJobDetail.id)
+          const jobIndex = filteredJobs.findIndex(job => job.id === selectedJobDetail.id)
           const imageId = jobIndex >= 0 ? jobIndex + 1 : 1
           const imagePath = `/job-postings/${companySlug}/${imageId}.png`
           

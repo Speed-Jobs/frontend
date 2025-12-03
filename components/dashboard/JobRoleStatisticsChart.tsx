@@ -6,6 +6,7 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
+  TooltipProps,
 } from 'recharts'
 
 interface JobRoleStatisticsChartProps {
@@ -14,6 +15,11 @@ interface JobRoleStatisticsChartProps {
     value: number
     previousValue: number
     industries: string[]
+    skillSets?: Array<{
+      name: string
+      count: number
+      previousCount: number
+    }>
   }>
   selectedRole: string | null
   onRoleClick: (roleName: string | null) => void
@@ -24,6 +30,9 @@ interface JobRoleStatisticsChartProps {
   previousPeriodEnd?: Date
   isLoading?: boolean
   error?: string | null
+  selectedCompanyFilter?: string
+  onCompanyFilterChange?: (company: string) => void
+  availableCompanies?: Array<{ key: string; name: string }>
 }
 
 // 회색 계열 색상 (사진과 유사하게)
@@ -39,6 +48,47 @@ const pieColors = [
   '#f3f4f6', // 거의 흰색 (정보보호)
 ]
 
+// 커스텀 Tooltip 컴포넌트
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  data: Array<{
+    name: string
+    value: number
+    previousValue: number
+    industries: string[]
+    skillSets?: Array<{
+      name: string
+      count: number
+      previousCount: number
+    }>
+  }>
+  chartTotal: number
+  isCurrentPeriod: boolean
+}
+
+const CustomTooltip = ({ active, payload, data, chartTotal, isCurrentPeriod }: CustomTooltipProps) => {
+  if (!active || !payload || !payload.length) {
+    return null
+  }
+
+  const entry = payload[0]
+  const name = entry.name as string
+  const value = entry.value as number
+  
+  const roleData = data.find(item => item.name === name)
+  const currentValue = roleData?.value || 0
+  
+  // 퍼센테이지 계산
+  const percentage = chartTotal > 0 ? ((value / chartTotal) * 100).toFixed(1) : '0.0'
+  
+  return (
+    <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg px-3.5 py-2.5">
+      <div className="text-xs font-medium text-gray-700 leading-tight">{name}</div>
+      <div className="text-xs text-gray-600 mt-0.5">{percentage}%</div>
+      <div className="text-sm font-bold text-gray-900 mt-0.5">{currentValue}건</div>
+    </div>
+  )
+}
+
 export default function JobRoleStatisticsChart({ 
   data, 
   selectedRole, 
@@ -49,7 +99,10 @@ export default function JobRoleStatisticsChart({
   previousPeriodStart,
   previousPeriodEnd,
   isLoading, 
-  error 
+  error,
+  selectedCompanyFilter = '전체',
+  onCompanyFilterChange,
+  availableCompanies = []
 }: JobRoleStatisticsChartProps) {
   if (isLoading) {
     return (
@@ -112,15 +165,27 @@ export default function JobRoleStatisticsChart({
     return `${date.getFullYear()}. ${date.getMonth() + 1}. ${date.getDate()}.`
   }
   
-  const formatPeriodRange = (start: Date | undefined, end: Date | undefined): string => {
-    if (!start || !end) {
-      return viewMode === 'Weekly' ? '이번주' : '이번달'
-    }
-    return `${formatDate(start)} ~ ${formatDate(end)}`
+  const getQuarterLabel = (date: Date): string => {
+    const quarter = Math.floor(date.getMonth() / 3) + 1
+    return `${date.getFullYear()}년 ${quarter}분기`
   }
   
-  const currentPeriodLabel = formatPeriodRange(currentPeriodStart, currentPeriodEnd)
-  const previousPeriodLabel = formatPeriodRange(previousPeriodStart, previousPeriodEnd)
+  const formatPeriodRange = (start: Date | undefined, end: Date | undefined, isPrevious: boolean = false): string => {
+    if (!start || !end) {
+      return viewMode === 'Weekly' ? (isPrevious ? '이전 분기' : '현재 분기') : (isPrevious ? '이전 달' : '이번 달')
+    }
+    
+    if (viewMode === 'Weekly') {
+      // QoQ: 분기 정보 표시
+      return getQuarterLabel(start)
+    } else {
+      // MoM: 월 정보 표시
+      return `${start.getFullYear()}. ${start.getMonth() + 1}.`
+    }
+  }
+  
+  const currentPeriodLabel = formatPeriodRange(currentPeriodStart, currentPeriodEnd, false)
+  const previousPeriodLabel = formatPeriodRange(previousPeriodStart, previousPeriodEnd, true)
   
   // 인사이트 생성
   const generateInsights = () => {
@@ -184,16 +249,33 @@ export default function JobRoleStatisticsChart({
 
   return (
     <div>
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">직무</h4>
+      <div className="mb-4 flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-gray-700">직무</h4>
+        {onCompanyFilterChange && availableCompanies.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600">경쟁사 선택:</span>
+            <select
+              value={selectedCompanyFilter}
+              onChange={(e) => onCompanyFilterChange(e.target.value)}
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="전체">전체</option>
+              {availableCompanies.map((company) => (
+                <option key={company.key} value={company.name}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       
       {/* 두 개의 도넛 차트 나란히 표시 */}
-      <div className="grid grid-cols-2 gap-8 mb-4 w-full">
-        {/* 첫 번째 차트 (지난주/지난달) */}
-        <div className="w-full">
+      <div className="grid grid-cols-[1fr_auto_1.3fr] gap-4 mb-4 w-full items-start">
+        {/* 첫 번째 차트 (이전 기간) */}
+        <div className="w-full min-w-0">
           <div className="text-center mb-2">
-            <p className="text-sm font-medium text-gray-700">{previousPeriodLabel}</p>
+            <p className="text-xs font-medium text-gray-500">{previousPeriodLabel}</p>
           </div>
           <div style={{ width: '100%', height: '380px' }}>
             {previousChartData.length > 0 ? (
@@ -204,10 +286,7 @@ export default function JobRoleStatisticsChart({
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value }) => {
-                      const percent = previousChartTotal > 0 ? (value / previousChartTotal) * 100 : 0
-                      return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
-                    }}
+                    label={false}
                     outerRadius={100}
                     innerRadius={45}
                     fill="#6b7280"
@@ -230,99 +309,96 @@ export default function JobRoleStatisticsChart({
                           fill={pieColors[roleIndex % pieColors.length]}
                           stroke={isSelected ? '#111827' : '#ffffff'}
                           strokeWidth={isSelected ? 3 : 2}
-                          opacity={isSelected ? 1 : 0.9}
+                          opacity={isSelected ? 1 : 0.7}
                         />
                       )
                     })}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#374151',
-                      fontSize: '13px'
-                    }}
-                    formatter={(value: number, name: string) => {
-                      const percent = previousChartTotal > 0 ? ((value as number) / previousChartTotal * 100).toFixed(1) : '0.0'
-                      return [`${name}: ${percent}% (${value}건)`, '']
-                    }}
+                    content={<CustomTooltip data={data} chartTotal={previousChartTotal} isCurrentPeriod={false} />}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    wrapperStyle={{ pointerEvents: 'none', zIndex: 1000 }}
+                    cursor={false}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400 text-sm">데이터가 없습니다</div>
+                <div className="text-gray-400 text-xs">데이터가 없습니다</div>
               </div>
             )}
           </div>
         </div>
         
-        {/* 두 번째 차트 (이번주/이번달) - 더 크게 강조 */}
-        <div className="w-full">
-          <div className="text-center mb-2">
-            <p className="text-sm font-semibold text-gray-900">{currentPeriodLabel}</p>
+        {/* 화살표 (이전 기간 -> 현재 기간) */}
+        <div className="flex items-center justify-center pt-12 px-2">
+          <div className="flex flex-col items-center gap-2">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-blue-500">
+              <path d="M13 7L18 12L13 17M6 12H17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-xs font-semibold text-blue-600 whitespace-nowrap">현재</span>
           </div>
-          <div style={{ width: '100%', height: '450px' }}>
-            {currentChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={currentChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => {
-                      const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
-                      return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
-                    }}
-                    outerRadius={130}
-                    innerRadius={60}
-                    fill="#6b7280"
-                    dataKey="value"
-                    onClick={(data: any) => {
-                      if (selectedRole === data.name) {
-                        onRoleClick(null)
-                      } else {
-                        onRoleClick(data.name)
-                      }
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {currentChartData.map((entry, index) => {
-                      const isSelected = selectedRole === entry.name
-                      const roleIndex = allRoleNames.indexOf(entry.name)
-                      return (
-                        <Cell 
-                          key={`cell-2-${index}`} 
-                          fill={pieColors[roleIndex % pieColors.length]}
-                          stroke={isSelected ? '#111827' : '#ffffff'}
-                          strokeWidth={isSelected ? 3 : 2}
-                          opacity={isSelected ? 1 : 0.9}
-                        />
-                      )
-                    })}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '8px', 
-                      color: '#374151',
-                      fontSize: '13px'
-                    }}
-                    formatter={(value: number, name: string) => {
-                      const percent = currentChartTotal > 0 ? ((value as number) / currentChartTotal * 100).toFixed(1) : '0.0'
-                      return [`${name}: ${percent}% (${value}건)`, '']
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400 text-sm">데이터가 없습니다</div>
-              </div>
-            )}
+        </div>
+        
+        {/* 두 번째 차트 (현재 기간) - 더 크게 강조 */}
+        <div className="w-full min-w-0">
+          <div className="text-center mb-3">
+            <p className="text-lg font-bold text-gray-900">{currentPeriodLabel}</p>
+            <p className="text-xs text-blue-600 font-semibold mt-1">현재 기간</p>
+          </div>
+          <div className="relative" style={{ width: '100%', height: '450px' }}>
+              {currentChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={currentChartData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => {
+                        const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
+                        return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
+                      }}
+                      outerRadius={130}
+                      innerRadius={60}
+                      fill="#6b7280"
+                      dataKey="value"
+                      onClick={(data: any) => {
+                        if (selectedRole === data.name) {
+                          onRoleClick(null)
+                        } else {
+                          onRoleClick(data.name)
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {currentChartData.map((entry, index) => {
+                        const isSelected = selectedRole === entry.name
+                        const roleIndex = allRoleNames.indexOf(entry.name)
+                        return (
+                          <Cell 
+                            key={`cell-2-${index}`} 
+                            fill={pieColors[roleIndex % pieColors.length]}
+                            stroke={isSelected ? '#111827' : '#ffffff'}
+                            strokeWidth={isSelected ? 4 : 2.5}
+                            opacity={isSelected ? 1 : 1}
+                          />
+                        )
+                      })}
+                    </Pie>
+                    <Tooltip 
+                      content={<CustomTooltip data={data} chartTotal={currentChartTotal} isCurrentPeriod={true} />}
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      wrapperStyle={{ pointerEvents: 'none', zIndex: 1000 }}
+                      cursor={false}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-gray-400 text-sm">데이터가 없습니다</div>
+                </div>
+              )}
           </div>
         </div>
       </div>
@@ -350,7 +426,7 @@ export default function JobRoleStatisticsChart({
       <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
         <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
           <span className="text-lg">💡</span>
-          {currentPeriodLabel} vs {previousPeriodLabel} 비교 인사이트
+          {previousPeriodLabel} vs {currentPeriodLabel} 비교 인사이트
         </h4>
         <ul className="space-y-2">
           {insights.map((insight, index) => (

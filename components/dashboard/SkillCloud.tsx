@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 
 interface SkillCloudProps {
   skills: Array<{
@@ -101,13 +101,124 @@ const generateSkillInsight = (skillData: {
 export default function SkillCloud({ skills, selectedCompany = '전체' }: SkillCloudProps) {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
   const [expandedRelatedSkills, setExpandedRelatedSkills] = useState<Set<string>>(new Set())
+  const [detailViewSkill, setDetailViewSkill] = useState<string | null>(null) // 상세 정보에 표시할 스킬
 
   const skillsToUse = useMemo(() => {
     return skills.slice(0, 13).sort((a, b) => b.count - a.count)
   }, [skills])
 
   const maxCount = skillsToUse[0]?.count || 1
-  const selectedSkillData = skillsToUse.find(s => s.name === selectedSkill) || skillsToUse[0]
+  
+  // 선택된 스킬 데이터 찾기 (메인 스킬 또는 관련 스킬)
+  const selectedSkillData = useMemo(() => {
+    if (!selectedSkill) return null
+    
+    // 먼저 메인 스킬 목록에서 찾기
+    const mainSkill = skillsToUse.find(s => s.name === selectedSkill)
+    if (mainSkill) return mainSkill
+    
+    // 전체 skills 배열에서 찾기 (관련 스킬이 메인 목록에 없을 수 있음)
+    const fullSkill = skills.find(s => s.name === selectedSkill)
+    if (fullSkill) return fullSkill
+    
+    // 관련 스킬 목록에서 찾기 (데이터가 없는 경우 기본 정보만 표시)
+    for (const skill of skillsToUse) {
+      if (skill.relatedSkills?.includes(selectedSkill)) {
+        // 관련 스킬이 메인 스킬 목록에 없으면, 해당 스킬의 기본 정보를 생성
+        return {
+          name: selectedSkill,
+          count: 0,
+          percentage: undefined,
+          change: undefined,
+          relatedSkills: []
+        }
+      }
+    }
+    
+    // 전체 skills 배열의 relatedSkills에서도 찾기
+    for (const skill of skills) {
+      if (skill.relatedSkills?.includes(selectedSkill)) {
+        return {
+          name: selectedSkill,
+          count: 0,
+          percentage: undefined,
+          change: undefined,
+          relatedSkills: []
+        }
+      }
+    }
+    
+    return null
+  }, [selectedSkill, skillsToUse, skills])
+
+  // 상세 정보에 표시할 스킬 데이터 찾기 (detailViewSkill이 있으면 그것을, 없으면 selectedSkill 사용)
+  const detailViewSkillData = useMemo(() => {
+    const skillToShow = detailViewSkill || selectedSkill
+    if (!skillToShow) return null
+    
+    // 먼저 메인 스킬 목록에서 찾기
+    const mainSkill = skillsToUse.find(s => s.name === skillToShow)
+    if (mainSkill) return mainSkill
+    
+    // 전체 skills 배열에서 찾기 (대소문자 구분 없이, 부분 일치도 시도)
+    let fullSkill = skills.find(s => s.name === skillToShow)
+    if (fullSkill) return fullSkill
+    
+    // 대소문자 무시하고 찾기
+    fullSkill = skills.find(s => s.name.toLowerCase() === skillToShow.toLowerCase())
+    if (fullSkill) return fullSkill
+    
+    // 관련 스킬이 다른 스킬의 relatedSkills에 포함되어 있는 경우,
+    // 해당 스킬의 정보를 기반으로 관련 스킬 정보를 찾기
+    // 전체 skills 배열에서 해당 스킬이 직접 포함되어 있는지 다시 한 번 확인
+    const directSkill = skills.find(s => {
+      // 정확히 일치하는 경우
+      if (s.name === skillToShow) return true
+      // 대소문자 무시하고 일치하는 경우
+      if (s.name.toLowerCase() === skillToShow.toLowerCase()) return true
+      return false
+    })
+    if (directSkill) return directSkill
+    
+    // 관련 스킬 목록에서 찾기 (데이터가 없는 경우 기본 정보만 표시)
+    // 하지만 가능한 한 다른 스킬의 relatedSkills에서 정보를 찾아서 반환
+    for (const skill of skills) {
+      if (skill.relatedSkills?.includes(skillToShow)) {
+        // 관련 스킬이 skills 배열에 직접 있는지 확인
+        const relatedSkillData = skills.find(s => s.name === skillToShow)
+        if (relatedSkillData) {
+          return relatedSkillData
+        }
+        // 없으면 기본 정보 반환 (하지만 relatedSkills는 포함)
+        return {
+          name: skillToShow,
+          count: 0,
+          percentage: undefined,
+          change: undefined,
+          relatedSkills: skill.relatedSkills.filter(rs => rs === skillToShow || skills.some(s => s.name === rs))
+        }
+      }
+    }
+    
+    // 마지막으로 skillsToUse에서도 확인
+    for (const skill of skillsToUse) {
+      if (skill.relatedSkills?.includes(skillToShow)) {
+        const relatedSkillData = skills.find(s => s.name === skillToShow)
+        if (relatedSkillData) {
+          return relatedSkillData
+        }
+        return {
+          name: skillToShow,
+          count: 0,
+          percentage: undefined,
+          change: undefined,
+          relatedSkills: []
+        }
+      }
+    }
+    
+    return null
+  }, [detailViewSkill, selectedSkill, skillsToUse, skills])
 
   if (!skills || skills.length === 0) {
     return (
@@ -138,46 +249,51 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             onClick={() => {
               setSelectedSkill(null)
               setExpandedRelatedSkills(new Set())
+              setDetailViewSkill(null)
             }}
           />
         )}
         
-        {/* SVG를 사용한 가지치기 선 그리기 */}
-        {selectedSkill && (() => {
-          const selectedIndex = skillsToUse.findIndex(s => s.name === selectedSkill)
-          if (selectedIndex === -1) return null
+        {/* SVG를 사용한 가지치기 선 그리기 - 모든 expanded 스킬의 가지치기 표시 */}
+        {Array.from(expandedRelatedSkills.size > 0 ? expandedRelatedSkills : (selectedSkill ? [selectedSkill] : [])).map((expandedSkillName) => {
+          const expandedSkillData = skillsToUse.find(s => s.name === expandedSkillName) || skills.find(s => s.name === expandedSkillName)
+          if (!expandedSkillData || !expandedSkillData.relatedSkills) return null
           
-          const selectedPosition = getFinalSkillPosition(selectedIndex)
+          const expandedIndex = skillsToUse.findIndex(s => s.name === expandedSkillName)
+          const expandedPosition = expandedIndex >= 0 
+            ? getFinalSkillPosition(expandedIndex)
+            : { x: 0, y: 0 }
           const radius = 130
           const containerCenterX = 250
           const containerCenterY = 250
-          const selectedX = containerCenterX + selectedPosition.x
-          const selectedY = containerCenterY + selectedPosition.y
+          const expandedX = containerCenterX + expandedPosition.x
+          const expandedY = containerCenterY + expandedPosition.y
           
           return (
             <svg 
+              key={`lines-${expandedSkillName}`}
               className="absolute inset-0 pointer-events-none z-5"
               style={{ width: '100%', height: '100%' }}
               viewBox="0 0 500 500"
               preserveAspectRatio="xMidYMid meet"
             >
-              {selectedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
-                const isTopSkill = selectedSkill === 'go' || selectedSkill === 'kotlin'
-                const baseAngle = (idx / (selectedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
-                const adjustedAngle = isTopSkill && selectedPosition.y < -30
+              {expandedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
+                const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
+                const baseAngle = (idx / (expandedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
+                const adjustedAngle = isTopSkill && expandedPosition.y < -30
                   ? baseAngle + Math.PI / 4
                   : baseAngle
                 
                 const relatedX = Math.cos(adjustedAngle) * radius
                 const relatedY = Math.sin(adjustedAngle) * radius
-                const lineEndX = selectedX + relatedX
-                const lineEndY = selectedY + relatedY
+                const lineEndX = expandedX + relatedX
+                const lineEndY = expandedY + relatedY
                 
                 return (
                   <line
-                    key={relatedSkillName}
-                    x1={selectedX}
-                    y1={selectedY}
+                    key={`${expandedSkillName}-${relatedSkillName}`}
+                    x1={expandedX}
+                    y1={expandedY}
                     x2={lineEndX}
                     y2={lineEndY}
                     stroke="#9ca3af"
@@ -189,7 +305,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
               })}
             </svg>
           )
-        })()}
+        })}
         
         {/* 메인 스킬들 */}
         {skillsToUse.map((skill, index) => {
@@ -197,22 +313,30 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
           const finalPosition = getFinalSkillPosition(index)
           const isMain = index === 0
           const isSelected = selectedSkill === skill.name
+          const isExpanded = expandedRelatedSkills.has(skill.name)
           
           let shouldBlur = false
           let shouldHide = false
           
+          // selectedSkill을 기준으로 블러 처리하여 관련 스킬 클릭 시에도 블러 상태 유지
+          // expandedRelatedSkills에 포함된 스킬도 selectedSkill의 관련 스킬이면 표시, 아니면 블러 처리
           if (selectedSkill) {
-            const selectedSkillData = skillsToUse.find(s => s.name === selectedSkill)
-            if (selectedSkillData) {
-              const relatedSkillsSet = new Set(selectedSkillData.relatedSkills || [])
+            // 원래 선택된 메인 스킬의 데이터 찾기 (selectedSkill 유지)
+            const currentSelectedSkillData = skillsToUse.find(s => s.name === selectedSkill) || skills.find(s => s.name === selectedSkill)
+            
+            if (currentSelectedSkillData) {
+              const relatedSkillsSet = new Set(currentSelectedSkillData.relatedSkills || [])
               
               if (isSelected) {
+                // 선택된 메인 스킬은 항상 표시
                 shouldBlur = false
                 shouldHide = false
               } else if (relatedSkillsSet.has(skill.name)) {
+                // 관련 스킬은 표시 (블러 없음)
                 shouldBlur = false
                 shouldHide = true
               } else {
+                // 나머지 스킬은 블러 처리
                 shouldBlur = true
                 shouldHide = false
               }
@@ -262,18 +386,21 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
           )
         })}
         
-        {/* 관련 스킬들을 가지치기 형태로 표시 */}
-        {selectedSkill && (() => {
-          const selectedIndex = skillsToUse.findIndex(s => s.name === selectedSkill)
-          if (selectedIndex === -1) return null
+        {/* 관련 스킬들을 가지치기 형태로 표시 - 모든 expanded 스킬의 관련 스킬 표시 */}
+        {Array.from(expandedRelatedSkills.size > 0 ? expandedRelatedSkills : (selectedSkill ? [selectedSkill] : [])).map((expandedSkillName) => {
+          const expandedSkillData = skillsToUse.find(s => s.name === expandedSkillName) || skills.find(s => s.name === expandedSkillName)
+          if (!expandedSkillData || !expandedSkillData.relatedSkills) return null
           
-          const selectedPosition = getFinalSkillPosition(selectedIndex)
+          const expandedIndex = skillsToUse.findIndex(s => s.name === expandedSkillName)
+          const expandedPosition = expandedIndex >= 0 
+            ? getFinalSkillPosition(expandedIndex)
+            : { x: 0, y: 0 }
           const radius = 130
           
-          return selectedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
-            const isTopSkill = selectedSkill === 'go' || selectedSkill === 'kotlin'
-            const baseAngle = (idx / (selectedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
-            const adjustedAngle = isTopSkill && selectedPosition.y < -30
+          return expandedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
+            const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
+            const baseAngle = (idx / (expandedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
+            const adjustedAngle = isTopSkill && expandedPosition.y < -30
               ? baseAngle + Math.PI / 4
               : baseAngle
             
@@ -290,46 +417,45 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             
             return (
               <button
-                key={relatedSkillName}
+                key={`${expandedSkillName}-${relatedSkillName}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (isRelatedSkillInData) {
-                    setSelectedSkill(relatedSkillName)
-                    setExpandedRelatedSkills(prev => new Set([...Array.from(prev), relatedSkillName]))
-                  }
+                  // 관련 스킬을 클릭하면 해당 스킬의 상세 정보만 표시 (클라우드는 초기화하지 않음)
+                  // selectedSkill은 그대로 유지하고, detailViewSkill만 변경
+                  // 관련 스킬의 가지치기는 표시하지 않음 (expandedRelatedSkills에 추가하지 않음)
+                  setDetailViewSkill(relatedSkillName)
                 }}
-                className={`absolute ${buttonSize} rounded-full flex items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-all duration-300 ${
+                className={`absolute ${buttonSize} rounded-full flex items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-colors duration-300 ${
                   isRelatedSkillInData
-                    ? 'bg-gray-900/20 text-gray-700 border-2 border-gray-700/50 hover:bg-gray-900/30 hover:scale-110 shadow-md'
-                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-50 hover:scale-105 shadow-sm'
+                    ? 'bg-gray-900/20 text-gray-700 border-2 border-gray-700/50 hover:bg-gray-900/30 shadow-md'
+                    : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-50 shadow-sm'
                 }`}
                 style={{
-                  left: `calc(50% + ${selectedPosition.x + relatedX}px)`,
-                  top: `calc(50% + ${selectedPosition.y + relatedY}px)`,
-                  transform: `translate(-50%, -50%) scale(0)`,
-                  opacity: 0,
-                  animation: `fadeInScale 0.3s ease forwards`,
-                  animationDelay: `${idx * 0.05}s`,
+                  left: `calc(50% + ${expandedPosition.x + relatedX}px)`,
+                  top: `calc(50% + ${expandedPosition.y + relatedY}px)`,
+                  transform: `translate(-50%, -50%)`,
+                  position: 'absolute',
+                  willChange: 'auto',
                 }}
               >
                 {relatedSkillName}
               </button>
             )
           })
-        })()}
+        })}
       </div>
 
       {/* 스킬 상세 정보 */}
-      {selectedSkill && (
+      {detailViewSkillData && (
         <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
           <div className="mb-3">
             <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-900 rounded-xl mb-2 shadow-lg">
               <span className="text-lg font-bold text-white uppercase">
-                {selectedSkillData.name.charAt(0)}
+                {detailViewSkillData.name.charAt(0)}
               </span>
             </div>
             <h3 className="text-base font-bold text-gray-900 mb-1 capitalize">
-              {selectedSkillData.name}
+              {detailViewSkillData.name}
             </h3>
             <p className="text-xs text-gray-500">스킬 상세 정보</p>
           </div>
@@ -337,39 +463,51 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
               <p className="text-xs font-medium text-gray-600 mb-1 uppercase">총 공고 수</p>
-              <p className="text-2xl font-bold text-gray-900">{selectedSkillData.count}</p>
+              <p className="text-2xl font-bold text-gray-900">{detailViewSkillData.count || 0}</p>
               <p className="text-xs text-gray-500 mt-0.5">건</p>
             </div>
             
-            {selectedSkillData.percentage !== undefined && (
+            {detailViewSkillData.percentage !== undefined && (
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <p className="text-xs font-medium text-gray-600 mb-1 uppercase">비율</p>
-                <p className="text-2xl font-bold text-gray-900">{selectedSkillData.percentage}</p>
+                <p className="text-2xl font-bold text-gray-900">{detailViewSkillData.percentage}</p>
                 <p className="text-xs text-gray-500 mt-0.5">%</p>
               </div>
             )}
 
-            {selectedSkillData.change !== undefined && (
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+            {detailViewSkillData.change !== undefined && (
+              <div className={`p-3 rounded-lg border ${
+                detailViewSkillData.change >= 0 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
                 <p className="text-xs font-medium text-gray-600 mb-1">전월 대비 변화</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-xl font-bold text-green-400">
-                    +{selectedSkillData.change}%
+                  <p className={`text-xl font-bold ${
+                    detailViewSkillData.change >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {detailViewSkillData.change >= 0 ? '+' : ''}{detailViewSkillData.change}%
                   </p>
-                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
+                  {detailViewSkillData.change >= 0 ? (
+                    <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6 6" />
+                    </svg>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
           {/* 관련 스킬 */}
-          {selectedSkillData.relatedSkills && selectedSkillData.relatedSkills.length > 0 && (
+          {detailViewSkillData.relatedSkills && detailViewSkillData.relatedSkills.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <p className="text-xs font-medium text-gray-600 mb-2">관련 스킬</p>
               <div className="flex flex-wrap gap-2">
-                {selectedSkillData.relatedSkills.map((relatedSkill) => (
+                {detailViewSkillData.relatedSkills.map((relatedSkill) => (
                   <span
                     key={relatedSkill}
                     className="px-2 py-1 text-xs bg-gray-50 text-gray-700 border border-gray-200 rounded"
@@ -381,13 +519,6 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             </div>
           )}
 
-          {/* 스킬 인사이트 */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">스킬 인사이트</h4>
-            <p className="text-sm text-gray-700 leading-relaxed">
-              {generateSkillInsight(selectedSkillData, selectedCompany)}
-            </p>
-          </div>
         </div>
       )}
     </div>

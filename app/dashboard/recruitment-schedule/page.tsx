@@ -206,7 +206,6 @@ export default function RecruitmentSchedulePage() {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
       } catch (error: any) {
-        console.error('Error fetching recruitment schedules:', error)
         setSchedulesError(error.message || '채용 일정 데이터를 불러오는데 실패했습니다.')
         // 에러 발생 시 빈 배열로 설정
         setServerSchedules([])

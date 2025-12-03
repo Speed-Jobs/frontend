@@ -164,9 +164,40 @@ export default function CompanyInsightAnalysis({
   const apiInsights = useMemo(() => {
     if (!insightData) return null
     
+    // 회사명 정규화 함수 (공백 제거, 대소문자 무시)
+    const normalizeCompanyName = (name: string): string => {
+      return name.replace(/\s+/g, '').toLowerCase()
+    }
+    
+    // insight.company_name과 현재 선택된 companyName이 일치하는지 확인
+    const insightCompanyName = insightData.company_name || ''
+    const normalizedInsightCompany = normalizeCompanyName(insightCompanyName)
+    const normalizedCurrentCompany = normalizeCompanyName(companyName)
+    
+    // insight가 현재 선택된 회사에 대한 것인지 확인
+    const isMatchingCompany = normalizedInsightCompany === normalizedCurrentCompany ||
+      normalizedInsightCompany.includes(normalizedCurrentCompany) ||
+      normalizedCurrentCompany.includes(normalizedInsightCompany)
+    
+    // key_findings는 insight 객체의 최상위에 있음
+    let keyFindings: string[] = []
+    
+    if (isMatchingCompany && insightData.key_findings) {
+      if (Array.isArray(insightData.key_findings)) {
+        keyFindings = insightData.key_findings
+      } else if (typeof insightData.key_findings === 'string') {
+        keyFindings = [insightData.key_findings]
+      } else if (typeof insightData.key_findings === 'object') {
+        keyFindings = Object.values(insightData.key_findings).filter((v): v is string => typeof v === 'string')
+      }
+    }
+    
+    // 회사가 일치하는 경우에만 key_findings 사용
+    const finalKeyFindings = isMatchingCompany ? keyFindings : []
+    
     return {
       summary: insightData.summary,
-      keyFindings: insightData.key_findings || [],
+      keyFindings: finalKeyFindings,
       causeAnalysis: insightData.cause_analysis,
       strategicInsights: insightData.strategic_insights || [],
       competitorComparison: insightData.competitor_comparison || [],
@@ -174,7 +205,7 @@ export default function CompanyInsightAnalysis({
       totalPostings: insightData.total_postings,
       averageDailyPostings: insightData.average_daily_postings,
     }
-  }, [insightData])
+  }, [insightData, companyName])
 
   return (
     <div>

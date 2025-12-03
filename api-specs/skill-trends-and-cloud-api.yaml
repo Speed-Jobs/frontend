@@ -1,0 +1,796 @@
+openapi: 3.0.3
+info:
+  title: 상위 스킬 연도별 트렌드 및 스킬 클라우드 API
+  description: |
+    상위 스킬의 연도별 트렌드와 스킬 클라우드 데이터를 제공하는 API입니다.
+    - 스킬 트렌드: 연도별로 상위 N개 스킬의 월별 트렌드 데이터를 제공합니다.
+    - 스킬 클라우드: 지정된 기간과 회사에 대한 스킬 통계 데이터를 제공합니다.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1
+    description: Production server
+
+paths:
+  /dashboard/skill-trends:
+    get:
+      summary: 전체 상위 스킬 연도별 트렌드 조회
+      description: |
+        전체 채용 공고에서 연도별로 상위 N개 스킬의 월별 트렌드 데이터를 조회합니다.
+        각 월별로 각 스킬의 사용 빈도(공고 수)를 반환합니다.
+      operationId: getSkillTrends
+      tags:
+        - Skill Trends
+      parameters:
+        - name: year
+          in: query
+          required: true
+          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
+          schema:
+            type: string
+            pattern: '^\d{4}$'
+          example: "2024"
+        
+        - name: top_n
+          in: query
+          required: false
+          description: "상위 N개 스킬 조회 (기본값: 10)"
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          example: 10
+      
+      responses:
+        '200':
+          description: "성공적으로 스킬 트렌드 데이터를 조회했습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillTrendResponse'
+              examples:
+                success:
+                  summary: 성공 응답 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "스킬 트렌드 조회 성공"
+                    data:
+                      year: "2024"
+                      skills:
+                        - "python"
+                        - "java"
+                        - "react"
+                        - "typescript"
+                        - "spring"
+                        - "sql"
+                        - "docker"
+                        - "kubernetes"
+                        - "aws"
+                        - "nodejs"
+                      trends:
+                        - month: "2024-01"
+                          python: 45
+                          java: 38
+                          react: 32
+                          typescript: 28
+                          spring: 25
+                          sql: 22
+                          docker: 18
+                          kubernetes: 15
+                          aws: 12
+                          nodejs: 10
+                        - month: "2024-02"
+                          python: 48
+                          java: 40
+                          react: 35
+                          typescript: 30
+                          spring: 27
+                          sql: 24
+                          docker: 20
+                          kubernetes: 17
+                          aws: 14
+                          nodejs: 12
+                        - month: "2024-03"
+                          python: 52
+                          java: 42
+                          react: 38
+                          typescript: 32
+                          spring: 29
+                          sql: 26
+                          docker: 22
+                          kubernetes: 19
+                          aws: 16
+                          nodejs: 14
+        
+        '404':
+          description: "해당 연도의 데이터를 찾을 수 없습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: 데이터 없음
+                  value:
+                    status: 404
+                    code: "NOT_FOUND"
+                    message: "해당 연도의 스킬 트렌드 데이터를 찾을 수 없습니다."
+        
+        '500':
+          description: "서버 내부 오류"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dashboard/skill-trends/quarterly-comparison:
+    get:
+      summary: 분기별 스킬 트렌드 동기간 비교 조회
+      description: |
+        특정 분기의 스킬 트렌드와 전년도 동기간 스킬 트렌드를 비교 조회합니다.
+        동기간 비교를 위해 시작일과 종료일을 지정할 수 있으며, 종료일이 지정되지 않으면 현재 날짜를 기본값으로 사용합니다.
+      operationId: getQuarterlySkillTrendComparison
+      tags:
+        - Skill Trends
+      parameters:
+        - name: year
+          in: query
+          required: true
+          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
+          schema:
+            type: string
+            pattern: '^\d{4}$'
+          example: "2025"
+        
+        - name: quarter
+          in: query
+          required: true
+          description: "조회할 분기 (Q1, Q2, Q3, Q4)"
+          schema:
+            type: string
+            enum: [Q1, Q2, Q3, Q4]
+          example: "Q4"
+        
+        - name: start_date
+          in: query
+          required: false
+          description: "시작일 (YYYY-MM-DD 형식, 기본값: 해당 분기의 시작일)"
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-10-01"
+        
+        - name: end_date
+          in: query
+          required: false
+          description: "종료일 (YYYY-MM-DD 형식, 기본값: 현재 날짜 또는 해당 분기의 종료일 중 더 빠른 날짜)"
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2025-12-03"
+        
+        - name: company_name
+          in: query
+          required: false
+          description: "회사 이름 (전체 조회 시 생략, 예: 토스, 한화시스템, 카카오 등)"
+          schema:
+            type: string
+          example: "토스"
+        
+        - name: top_n
+          in: query
+          required: false
+          description: "상위 N개 스킬 조회 (기본값: 10)"
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          example: 10
+      
+      responses:
+        '200':
+          description: "성공적으로 분기별 스킬 트렌드 비교 데이터를 조회했습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuarterlyComparisonResponse'
+              examples:
+                success:
+                  summary: 성공 응답 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "분기별 스킬 트렌드 비교 조회 성공"
+                    data:
+                      current_period:
+                        year: "2025"
+                        quarter: "Q4"
+                        start_date: "2025-10-01"
+                        end_date: "2025-12-03"
+                        days: 64
+                        skills:
+                          - "python"
+                          - "java"
+                          - "react"
+                          - "typescript"
+                          - "spring"
+                        trends:
+                          - month: "2025-10"
+                            python: 45
+                            java: 38
+                            react: 32
+                            typescript: 28
+                            spring: 25
+                          - month: "2025-11"
+                            python: 48
+                            java: 40
+                            react: 35
+                            typescript: 30
+                            spring: 27
+                          - month: "2025-12"
+                            python: 52
+                            java: 42
+                            react: 38
+                            typescript: 32
+                            spring: 29
+                      previous_period:
+                        year: "2024"
+                        quarter: "Q4"
+                        start_date: "2024-10-01"
+                        end_date: "2024-12-03"
+                        days: 64
+                        skills:
+                          - "python"
+                          - "java"
+                          - "react"
+                          - "typescript"
+                          - "spring"
+                        trends:
+                          - month: "2024-10"
+                            python: 42
+                            java: 35
+                            react: 30
+                            typescript: 26
+                            spring: 23
+                          - month: "2024-11"
+                            python: 45
+                            java: 37
+                            react: 33
+                            typescript: 28
+                            spring: 25
+                          - month: "2024-12"
+                            python: 49
+                            java: 40
+                            react: 36
+                            typescript: 30
+                            spring: 27
+        
+        '400':
+          description: "잘못된 요청 파라미터"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 400
+                code: "BAD_REQUEST"
+                message: "잘못된 요청 파라미터입니다."
+                errors:
+                  - field: "quarter"
+                    message: "quarter는 Q1, Q2, Q3, Q4 중 하나여야 합니다."
+        
+        '404':
+          description: "해당 분기의 데이터를 찾을 수 없습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '500':
+          description: "서버 내부 오류"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dashboard/companies/{company_name}/skill-trends:
+    get:
+      summary: 회사별 상위 스킬 연도별 트렌드 조회
+      description: |
+        특정 회사의 채용 공고에서 연도별로 상위 N개 스킬의 월별 트렌드 데이터를 조회합니다.
+        각 월별로 각 스킬의 사용 빈도(공고 수)를 반환합니다.
+      operationId: getCompanySkillTrends
+      tags:
+        - Skill Trends
+      parameters:
+        - name: company_name
+          in: path
+          required: true
+          description: "회사 이름 (예: 토스, 한화시스템, 카카오 등)"
+          schema:
+            type: string
+          example: "토스"
+        
+        - name: year
+          in: query
+          required: true
+          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
+          schema:
+            type: string
+            pattern: '^\d{4}$'
+          example: "2024"
+        
+        - name: top_n
+          in: query
+          required: false
+          description: "상위 N개 스킬 조회 (기본값: 10)"
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          example: 10
+      
+      responses:
+        '200':
+          description: "성공적으로 회사별 스킬 트렌드 데이터를 조회했습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillTrendResponse'
+              examples:
+                success:
+                  summary: 성공 응답 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "회사별 스킬 트렌드 조회 성공"
+                    data:
+                      company_name: "토스"
+                      year: "2024"
+                      skills:
+                        - "typescript"
+                        - "react"
+                        - "nodejs"
+                        - "python"
+                        - "aws"
+                        - "docker"
+                        - "kubernetes"
+                        - "postgresql"
+                        - "redis"
+                        - "graphql"
+                      trends:
+                        - month: "2024-01"
+                          typescript: 15
+                          react: 12
+                          nodejs: 10
+                          python: 8
+                          aws: 6
+                          docker: 5
+                          kubernetes: 4
+                          postgresql: 3
+                          redis: 2
+                          graphql: 2
+                        - month: "2024-02"
+                          typescript: 18
+                          react: 14
+                          nodejs: 12
+                          python: 9
+                          aws: 7
+                          docker: 6
+                          kubernetes: 5
+                          postgresql: 4
+                          redis: 3
+                          graphql: 3
+        
+        '404':
+          description: "해당 회사 또는 연도의 데이터를 찾을 수 없습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: 데이터 없음
+                  value:
+                    status: 404
+                    code: "NOT_FOUND"
+                    message: "해당 회사 또는 연도의 스킬 트렌드 데이터를 찾을 수 없습니다."
+        
+        '500':
+          description: "서버 내부 오류"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dashboard/skills/statistics:
+    get:
+      summary: 스킬 클라우드 통계 조회
+      description: |
+        지정된 기간과 회사에 대한 스킬 통계 데이터를 조회합니다.
+        스킬별 공고 수, 비율, 변화율, 관련 스킬 정보를 제공합니다.
+        스킬 클라우드 시각화에 사용됩니다.
+      operationId: getSkillsStatistics
+      tags:
+        - Skill Cloud
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          description: "시작 날짜 (YYYY-MM-DD 형식)"
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2024-01-01"
+        
+        - name: end_date
+          in: query
+          required: true
+          description: "종료 날짜 (YYYY-MM-DD 형식)"
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          example: "2024-12-31"
+        
+        - name: company
+          in: query
+          required: false
+          description: "회사 이름 필터 (선택사항, 전체 데이터 조회 시 생략)"
+          schema:
+            type: string
+          example: "토스"
+        
+        - name: limit
+          in: query
+          required: false
+          description: "반환할 상위 스킬 개수 (기본값: 20)"
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+      
+      responses:
+        '200':
+          description: "성공적으로 스킬 통계 데이터를 조회했습니다."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillStatisticsResponse'
+              examples:
+                success:
+                  summary: 성공 응답 예시
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "스킬 통계 조회 성공"
+                    data:
+                      period:
+                        start_date: "2024-01-01"
+                        end_date: "2024-12-31"
+                      company: "토스"
+                      total_job_postings: 1250
+                      skills:
+                        - name: "typescript"
+                          count: 286
+                          percentage: 22.9
+                          change: 5.2
+                          relatedSkills:
+                            - "react"
+                            - "nodejs"
+                            - "angular"
+                        - name: "react"
+                          count: 245
+                          percentage: 19.6
+                          change: 3.5
+                          relatedSkills:
+                            - "typescript"
+                            - "javascript"
+                            - "nextjs"
+                        - name: "python"
+                          count: 198
+                          percentage: 15.8
+                          change: 2.1
+                          relatedSkills:
+                            - "django"
+                            - "flask"
+                            - "fastapi"
+                        - name: "aws"
+                          count: 187
+                          percentage: 15.0
+                          change: 4.3
+                          relatedSkills:
+                            - "cloud"
+                            - "lambda"
+                            - "s3"
+                        - name: "docker"
+                          count: 165
+                          percentage: 13.2
+                          change: 2.5
+                          relatedSkills:
+                            - "kubernetes"
+                            - "container"
+                            - "ci/cd"
+        
+        '400':
+          description: "잘못된 요청 파라미터"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badRequest:
+                  summary: 잘못된 날짜 형식
+                  value:
+                    status: 400
+                    code: "BAD_REQUEST"
+                    message: "날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용해주세요."
+        
+        '500':
+          description: "서버 내부 오류"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SkillTrendResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - data
+      properties:
+        status:
+          type: integer
+          description: "HTTP 상태 코드"
+          example: 200
+        code:
+          type: string
+          description: "응답 코드"
+          enum: [SUCCESS, NOT_FOUND, ERROR]
+          example: "SUCCESS"
+        message:
+          type: string
+          description: "응답 메시지"
+          example: "스킬 트렌드 조회 성공"
+        data:
+          type: object
+          properties:
+            company_name:
+              type: string
+              description: "회사 이름 (회사별 조회 시에만 포함)"
+              example: "토스"
+            year:
+              type: string
+              description: "조회 연도"
+              example: "2024"
+            skills:
+              type: array
+              description: "상위 스킬 목록"
+              items:
+                type: string
+              example: ["python", "java", "react", "typescript", "spring"]
+            trends:
+              type: array
+              description: "월별 스킬 트렌드 데이터"
+              items:
+                $ref: '#/components/schemas/MonthlySkillTrend'
+    
+    MonthlySkillTrend:
+      type: object
+      required:
+        - month
+      properties:
+        month:
+          type: string
+          description: "월 (YYYY-MM 형식)"
+          pattern: '^\d{4}-\d{2}$'
+          example: "2024-01"
+      additionalProperties:
+        type: integer
+        description: "각 스킬별 공고 수 (스킬 이름이 키, 공고 수가 값)"
+        example:
+          python: 45
+          java: 38
+          react: 32
+    
+    SkillStatisticsResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - data
+      properties:
+        status:
+          type: integer
+          description: "HTTP 상태 코드"
+          example: 200
+        code:
+          type: string
+          description: "응답 코드"
+          enum: [SUCCESS, BAD_REQUEST, ERROR]
+          example: "SUCCESS"
+        message:
+          type: string
+          description: "응답 메시지"
+          example: "스킬 통계 조회 성공"
+        data:
+          type: object
+          properties:
+            period:
+              type: object
+              properties:
+                start_date:
+                  type: string
+                  format: date
+                  example: "2024-01-01"
+                end_date:
+                  type: string
+                  format: date
+                  example: "2024-12-31"
+            company:
+              type: string
+              nullable: true
+              description: "회사 이름 (전체 조회 시 null)"
+              example: "토스"
+            total_job_postings:
+              type: integer
+              description: "전체 채용 공고 수"
+              example: 1250
+            skills:
+              type: array
+              description: "스킬 통계 목록 (공고 수 기준 내림차순 정렬)"
+              items:
+                $ref: '#/components/schemas/SkillStatistics'
+    
+    SkillStatistics:
+      type: object
+      required:
+        - name
+        - count
+        - percentage
+        - change
+        - relatedSkills
+      properties:
+        name:
+          type: string
+          description: "스킬 이름"
+          example: "typescript"
+        count:
+          type: integer
+          description: "해당 스킬이 요구된 채용 공고 수"
+          minimum: 0
+          example: 286
+        percentage:
+          type: number
+          format: float
+          description: "전체 공고 대비 비율 (%)"
+          minimum: 0
+          maximum: 100
+          example: 22.9
+        change:
+          type: number
+          format: float
+          description: "이전 기간 대비 변화율 (%)"
+          example: 5.2
+        relatedSkills:
+          type: array
+          description: "관련 스킬 목록"
+          items:
+            type: string
+          example: ["react", "nodejs", "angular"]
+    
+    QuarterlyComparisonResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - data
+      properties:
+        status:
+          type: integer
+          description: "HTTP 상태 코드"
+          example: 200
+        code:
+          type: string
+          description: "응답 코드"
+          enum: [SUCCESS, BAD_REQUEST, NOT_FOUND, ERROR]
+          example: "SUCCESS"
+        message:
+          type: string
+          description: "응답 메시지"
+          example: "분기별 스킬 트렌드 비교 조회 성공"
+        data:
+          type: object
+          properties:
+            current_period:
+              $ref: '#/components/schemas/QuarterlyPeriodData'
+            previous_period:
+              $ref: '#/components/schemas/QuarterlyPeriodData'
+    
+    QuarterlyPeriodData:
+      type: object
+      required:
+        - year
+        - quarter
+        - start_date
+        - end_date
+        - days
+        - skills
+        - trends
+      properties:
+        year:
+          type: string
+          description: "연도"
+          pattern: '^\d{4}$'
+          example: "2025"
+        quarter:
+          type: string
+          description: "분기"
+          enum: [Q1, Q2, Q3, Q4]
+          example: "Q4"
+        start_date:
+          type: string
+          format: date
+          description: "시작일 (YYYY-MM-DD)"
+          example: "2025-10-01"
+        end_date:
+          type: string
+          format: date
+          description: "종료일 (YYYY-MM-DD)"
+          example: "2025-12-03"
+        days:
+          type: integer
+          description: "기간 일수 (동기간 비교를 위한 계산 값)"
+          minimum: 1
+          example: 64
+        skills:
+          type: array
+          description: "상위 스킬 목록"
+          items:
+            type: string
+          example: ["python", "java", "react", "typescript", "spring"]
+        trends:
+          type: array
+          description: "월별 스킬 트렌드 데이터"
+          items:
+            $ref: '#/components/schemas/MonthlySkillTrend'
+    
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+      properties:
+        status:
+          type: integer
+          description: "HTTP 상태 코드"
+          example: 404
+        code:
+          type: string
+          description: "에러 코드"
+          enum: [NOT_FOUND, BAD_REQUEST, ERROR]
+          example: "NOT_FOUND"
+        message:
+          type: string
+          description: "에러 메시지"
+          example: "해당 연도의 스킬 트렌드 데이터를 찾을 수 없습니다."
+

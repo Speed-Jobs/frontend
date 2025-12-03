@@ -66,30 +66,20 @@ export default function CombinedTrendChart({
 
   // 두 데이터를 period 기준으로 병합
   const mergedData = useMemo(() => {
-    console.log('=== CombinedTrendChart 데이터 병합 시작 ===')
-    console.log('jobPostingsTrendData:', jobPostingsTrendData)
-    console.log('jobPostingsTrendData 길이:', jobPostingsTrendData?.length || 0)
-    console.log('companyRecruitmentData:', companyRecruitmentData)
-    console.log('companyRecruitmentData 길이:', companyRecruitmentData?.length || 0)
-    
     if (!jobPostingsTrendData || jobPostingsTrendData.length === 0) {
-      console.log('jobPostingsTrendData가 비어있어서 companyRecruitmentData만 사용')
       const result = (companyRecruitmentData || []).map(item => ({
         period: normalizePeriod(item.period),
         ...Object.fromEntries(
           Object.entries(item).filter(([key]) => key !== 'period')
         ),
       }))
-      console.log('병합 결과 (회사별만):', result)
       return result
     }
     if (!companyRecruitmentData || companyRecruitmentData.length === 0) {
-      console.log('companyRecruitmentData가 비어있어서 jobPostingsTrendData만 사용')
       const result = jobPostingsTrendData.map(item => ({
         period: normalizePeriod(item.period),
         totalCount: item.count,
       }))
-      console.log('병합 결과 (전체 공고만):', result)
       return result
     }
 
@@ -149,8 +139,6 @@ export default function CombinedTrendChart({
       return parseMD(a.period) - parseMD(b.period)
     })
     
-    console.log('병합 결과 (전체):', sorted)
-    console.log('병합된 데이터 개수:', sorted.length)
     return sorted
   }, [jobPostingsTrendData, companyRecruitmentData])
 
@@ -167,10 +155,22 @@ export default function CombinedTrendChart({
       })
     }
     
-    // 선택된 회사들의 채용 활동 수
+    // 회사 이름 정규화 함수 (key 생성용)
+    const normalizeCompanyName = (name: string): string => {
+      return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+    }
+    
+    // 회사 key 생성 함수 (normalizeCompanyName 기반)
+    const generateCompanyKey = (name: string): string => {
+      return normalizeCompanyName(name)
+    }
+    
+    // 선택된 회사들의 채용 활동 수 (selectedCompanies는 회사 이름 배열)
     if (selectedCompanies.length > 0) {
       mergedData.forEach(item => {
-        selectedCompanies.forEach(companyKey => {
+        selectedCompanies.forEach(companyName => {
+          // 회사 이름을 key로 변환하여 매칭 (normalizeCompanyName 기반)
+          const companyKey = generateCompanyKey(companyName)
           const value = Number(item[companyKey] || 0)
           if (value > 0) {
             values.push(value)
@@ -273,8 +273,8 @@ export default function CombinedTrendChart({
           <Area
             type="monotone"
             dataKey="totalCount"
-            stroke="#60a5fa"
-            strokeWidth={2}
+            stroke="#93c5fd"
+            strokeWidth={1.5}
             fillOpacity={1}
             fill="url(#colorTotalCount)"
             name="전체 공고 수"
@@ -282,15 +282,17 @@ export default function CombinedTrendChart({
         )}
         {/* 회사별 채용 활동 - Line 차트 */}
         {companies.map((company) => {
-          if (selectedCompanies.includes(company.key)) {
+          // selectedCompanies는 회사 이름 배열이므로 name으로 비교
+          if (selectedCompanies.includes(company.name)) {
             return (
               <Line 
                 key={company.key}
                 type="monotone" 
                 dataKey={company.key} 
                 stroke={company.color} 
-                strokeWidth={2} 
-                dot={false}
+                strokeWidth={3} 
+                dot={{ r: 4, fill: company.color }}
+                activeDot={{ r: 6 }}
                 name={company.name}
               />
             )

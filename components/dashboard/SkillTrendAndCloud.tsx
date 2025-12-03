@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -51,21 +51,39 @@ export default function SkillTrendAndCloud({
   trendError,
   cloudError,
 }: SkillTrendAndCloudProps) {
+  // 더미 데이터 (API 연동 전 UI 확인용)
+  const dummyTrendData = useMemo(() => {
+    const years = ['2021', '2022', '2023', '2024', '2025']
+    const skills = ['python', 'java', 'react', 'typescript', 'spring', 'sql', 'docker', 'kubernetes', 'aws', 'nodejs']
+    const dummy: Array<{ month: string; [skill: string]: string | number }> = []
+    
+    years.forEach(year => {
+      for (let month = 1; month <= 12; month++) {
+        const monthStr = `${year}.${String(month).padStart(2, '0')}`
+        const data: any = { month: monthStr }
+        skills.forEach(skill => {
+          // 랜덤한 값 생성 (월별로 약간씩 변화)
+          data[skill] = Math.floor(Math.random() * 50) + 10 + (parseInt(year) - 2021) * 5
+        })
+        dummy.push(data)
+      }
+    })
+    
+    return dummy
+  }, [])
+
   // 연도별로 데이터 집계 (스택 바 차트용)
   const yearlyData = useMemo(() => {
-    console.log('=== yearlyData 계산 시작 ===')
-    console.log('skillTrendData:', skillTrendData)
-    console.log('skillTrendData 길이:', skillTrendData?.length || 0)
+    // API 데이터가 없으면 더미 데이터 사용
+    const dataToUse = (!skillTrendData || skillTrendData.length === 0) ? dummyTrendData : skillTrendData
     
-    if (!skillTrendData || skillTrendData.length === 0) {
-      console.log('skillTrendData가 비어있습니다')
-      console.log('selectedCompany:', selectedCompany)
+    if (!dataToUse || dataToUse.length === 0) {
       return []
     }
 
     // 모든 스킬 추출
     const allSkills = new Set<string>()
-    skillTrendData.forEach(item => {
+    dataToUse.forEach(item => {
       Object.keys(item).forEach(key => {
         if (key !== 'month' && key !== 'quarter') {
           allSkills.add(key)
@@ -73,15 +91,12 @@ export default function SkillTrendAndCloud({
       })
     })
 
-    console.log('추출된 스킬들:', Array.from(allSkills))
-
     // 연도별로 집계
     const yearMap = new Map<string, Map<string, number>>()
 
-    skillTrendData.forEach(item => {
+    dataToUse.forEach(item => {
       const monthStr = item.month
       if (!monthStr) {
-        console.warn('month 필드가 없습니다:', item)
         return
       }
       
@@ -97,7 +112,6 @@ export default function SkillTrendAndCloud({
       }
       
       if (!year) {
-        console.warn('연도를 추출할 수 없습니다:', monthStr)
         return
       }
       
@@ -113,9 +127,6 @@ export default function SkillTrendAndCloud({
         }
       })
     })
-
-    console.log('연도별 집계 결과:', yearMap)
-    console.log('데이터가 있는 연도:', Array.from(yearMap.keys()))
 
     // 연도별 데이터 배열로 변환 (2021-2025 모든 연도 포함)
     const allYears = ['2021', '2022', '2023', '2024', '2025']
@@ -134,8 +145,6 @@ export default function SkillTrendAndCloud({
       .slice(0, 10)
       .map(item => item.skill)
     
-    console.log('상위 10개 스킬:', top10Skills)
-    
     const result = allYears.map(year => {
       const yearSkills = yearMap.get(year) || new Map()
       const data: any = { year }
@@ -145,16 +154,11 @@ export default function SkillTrendAndCloud({
         data[skill] = yearSkills.get(skill) || 0
       })
       
-      // 데이터가 있는지 확인
-      const hasData = top10Skills.some(skill => (yearSkills.get(skill) || 0) > 0)
-      console.log(`연도 ${year}: 데이터 ${hasData ? '있음' : '없음'}`, data)
-      
       return data
     })
 
-    console.log('최종 yearlyData:', result)
     return result
-  }, [skillTrendData])
+  }, [skillTrendData, dummyTrendData])
 
   // 스택 바 차트에 사용할 상위 스킬 목록 (전체 연도에서 가장 많이 언급된 스킬, 상위 10개)
   const topSkills = useMemo(() => {
@@ -176,7 +180,6 @@ export default function SkillTrendAndCloud({
       .slice(0, 10)
       .map(item => item.skill)
 
-    console.log('상위 스킬 목록:', sortedSkills)
     return sortedSkills
   }, [yearlyData])
 
@@ -217,10 +220,244 @@ export default function SkillTrendAndCloud({
     return skillColors[skill.toLowerCase()] || defaultColors[index % defaultColors.length]
   }
 
+  // 연도 클릭 시 모달 상태
+  const [selectedYearForModal, setSelectedYearForModal] = useState<string | null>(null)
+  // 선택된 분기 상태
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('Q4')
+
+  // 분기별 데이터 집계 (선택된 연도와 분기 기준)
+  const quarterlyData = useMemo(() => {
+    if (!selectedYearForModal) {
+      return { current: null, previous: null }
+    }
+
+    const year = parseInt(selectedYearForModal)
+    const currentQuarter = selectedQuarter // 예: 'Q4'
+    
+    // 동기간 비교: 전년도 동일 분기
+    const previousYear = year - 1
+    const previousQuarter = currentQuarter
+
+    // 분기별 시작일과 종료일 계산 함수
+    const getQuarterDates = (y: number, q: string, isCurrentPeriod: boolean = false) => {
+      let startMonth = 0
+      let endMonth = 0
+      
+      if (q === 'Q1') {
+        startMonth = 0  // 1월
+        endMonth = 2     // 3월
+      } else if (q === 'Q2') {
+        startMonth = 3   // 4월
+        endMonth = 5     // 6월
+      } else if (q === 'Q3') {
+        startMonth = 6   // 7월
+        endMonth = 8     // 9월
+      } else if (q === 'Q4') {
+        startMonth = 9   // 10월
+        endMonth = 11    // 12월
+      }
+      
+      const startDate = new Date(y, startMonth, 1)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // 현재 분기이고 오늘이 분기 기간 내에 있으면 오늘 날짜를 종료일로 사용
+      let endDate: Date
+      if (isCurrentPeriod && y === today.getFullYear()) {
+        const quarterEndDate = new Date(y, endMonth + 1, 0) // 해당 분기의 마지막 날
+        endDate = today < quarterEndDate ? today : quarterEndDate
+      } else {
+        endDate = new Date(y, endMonth + 1, 0) // 해당 월의 마지막 날
+      }
+      
+      return {
+        start: `${y}-${String(startMonth + 1).padStart(2, '0')}-01`,
+        end: `${y}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+      }
+    }
+
+    const currentQuarterDates = getQuarterDates(year, currentQuarter, true)
+    // 동기간 비교: 전년도 동일 분기의 동일 기간
+    const previousQuarterDates = getQuarterDates(previousYear, previousQuarter, false)
+    
+    // 현재 분기가 오늘 날짜까지라면, 전년도도 같은 일수만큼만 표시
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const currentStartDate = new Date(currentQuarterDates.start)
+    const currentEndDate = new Date(currentQuarterDates.end)
+    const daysDiff = Math.floor((currentEndDate.getTime() - currentStartDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    // 전년도 동일 분기의 시작일부터 같은 일수만큼 계산
+    const previousStartDate = new Date(previousQuarterDates.start)
+    const previousEndDate = new Date(previousStartDate)
+    previousEndDate.setDate(previousStartDate.getDate() + daysDiff)
+    
+    // 전년도 분기의 마지막 날을 넘지 않도록 제한
+    const previousQuarterEndDate = new Date(previousYear, 
+      currentQuarter === 'Q1' ? 2 : currentQuarter === 'Q2' ? 5 : currentQuarter === 'Q3' ? 8 : 11, 
+      currentQuarter === 'Q1' ? 31 : currentQuarter === 'Q2' ? 30 : currentQuarter === 'Q3' ? 30 : 31
+    )
+    
+    if (previousEndDate > previousQuarterEndDate) {
+      previousEndDate.setTime(previousQuarterEndDate.getTime())
+    }
+    
+    const adjustedPreviousQuarterDates = {
+      start: previousQuarterDates.start,
+      end: `${previousYear}-${String(previousEndDate.getMonth() + 1).padStart(2, '0')}-${String(previousEndDate.getDate()).padStart(2, '0')}`
+    }
+
+    // API 데이터가 없으면 더미 데이터 사용
+    const dataToUse = (!skillTrendData || skillTrendData.length === 0) ? dummyTrendData : skillTrendData
+    
+    // 현재 분기 데이터
+    const currentQuarterMap = new Map<string, number>()
+    // 이전 분기 데이터
+    const previousQuarterMap = new Map<string, number>()
+
+    if (dataToUse && dataToUse.length > 0) {
+      dataToUse.forEach(item => {
+        const monthStr = item.month
+        if (!monthStr) return
+
+        let itemYear = ''
+        let quarter = ''
+
+        // "2025.09" 형식에서 연도와 분기 추출
+        if (monthStr.includes('.')) {
+          const parts = monthStr.split('.')
+          itemYear = parts[0]
+          const month = parseInt(parts[1])
+          if (month >= 1 && month <= 3) quarter = 'Q1'
+          else if (month >= 4 && month <= 6) quarter = 'Q2'
+          else if (month >= 7 && month <= 9) quarter = 'Q3'
+          else if (month >= 10 && month <= 12) quarter = 'Q4'
+        } else if (monthStr.includes('Q')) {
+          // "2025 Q3" 형식
+          const match = monthStr.match(/(\d{4})\s*Q(\d)/)
+          if (match) {
+            itemYear = match[1]
+            quarter = `Q${match[2]}`
+          }
+        }
+
+        if (!itemYear || !quarter) return
+
+        // 현재 분기 데이터 수집
+        if (parseInt(itemYear) === year && quarter === currentQuarter) {
+          Object.keys(item).forEach(key => {
+            if (key !== 'month' && key !== 'quarter') {
+              const count = Number(item[key] || 0)
+              if (count > 0) {
+                currentQuarterMap.set(key, (currentQuarterMap.get(key) || 0) + count)
+              }
+            }
+          })
+        }
+
+        // 이전 분기 데이터 수집 (동기간: 전년도 동일 분기의 동일 기간)
+        if (parseInt(itemYear) === previousYear && quarter === previousQuarter) {
+          // 현재 분기의 시작일과 종료일에서 월 추출
+          const currentStartMonth = parseInt(currentQuarterDates.start.split('-')[1])
+          const currentEndMonth = parseInt(currentQuarterDates.end.split('-')[1])
+          
+          // 월별 데이터이므로, 현재 분기의 시작 월부터 종료 월까지의 데이터만 포함
+          let itemMonth = 0
+          if (monthStr.includes('.')) {
+            itemMonth = parseInt(monthStr.split('.')[1])
+          }
+          
+          // 전년도 동일 월 범위 내에 있는지 확인
+          if (itemMonth >= currentStartMonth && itemMonth <= currentEndMonth) {
+            Object.keys(item).forEach(key => {
+              if (key !== 'month' && key !== 'quarter') {
+                const count = Number(item[key] || 0)
+                if (count > 0) {
+                  previousQuarterMap.set(key, (previousQuarterMap.get(key) || 0) + count)
+                }
+              }
+            })
+          }
+        }
+      })
+    }
+
+    // 더미 데이터가 없거나 데이터가 비어있으면 더미 데이터 생성
+    const skills = ['python', 'java', 'react', 'typescript', 'spring', 'sql', 'docker', 'kubernetes', 'aws', 'nodejs']
+    
+    if (currentQuarterMap.size === 0 && previousQuarterMap.size === 0) {
+      // 분기별 더미 데이터 생성
+      skills.forEach(skill => {
+        // 현재 분기 더미 데이터 (랜덤 값)
+        const currentValue = Math.floor(Math.random() * 100) + 50
+        currentQuarterMap.set(skill, currentValue)
+        
+        // 이전 분기 더미 데이터 (현재보다 약간 낮은 값)
+        const previousValue = Math.floor(currentValue * (0.7 + Math.random() * 0.3))
+        previousQuarterMap.set(skill, previousValue)
+      })
+    }
+
+    // 모든 스킬 수집
+    const allSkills = new Set<string>()
+    currentQuarterMap.forEach((_, skill) => allSkills.add(skill))
+    previousQuarterMap.forEach((_, skill) => allSkills.add(skill))
+    
+    // skills 배열도 추가 (더미 데이터용)
+    skills.forEach(skill => allSkills.add(skill))
+
+    // 단일 데이터 포인트로 변환
+    const currentData: any = { quarter: currentQuarter }
+    const previousData: any = { quarter: previousQuarter }
+    
+    allSkills.forEach(skill => {
+      currentData[skill] = currentQuarterMap.get(skill) || 0
+      previousData[skill] = previousQuarterMap.get(skill) || 0
+    })
+
+    return { 
+      current: currentData, 
+      previous: previousData,
+      currentLabel: `${year} ${currentQuarter}`,
+      previousLabel: `${previousYear} ${previousQuarter}`,
+      currentPeriod: currentQuarterDates,
+      previousPeriod: adjustedPreviousQuarterDates
+    }
+  }, [selectedYearForModal, selectedQuarter, skillTrendData, dummyTrendData])
+
+  // 분기별 차트에 사용할 상위 스킬 목록
+  const quarterlyTopSkills = useMemo(() => {
+    if (!quarterlyData.current || !quarterlyData.previous) {
+      return []
+    }
+    
+    const skillTotals = new Map<string, number>()
+    
+    // 현재 분기 스킬 합계
+    Object.keys(quarterlyData.current).forEach(key => {
+      if (key !== 'quarter') {
+        skillTotals.set(key, (skillTotals.get(key) || 0) + Number(quarterlyData.current[key] || 0))
+      }
+    })
+    
+    // 이전 분기 스킬 합계
+    Object.keys(quarterlyData.previous).forEach(key => {
+      if (key !== 'quarter') {
+        skillTotals.set(key, (skillTotals.get(key) || 0) + Number(quarterlyData.previous[key] || 0))
+      }
+    })
+
+    return Array.from(skillTotals.entries())
+      .map(([skill, total]) => ({ skill, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+      .map(item => item.skill)
+  }, [quarterlyData])
+
   return (
     <div className="flex gap-4">
       {/* 스택 바 차트 */}
-      <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 relative">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
           {selectedCompany !== '전체' ? `${selectedCompany} 상위 스킬 연도별 트렌드 (최근 5년)` : '상위 스킬 연도별 트렌드 (최근 5년)'}
         </h4>
@@ -253,9 +490,12 @@ export default function SkillTrendAndCloud({
             <BarChart 
               data={yearlyData}
               onClick={(data: any) => {
-                if (data && data.activePayload && data.activePayload[0] && onYearSelect) {
+                if (data && data.activePayload && data.activePayload[0]) {
                   const year = data.activePayload[0].payload.year
-                  onYearSelect(year)
+                  setSelectedYearForModal(year)
+                  if (onYearSelect) {
+                    onYearSelect(year)
+                  }
                 }
               }}
             >
@@ -298,19 +538,226 @@ export default function SkillTrendAndCloud({
             </BarChart>
           </ResponsiveContainer>
         )}
+        
+        {/* 회사별 차트 인사이트 */}
+        {selectedCompany && selectedCompany !== '전체' && yearlyData.length > 0 && topSkills.length > 0 && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-2">
+              <span className="text-blue-500 font-bold text-lg mt-0.5">💡</span>
+              <div className="flex-1">
+                <p className="text-sm text-gray-800 leading-relaxed">
+                  {(() => {
+                    // 최근 연도와 이전 연도 비교
+                    const recentYear = yearlyData[yearlyData.length - 1]
+                    const previousYear = yearlyData[yearlyData.length - 2]
+                    
+                    if (!recentYear || !previousYear) {
+                      return `${selectedCompany}의 스킬 트렌드를 분석한 결과, 최근 5년간 ${topSkills[0]} 스킬이 가장 높은 수요를 보이고 있습니다.`
+                    }
+                    
+                    // 최근 연도에서 가장 많이 언급된 스킬
+                    const topSkillInRecentYear = topSkills.reduce((max, skill) => {
+                      const recentCount = Number(recentYear[skill] || 0)
+                      const maxCount = Number(recentYear[max] || 0)
+                      return recentCount > maxCount ? skill : max
+                    }, topSkills[0])
+                    
+                    const recentCount = Number(recentYear[topSkillInRecentYear] || 0)
+                    const previousCount = Number(previousYear[topSkillInRecentYear] || 0)
+                    
+                    if (previousCount > 0) {
+                      const changeRate = ((recentCount - previousCount) / previousCount) * 100
+                      if (changeRate > 20) {
+                        return `${selectedCompany}의 ${topSkillInRecentYear} 스킬 수요가 전년 대비 ${changeRate.toFixed(1)}% 증가하여, 해당 기술 스택에 대한 채용 수요가 크게 늘어나고 있습니다.`
+                      } else if (changeRate < -20) {
+                        return `${selectedCompany}의 ${topSkillInRecentYear} 스킬 수요가 전년 대비 ${Math.abs(changeRate).toFixed(1)}% 감소하여, 기술 스택 전환 또는 채용 전략 변화가 있을 수 있습니다.`
+                      } else {
+                        return `${selectedCompany}의 ${topSkillInRecentYear} 스킬이 최근 연도에 ${recentCount}건 언급되어 가장 높은 수요를 보이며, 안정적인 기술 스택으로 유지되고 있습니다.`
+                      }
+                    } else {
+                      return `${selectedCompany}의 ${topSkillInRecentYear} 스킬이 최근 연도에 ${recentCount}건 언급되어 가장 높은 수요를 보이고 있습니다.`
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 분기별 비교 모달 - 스택 바 차트 위에 오버레이 */}
+        {selectedYearForModal && (
+          <div className="absolute inset-0 bg-white rounded-lg border-2 border-blue-500 shadow-2xl z-50 p-4 overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-bold text-gray-900">
+                {selectedYearForModal}년 분기별 스킬 트렌드 비교
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedYearForModal(null)
+                  setSelectedQuarter('Q4')
+                }}
+                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* 분기 선택 UI */}
+            <div className="mb-3 flex items-center gap-3 justify-center">
+              <span className="text-xs font-medium text-gray-700">분기 선택:</span>
+              <div className="flex gap-1">
+                {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setSelectedQuarter(q)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      selectedQuarter === q
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+              {/* 이전 분기 차트 (왼쪽) */}
+              <div className="flex flex-col min-h-0">
+                <div className="mb-2 text-center">
+                  <h4 className="text-sm font-semibold text-gray-800">
+                    {quarterlyData.previousLabel || '이전 분기'} 트렌드
+                  </h4>
+                  {quarterlyData.previousPeriod && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {quarterlyData.previousPeriod.start} ~ {quarterlyData.previousPeriod.end}
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1 min-h-0">
+                  {quarterlyData.previous && quarterlyTopSkills.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[quarterlyData.previous]}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="quarter" 
+                          tick={{ fill: '#6b7280', fontSize: 10 }}
+                        />
+                        <YAxis 
+                          tick={{ fill: '#6b7280', fontSize: 10 }}
+                          label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 10 } }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#ffffff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#374151',
+                            fontSize: '11px'
+                          }}
+                          formatter={(value: number) => [`${value}회`, '']}
+                        />
+                        <Legend 
+                          wrapperStyle={{ fontSize: '10px', paddingTop: '5px', color: '#6b7280' }}
+                          iconType="square"
+                        />
+                        {quarterlyTopSkills.map((skill, index) => (
+                          <Bar 
+                            key={skill}
+                            dataKey={skill} 
+                            stackId="1"
+                            fill={getSkillColor(skill, index)}
+                            name={skill}
+                            radius={index === quarterlyTopSkills.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                      데이터가 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 현재 분기 차트 (오른쪽) */}
+              <div className="flex flex-col min-h-0">
+                <div className="mb-2 text-center">
+                  <h4 className="text-sm font-semibold text-gray-800">
+                    {quarterlyData.currentLabel || '현재 분기'} 트렌드
+                  </h4>
+                  {quarterlyData.currentPeriod && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {quarterlyData.currentPeriod.start} ~ {quarterlyData.currentPeriod.end}
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1 min-h-0">
+                  {quarterlyData.current && quarterlyTopSkills.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[quarterlyData.current]}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="quarter" 
+                          tick={{ fill: '#6b7280', fontSize: 10 }}
+                        />
+                        <YAxis 
+                          tick={{ fill: '#6b7280', fontSize: 10 }}
+                          label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 10 } }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#ffffff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '8px', 
+                            color: '#374151',
+                            fontSize: '11px'
+                          }}
+                          formatter={(value: number) => [`${value}회`, '']}
+                        />
+                        <Legend 
+                          wrapperStyle={{ fontSize: '10px', paddingTop: '5px', color: '#6b7280' }}
+                          iconType="square"
+                        />
+                        {quarterlyTopSkills.map((skill, index) => (
+                          <Bar 
+                            key={skill}
+                            dataKey={skill} 
+                            stackId="1"
+                            fill={getSkillColor(skill, index)}
+                            name={skill}
+                            radius={index === quarterlyTopSkills.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                      데이터가 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 스킬 클라우드 */}
       <div className="w-[600px] bg-white rounded-lg border border-gray-200 p-4">
         <div className="mb-4">
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">
-            스킬 클라우드
-          </h4>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              {selectedCloudYear !== '전체' ? selectedCloudYear : selectedYear} {selectedCloudCompany === '전체' ? '전체' : selectedCloudCompany} 스킬 클라우드
+          <h4 className="text-lg font-bold text-gray-900">
+            <span className="text-red-600 font-bold">
+              {selectedCloudYear !== '전체' ? selectedCloudYear : selectedYear}
             </span>
-          </div>
+            {' '}
+            <span className="text-blue-600 font-bold">
+              {selectedCloudCompany === '전체' ? '전체' : selectedCloudCompany}
+            </span>
+            {' '}스킬 클라우드
+          </h4>
         </div>
         {isLoadingCloud ? (
           <div className="flex items-center justify-center h-[400px]">

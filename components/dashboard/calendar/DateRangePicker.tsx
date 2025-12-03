@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -9,6 +9,7 @@ interface DateRangePickerProps {
   endDate?: string
   minDate?: string
   maxDate?: string
+  stageType?: '서류 접수' | '인적성' | '1차 면접' | '2차 면접' | '3차 면접' // 현재 전형 타입
   onChange: (startDate: string, endDate: string) => void
   onReset?: () => void
 }
@@ -18,16 +19,60 @@ export function DateRangePicker({
   endDate,
   minDate,
   maxDate,
+  stageType,
   onChange,
   onReset,
 }: DateRangePickerProps) {
+  // 전형별 색상 정의
+  const getStageColor = () => {
+    const colorMap = {
+      '서류 접수': 'bg-green-500',
+      '인적성': 'bg-blue-500',
+      '1차 면접': 'bg-purple-500',
+      '2차 면접': 'bg-pink-500',
+      '3차 면접': 'bg-orange-500',
+    }
+    return colorMap[stageType || '서류 접수'] || 'bg-[#EA002C]'
+  }
+
+  const stageColor = getStageColor()
+  
+  // minDate보다 이전인 날짜는 무시
+  const isValidDate = (dateStr: string | null | undefined): boolean => {
+    if (!dateStr) return false
+    if (minDate && dateStr < minDate) return false
+    return true
+  }
+
   const [currentMonth, setCurrentMonth] = useState(() => {
-    const date = startDate ? new Date(startDate) : new Date()
+    const date = startDate && isValidDate(startDate) ? new Date(startDate) : (minDate ? new Date(minDate) : new Date())
     return new Date(date.getFullYear(), date.getMonth(), 1)
   })
   const [selectingStart, setSelectingStart] = useState(true)
-  const [tempStartDate, setTempStartDate] = useState<string | null>(startDate || null)
-  const [tempEndDate, setTempEndDate] = useState<string | null>(endDate || null)
+  const [tempStartDate, setTempStartDate] = useState<string | null>(startDate && isValidDate(startDate) ? startDate : null)
+  const [tempEndDate, setTempEndDate] = useState<string | null>(endDate && isValidDate(endDate) && tempStartDate && endDate >= tempStartDate ? endDate : null)
+
+  // startDate, endDate, minDate가 변경될 때 검증
+  useEffect(() => {
+    const checkValid = (dateStr: string | null | undefined): boolean => {
+      if (!dateStr) return false
+      if (minDate && dateStr < minDate) return false
+      return true
+    }
+
+    if (startDate && checkValid(startDate)) {
+      setTempStartDate(startDate)
+      if (endDate && checkValid(endDate) && endDate >= startDate) {
+        setTempEndDate(endDate)
+      } else {
+        setTempEndDate(null)
+      }
+    } else {
+      setTempStartDate(null)
+      setTempEndDate(null)
+      setSelectingStart(true)
+    }
+  }, [startDate, endDate, minDate])
 
   const year = currentMonth.getFullYear()
   const month = currentMonth.getMonth()
@@ -187,28 +232,28 @@ export function DateRangePicker({
               onClick={() => handleDateClick(date)}
               disabled={isDisabled}
               className={`
-                aspect-square rounded-lg text-sm font-medium transition-all
+                aspect-square rounded-lg text-sm font-medium transition-all relative
                 ${isDisabled 
-                  ? 'text-gray-300 cursor-not-allowed' 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
                   : 'hover:bg-gray-100 cursor-pointer'
                 }
-                ${isStart || isEnd
-                  ? 'bg-[#EA002C] text-white'
-                  : inRange
-                  ? 'bg-pink-100 text-gray-900'
-                  : 'bg-white text-gray-900'
+                ${!isDisabled && (isStart || isEnd)
+                  ? `${stageColor} text-white font-bold shadow-md z-10`
+                  : !isDisabled && inRange
+                  ? `${stageColor} opacity-30 text-gray-900`
+                  : !isDisabled
+                  ? 'bg-white text-gray-900 border border-gray-200'
+                  : ''
                 }
-                ${isStart ? 'relative' : ''}
-                ${isEnd ? 'relative' : ''}
               `}
             >
-              {isStart && (
-                <span className="absolute top-1 left-1 w-2 h-2 bg-green-500 rounded-full" />
+              {isStart && !isDisabled && (
+                <span className="absolute top-0.5 left-0.5 w-2 h-2 bg-white rounded-full border border-white opacity-80" />
               )}
-              {isEnd && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#EA002C] rounded-full" />
+              {isEnd && !isDisabled && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-white rounded-full border border-white opacity-80" />
               )}
-              {date.getDate()}
+              <span className={isStart || isEnd ? 'font-bold' : ''}>{date.getDate()}</span>
             </button>
           )
         })}
@@ -218,8 +263,22 @@ export function DateRangePicker({
       {(tempStartDate || tempEndDate) && (
         <div className="pt-4 border-t">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              선택된 기간: {tempStartDate ? formatDate(tempStartDate) : ''} ~ {tempEndDate ? formatDate(tempEndDate) : ''}
+            <div className="text-sm">
+              <span className="text-gray-600">선택된 기간:</span>{' '}
+              {tempStartDate && (
+                <span className={`font-semibold ${stageColor} text-white px-2 py-1 rounded`}>
+                  시작일 {formatDate(tempStartDate)}
+                </span>
+              )}
+              {tempStartDate && tempEndDate && <span className="mx-2 text-gray-400">~</span>}
+              {tempEndDate && (
+                <span className={`font-semibold ${stageColor} text-white px-2 py-1 rounded`}>
+                  종료일 {formatDate(tempEndDate)}
+                </span>
+              )}
+              {tempStartDate && !tempEndDate && (
+                <span className="ml-2 text-xs text-gray-500">(종료일을 선택하세요)</span>
+              )}
             </div>
             <Button
               type="button"
@@ -237,25 +296,23 @@ export function DateRangePicker({
       <div className="pt-4 border-t">
         <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#EA002C] rounded relative">
-              <span className="absolute top-0.5 left-0.5 w-1.5 h-1.5 bg-green-500 rounded-full" />
+            <div className={`w-4 h-4 ${stageColor} rounded relative`}>
+              <span className="absolute top-0.5 left-0.5 w-1.5 h-1.5 bg-white rounded-full border border-white opacity-80" />
             </div>
             <span>시작일</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-pink-100 rounded" />
+            <div className={`w-4 h-4 ${stageColor} opacity-30 rounded border border-gray-200`} />
             <span>기간 내</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-[#EA002C] rounded relative">
-              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-[#EA002C] rounded-full" />
+            <div className={`w-4 h-4 ${stageColor} rounded relative`}>
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-white rounded-full border border-white opacity-80" />
             </div>
             <span>종료일</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-200 rounded border border-gray-300">
-              <span className="text-gray-400">×</span>
-            </div>
+            <div className="w-4 h-4 bg-gray-100 rounded border border-gray-200" />
             <span>선택 불가</span>
           </div>
         </div>

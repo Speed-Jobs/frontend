@@ -31,6 +31,17 @@ const getPinColorClass = (type: UserPin['type']) => {
   return colorMap[type] || 'text-slate-600';
 };
 
+export const getPinDisplayLabel = (type: UserPin['type']) => {
+  const labelMap = {
+    '서류 접수': '서류 접수',
+    '인적성': '필기(인적성) 전형',
+    '1차 면접': '1차 면접',
+    '2차 면접': '2차 면접',
+    '3차 면접': '3차 면접',
+  } as const;
+  return labelMap[type] || type;
+};
+
 interface CalendarCellProps {
   day: number | null;
   date: Date | null;
@@ -107,10 +118,10 @@ export function CalendarCell({
 
     const badgeConfig = {
       '서류 접수': { color: 'bg-green-500', text: '서류 접수', textColor: 'text-white' },
-      '인적성': { color: 'bg-blue-500', text: '인적성', textColor: 'text-white' },
-      '1차 면접': { color: 'bg-purple-500', text: '1차', textColor: 'text-white' },
-      '2차 면접': { color: 'bg-pink-500', text: '2차', textColor: 'text-white' },
-      '3차 면접': { color: 'bg-orange-500', text: '3차', textColor: 'text-white' },
+      '인적성': { color: 'bg-blue-500', text: '필기(인적성) 전형', textColor: 'text-white' },
+      '1차 면접': { color: 'bg-purple-500', text: '1차 면접', textColor: 'text-white' },
+      '2차 면접': { color: 'bg-pink-500', text: '2차 면접', textColor: 'text-white' },
+      '3차 면접': { color: 'bg-orange-500', text: '3차 면접', textColor: 'text-white' },
     };
 
     return userPinRangesOnThisDate.map((pin) => {
@@ -251,10 +262,11 @@ export function CalendarCell({
                 {allPinsOnThisDate.map((pin) => {
                   const Icon = getPinIcon(pin.type);
                   const colorClass = getPinColorClass(pin.type);
+                  const displayLabel = getPinDisplayLabel(pin.type);
                   return (
                     <div key={pin.id} className="flex items-center gap-2 text-sm">
                       <Icon className={`size-3 ${colorClass}`} />
-                      <span>{pin.type}</span>
+                      <span>{displayLabel}</span>
                     </div>
                   );
                 })}

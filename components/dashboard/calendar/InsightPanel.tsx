@@ -4,6 +4,18 @@ import { AlertCircle, CheckCircle, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CompanySchedule, UserPin } from './types'
+import { getPinDisplayLabel } from './CalendarCell'
+
+const getPhaseDisplayLabel = (phase: string) => {
+  const labelMap: Record<string, string> = {
+    '서류 접수 기간': '서류 접수',
+    '인적성': '필기(인적성) 전형',
+    '1차 면접': '1차 면접',
+    '2차 면접': '2차 면접',
+    '3차 면접': '3차 면접',
+  }
+  return labelMap[phase] || phase
+}
 
 interface InsightPanelProps {
   companySchedules: CompanySchedule[]
@@ -56,7 +68,7 @@ export function InsightPanel({
                   }
                   className="text-xs"
                 >
-                  {insight.phase}
+                  {getPhaseDisplayLabel(insight.phase)}
                 </Badge>
               </div>
               <p className="text-sm text-slate-700">{insight.message}</p>

@@ -160,7 +160,7 @@ export function Calendar({
             </div>
             <div className="flex items-center gap-1">
               <div className="bg-blue-500 rounded-full h-2.5 w-5"></div>
-              <span className="text-[9px] text-slate-700">인적성</span>
+              <span className="text-[9px] text-slate-700">필기(인적성) 전형</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="bg-purple-500 rounded-full h-2.5 w-5"></div>

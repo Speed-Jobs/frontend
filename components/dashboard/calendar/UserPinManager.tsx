@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserPin } from './types'
 import { AddUserScheduleDialog } from './AddUserScheduleDialog'
+import { getPinDisplayLabel } from './CalendarCell'
 
 interface UserPinManagerProps {
   pins: UserPin[]
@@ -58,7 +59,7 @@ export function UserPinManager({ pins, onAdd, onRemove, onClearAll }: UserPinMan
                 {pins.map((pin) => (
                   <div key={pin.id} className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="text-sm text-slate-700 font-medium">{pin.type}</div>
+                      <div className="text-sm text-slate-700 font-medium">{getPinDisplayLabel(pin.type)}</div>
                       <div className="text-xs text-slate-500">
                         {pin.endDate && pin.endDate.toDateString() !== pin.date.toDateString()
                           ? `${pin.date.toLocaleDateString('ko-KR')} ~ ${pin.endDate.toLocaleDateString('ko-KR')}`

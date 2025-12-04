@@ -42,7 +42,7 @@ const getPreviousStage = (currentStage: UserPin['type'], selectedTypes: Set<User
 export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleDialogProps) {
   const [step, setStep] = useState<Step>('stages')
   const [selectedTypes, setSelectedTypes] = useState<Set<UserPin['type']>>(new Set())
-  const [stageDates, setStageDates] = useState<Record<UserPin['type'], { startDate: string; endDate: string }>>({})
+  const [stageDates, setStageDates] = useState<Partial<Record<UserPin['type'], { startDate: string; endDate: string }>>>({})
   const [currentStageIndex, setCurrentStageIndex] = useState(0)
 
   const toggleType = (type: UserPin['type']) => {
@@ -100,12 +100,18 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
   const handleSubmit = () => {
     const selectedArray = Array.from(selectedTypes)
     const pins: Omit<UserPin, 'id'>[] = selectedArray
-      .filter(type => stageDates[type]?.startDate && stageDates[type]?.endDate)
-      .map(type => ({
-        type,
-        date: new Date(stageDates[type].startDate),
-        endDate: stageDates[type].endDate ? new Date(stageDates[type].endDate) : undefined,
-      }))
+      .filter(type => {
+        const dates = stageDates[type]
+        return dates?.startDate && dates?.endDate
+      })
+      .map(type => {
+        const dates = stageDates[type]!
+        return {
+          type,
+          date: new Date(dates.startDate),
+          endDate: dates.endDate ? new Date(dates.endDate) : undefined,
+        }
+      })
 
     if (pins.length === 0) return
 

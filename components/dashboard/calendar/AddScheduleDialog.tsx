@@ -104,15 +104,16 @@ export function AddScheduleDialog({ open, onClose, onAdd }: AddScheduleDialogPro
     if (selectedStages.size === 0) return
 
     const selectedArray = Array.from(selectedStages)
-    const scheduleStages: Omit<ScheduleStage, 'id'>[] = selectedArray
+    const scheduleStages: ScheduleStage[] = selectedArray
       .filter(stageValue => {
         const dates = stageDates[stageValue]
         return dates && dates.startDate && dates.endDate
       })
-      .map(stageValue => {
+      .map((stageValue, index) => {
         const dates = stageDates[stageValue]
         const stageOption = STAGE_OPTIONS.find(opt => opt.value === stageValue)
         return {
+          id: `${Date.now()}-${index}`,
           stage: stageOption?.label || stageValue,
           startDate: new Date(dates.startDate),
           endDate: new Date(dates.endDate),

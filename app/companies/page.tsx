@@ -607,9 +607,9 @@ export default function CompaniesPage() {
                 </div>
               </div>
 
-              {/* 직무 선택 */}
+              {/* 직군 선택 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">직무</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-3">직군</label>
                 <select
                   value={selectedJobRole}
                   onChange={(e) => {
@@ -617,7 +617,7 @@ export default function CompaniesPage() {
                   }}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
                 >
-                  <option value="전체">전체 직무</option>
+                  <option value="전체">전체 직군</option>
                   <option value="Software Development">Software Development</option>
                   <option value="Factory AX Engineering">Factory AX Engineering</option>
                   <option value="Solution Development">Solution Development</option>

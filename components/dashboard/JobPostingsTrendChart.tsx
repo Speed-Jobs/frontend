@@ -93,3 +93,4 @@ export default function JobPostingsTrendChart({ data, isLoading, error }: JobPos
 
 
 
+

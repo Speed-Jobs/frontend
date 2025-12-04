@@ -1,4 +1,5 @@
 openapi: 3.0.3
+
 info:
   title: 상위 스킬 연도별 트렌드 및 스킬 클라우드 API
   description: |
@@ -20,15 +21,16 @@ paths:
       summary: 전체 상위 스킬 연도별 트렌드 조회
       description: |
         전체 채용 공고에서 연도별로 상위 N개 스킬의 월별 트렌드 데이터를 조회합니다.
-        각 월별로 각 스킬의 사용 빈도(공고 수)를 반환합니다.
+        - year 파라미터 미입력: 최근 5개년의 연도별 스킬 빈도수를 반환합니다.
+        - year 파라미터 입력: 해당 연도의 분기별 데이터와 전년도 동기간 분기별 데이터를 비교하여 반환합니다.
       operationId: getSkillTrends
       tags:
         - Skill Trends
       parameters:
         - name: year
           in: query
-          required: true
-          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
+          required: false
+          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025). 미입력 시 최근 5개년 데이터 반환"
           schema:
             type: string
             pattern: '^\d{4}$'
@@ -53,14 +55,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/SkillTrendResponse'
               examples:
-                success:
-                  summary: 성공 응답 예시
+                singleYearSuccess:
+                  summary: 단일 연도 조회 성공 (분기별 비교)
                   value:
                     status: 200
                     code: "SUCCESS"
                     message: "스킬 트렌드 조회 성공"
                     data:
                       year: "2024"
+                      comparison_year: "2023"
                       skills:
                         - "python"
                         - "java"
@@ -72,40 +75,173 @@ paths:
                         - "kubernetes"
                         - "aws"
                         - "nodejs"
-                      trends:
-                        - month: "2024-01"
-                          python: 45
-                          java: 38
-                          react: 32
-                          typescript: 28
-                          spring: 25
-                          sql: 22
-                          docker: 18
-                          kubernetes: 15
-                          aws: 12
-                          nodejs: 10
-                        - month: "2024-02"
-                          python: 48
-                          java: 40
-                          react: 35
-                          typescript: 30
-                          spring: 27
-                          sql: 24
-                          docker: 20
-                          kubernetes: 17
-                          aws: 14
-                          nodejs: 12
-                        - month: "2024-03"
-                          python: 52
-                          java: 42
-                          react: 38
-                          typescript: 32
-                          spring: 29
-                          sql: 26
-                          docker: 22
-                          kubernetes: 19
-                          aws: 16
-                          nodejs: 14
+                      quarterly_trends:
+                        "2024":
+                          Q1:
+                            python: 1234
+                            java: 1012
+                            react: 856
+                            typescript: 734
+                            spring: 789
+                            sql: 723
+                            docker: 512
+                            kubernetes: 398
+                            aws: 623
+                            nodejs: 501
+                          Q2:
+                            python: 1189
+                            java: 978
+                            react: 823
+                            typescript: 712
+                            spring: 756
+                            sql: 698
+                            docker: 489
+                            kubernetes: 378
+                            aws: 601
+                            nodejs: 478
+                          Q3:
+                            python: 1267
+                            java: 1034
+                            react: 889
+                            typescript: 756
+                            spring: 801
+                            sql: 734
+                            docker: 523
+                            kubernetes: 412
+                            aws: 645
+                            nodejs: 512
+                          Q4:
+                            python: 988
+                            java: 799
+                            react: 666
+                            typescript: 710
+                            spring: 632
+                            sql: 579
+                            docker: 399
+                            kubernetes: 346
+                            aws: 476
+                            nodejs: 498
+                        "2023":
+                          Q1:
+                            python: 978
+                            java: 823
+                            react: 678
+                            typescript: 589
+                            spring: 645
+                            sql: 612
+                            docker: 389
+                            kubernetes: 312
+                            aws: 501
+                            nodejs: 423
+                          Q2:
+                            python: 945
+                            java: 789
+                            react: 656
+                            typescript: 567
+                            spring: 623
+                            sql: 589
+                            docker: 378
+                            kubernetes: 298
+                            aws: 489
+                            nodejs: 412
+                          Q3:
+                            python: 1012
+                            java: 834
+                            react: 701
+                            typescript: 601
+                            spring: 667
+                            sql: 623
+                            docker: 401
+                            kubernetes: 323
+                            aws: 523
+                            nodejs: 445
+                          Q4:
+                            python: 910
+                            java: 677
+                            react: 532
+                            typescript: 477
+                            spring: 521
+                            sql: 565
+                            docker: 255
+                            kubernetes: 223
+                            aws: 363
+                            nodejs: 287
+                
+                multiYearSuccess:
+                  summary: 최근 5개년 조회 성공 (year 미입력)
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "스킬 트렌드 조회 성공 (최근 5개년)"
+                    data:
+                      years: ["2020", "2021", "2022", "2023", "2024"]
+                      skills:
+                        - "python"
+                        - "java"
+                        - "react"
+                        - "typescript"
+                        - "spring"
+                        - "sql"
+                        - "docker"
+                        - "kubernetes"
+                        - "aws"
+                        - "nodejs"
+                      skill_frequencies:
+                        "2020":
+                          python: 1489
+                          java: 1234
+                          react: 856
+                          typescript: 623
+                          spring: 1076
+                          sql: 1198
+                          docker: 445
+                          kubernetes: 312
+                          aws: 734
+                          nodejs: 567
+                        "2021":
+                          python: 2145
+                          java: 1789
+                          react: 1234
+                          typescript: 945
+                          spring: 1423
+                          sql: 1634
+                          docker: 678
+                          kubernetes: 501
+                          aws: 1023
+                          nodejs: 789
+                        "2022":
+                          python: 2876
+                          java: 2301
+                          react: 1789
+                          typescript: 1523
+                          spring: 1934
+                          sql: 2098
+                          docker: 1012
+                          kubernetes: 812
+                          aws: 1456
+                          nodejs: 1134
+                        "2023":
+                          python: 3845
+                          java: 3123
+                          react: 2567
+                          typescript: 2234
+                          spring: 2456
+                          sql: 2389
+                          docker: 1423
+                          kubernetes: 1156
+                          aws: 1876
+                          nodejs: 1567
+                        "2024":
+                          python: 4678
+                          java: 3823
+                          react: 3234
+                          typescript: 2912
+                          spring: 2978
+                          sql: 2734
+                          docker: 1923
+                          kubernetes: 1534
+                          aws: 2345
+                          nodejs: 1989
         
         '404':
           description: "해당 연도의 데이터를 찾을 수 없습니다."
@@ -128,185 +264,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /dashboard/skill-trends/quarterly-comparison:
-    get:
-      summary: 분기별 스킬 트렌드 동기간 비교 조회
-      description: |
-        특정 분기의 스킬 트렌드와 전년도 동기간 스킬 트렌드를 비교 조회합니다.
-        동기간 비교를 위해 시작일과 종료일을 지정할 수 있으며, 종료일이 지정되지 않으면 현재 날짜를 기본값으로 사용합니다.
-      operationId: getQuarterlySkillTrendComparison
-      tags:
-        - Skill Trends
-      parameters:
-        - name: year
-          in: query
-          required: true
-          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
-          schema:
-            type: string
-            pattern: '^\d{4}$'
-          example: "2025"
-        
-        - name: quarter
-          in: query
-          required: true
-          description: "조회할 분기 (Q1, Q2, Q3, Q4)"
-          schema:
-            type: string
-            enum: [Q1, Q2, Q3, Q4]
-          example: "Q4"
-        
-        - name: start_date
-          in: query
-          required: false
-          description: "시작일 (YYYY-MM-DD 형식, 기본값: 해당 분기의 시작일)"
-          schema:
-            type: string
-            format: date
-            pattern: '^\d{4}-\d{2}-\d{2}$'
-          example: "2025-10-01"
-        
-        - name: end_date
-          in: query
-          required: false
-          description: "종료일 (YYYY-MM-DD 형식, 기본값: 현재 날짜 또는 해당 분기의 종료일 중 더 빠른 날짜)"
-          schema:
-            type: string
-            format: date
-            pattern: '^\d{4}-\d{2}-\d{2}$'
-          example: "2025-12-03"
-        
-        - name: company_name
-          in: query
-          required: false
-          description: "회사 이름 (전체 조회 시 생략, 예: 토스, 한화시스템, 카카오 등)"
-          schema:
-            type: string
-          example: "토스"
-        
-        - name: top_n
-          in: query
-          required: false
-          description: "상위 N개 스킬 조회 (기본값: 10)"
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 10
-          example: 10
-      
-      responses:
-        '200':
-          description: "성공적으로 분기별 스킬 트렌드 비교 데이터를 조회했습니다."
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QuarterlyComparisonResponse'
-              examples:
-                success:
-                  summary: 성공 응답 예시
-                  value:
-                    status: 200
-                    code: "SUCCESS"
-                    message: "분기별 스킬 트렌드 비교 조회 성공"
-                    data:
-                      current_period:
-                        year: "2025"
-                        quarter: "Q4"
-                        start_date: "2025-10-01"
-                        end_date: "2025-12-03"
-                        days: 64
-                        skills:
-                          - "python"
-                          - "java"
-                          - "react"
-                          - "typescript"
-                          - "spring"
-                        trends:
-                          - month: "2025-10"
-                            python: 45
-                            java: 38
-                            react: 32
-                            typescript: 28
-                            spring: 25
-                          - month: "2025-11"
-                            python: 48
-                            java: 40
-                            react: 35
-                            typescript: 30
-                            spring: 27
-                          - month: "2025-12"
-                            python: 52
-                            java: 42
-                            react: 38
-                            typescript: 32
-                            spring: 29
-                      previous_period:
-                        year: "2024"
-                        quarter: "Q4"
-                        start_date: "2024-10-01"
-                        end_date: "2024-12-03"
-                        days: 64
-                        skills:
-                          - "python"
-                          - "java"
-                          - "react"
-                          - "typescript"
-                          - "spring"
-                        trends:
-                          - month: "2024-10"
-                            python: 42
-                            java: 35
-                            react: 30
-                            typescript: 26
-                            spring: 23
-                          - month: "2024-11"
-                            python: 45
-                            java: 37
-                            react: 33
-                            typescript: 28
-                            spring: 25
-                          - month: "2024-12"
-                            python: 49
-                            java: 40
-                            react: 36
-                            typescript: 30
-                            spring: 27
-        
-        '400':
-          description: "잘못된 요청 파라미터"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                status: 400
-                code: "BAD_REQUEST"
-                message: "잘못된 요청 파라미터입니다."
-                errors:
-                  - field: "quarter"
-                    message: "quarter는 Q1, Q2, Q3, Q4 중 하나여야 합니다."
-        
-        '404':
-          description: "해당 분기의 데이터를 찾을 수 없습니다."
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        
-        '500':
-          description: "서버 내부 오류"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /dashboard/companies/{company_name}/skill-trends:
     get:
       summary: 회사별 상위 스킬 연도별 트렌드 조회
       description: |
         특정 회사의 채용 공고에서 연도별로 상위 N개 스킬의 월별 트렌드 데이터를 조회합니다.
-        각 월별로 각 스킬의 사용 빈도(공고 수)를 반환합니다.
+        - year 파라미터 미입력: 최근 5개년의 연도별 스킬 빈도수를 반환합니다.
+        - year 파라미터 입력: 해당 연도의 분기별 데이터와 전년도 동기간 분기별 데이터를 비교하여 반환합니다.
       operationId: getCompanySkillTrends
       tags:
         - Skill Trends
@@ -321,8 +285,8 @@ paths:
         
         - name: year
           in: query
-          required: true
-          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025)"
+          required: false
+          description: "조회할 연도 (예: 2021, 2022, 2023, 2024, 2025). 미입력 시 최근 5개년 데이터 반환"
           schema:
             type: string
             pattern: '^\d{4}$'
@@ -347,8 +311,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/SkillTrendResponse'
               examples:
-                success:
-                  summary: 성공 응답 예시
+                singleYearSuccess:
+                  summary: 단일 연도 조회 성공 (분기별 비교)
                   value:
                     status: 200
                     code: "SUCCESS"
@@ -356,6 +320,7 @@ paths:
                     data:
                       company_name: "토스"
                       year: "2024"
+                      comparison_year: "2023"
                       skills:
                         - "typescript"
                         - "react"
@@ -367,29 +332,174 @@ paths:
                         - "postgresql"
                         - "redis"
                         - "graphql"
-                      trends:
-                        - month: "2024-01"
-                          typescript: 15
-                          react: 12
-                          nodejs: 10
-                          python: 8
-                          aws: 6
-                          docker: 5
-                          kubernetes: 4
-                          postgresql: 3
-                          redis: 2
-                          graphql: 2
-                        - month: "2024-02"
-                          typescript: 18
-                          react: 14
-                          nodejs: 12
-                          python: 9
-                          aws: 7
-                          docker: 6
-                          kubernetes: 5
-                          postgresql: 4
-                          redis: 3
-                          graphql: 3
+                      quarterly_trends:
+                        "2024":
+                          Q1:
+                            typescript: 52
+                            react: 43
+                            nodejs: 37
+                            python: 32
+                            aws: 25
+                            docker: 21
+                            kubernetes: 16
+                            postgresql: 19
+                            redis: 11
+                            graphql: 9
+                          Q2:
+                            typescript: 48
+                            react: 40
+                            nodejs: 35
+                            python: 30
+                            aws: 23
+                            docker: 19
+                            kubernetes: 15
+                            postgresql: 18
+                            redis: 10
+                            graphql: 8
+                          Q3:
+                            typescript: 51
+                            react: 42
+                            nodejs: 36
+                            python: 31
+                            aws: 24
+                            docker: 20
+                            kubernetes: 15
+                            postgresql: 18
+                            redis: 10
+                            graphql: 9
+                          Q4:
+                            typescript: 47
+                            react: 42
+                            nodejs: 35
+                            python: 30
+                            aws: 23
+                            docker: 18
+                            kubernetes: 15
+                            postgresql: 17
+                            redis: 10
+                            graphql: 8
+                        "2023":
+                          Q1:
+                            typescript: 38
+                            react: 32
+                            nodejs: 28
+                            python: 24
+                            aws: 18
+                            docker: 15
+                            kubernetes: 11
+                            postgresql: 14
+                            redis: 8
+                            graphql: 6
+                          Q2:
+                            typescript: 40
+                            react: 34
+                            nodejs: 29
+                            python: 25
+                            aws: 19
+                            docker: 16
+                            kubernetes: 12
+                            postgresql: 14
+                            redis: 8
+                            graphql: 7
+                          Q3:
+                            typescript: 39
+                            react: 34
+                            nodejs: 29
+                            python: 25
+                            aws: 19
+                            docker: 16
+                            kubernetes: 12
+                            postgresql: 14
+                            redis: 8
+                            graphql: 7
+                          Q4:
+                            typescript: 39
+                            react: 34
+                            nodejs: 29
+                            python: 24
+                            aws: 20
+                            docker: 16
+                            kubernetes: 13
+                            postgresql: 15
+                            redis: 8
+                            graphql: 6
+                
+                multiYearSuccess:
+                  summary: 최근 5개년 조회 성공 (year 미입력)
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "회사별 스킬 트렌드 조회 성공 (최근 5개년)"
+                    data:
+                      company_name: "토스"
+                      years: ["2020", "2021", "2022", "2023", "2024"]
+                      skills:
+                        - "typescript"
+                        - "react"
+                        - "nodejs"
+                        - "python"
+                        - "aws"
+                        - "docker"
+                        - "kubernetes"
+                        - "postgresql"
+                        - "redis"
+                        - "graphql"
+                      skill_frequencies:
+                        "2020":
+                          typescript: 45
+                          react: 38
+                          nodejs: 32
+                          python: 28
+                          aws: 23
+                          docker: 18
+                          kubernetes: 12
+                          postgresql: 15
+                          redis: 8
+                          graphql: 5
+                        "2021":
+                          typescript: 78
+                          react: 65
+                          nodejs: 54
+                          python: 48
+                          aws: 41
+                          docker: 32
+                          kubernetes: 23
+                          postgresql: 28
+                          redis: 15
+                          graphql: 12
+                        "2022":
+                          typescript: 112
+                          react: 95
+                          nodejs: 82
+                          python: 71
+                          aws: 58
+                          docker: 47
+                          kubernetes: 35
+                          postgresql: 42
+                          redis: 24
+                          graphql: 18
+                        "2023":
+                          typescript: 156
+                          react: 134
+                          nodejs: 115
+                          python: 98
+                          aws: 76
+                          docker: 63
+                          kubernetes: 48
+                          postgresql: 57
+                          redis: 32
+                          graphql: 26
+                        "2024":
+                          typescript: 198
+                          react: 167
+                          nodejs: 143
+                          python: 123
+                          aws: 95
+                          docker: 78
+                          kubernetes: 61
+                          postgresql: 72
+                          redis: 41
+                          graphql: 34
         
         '404':
           description: "해당 회사 또는 연도의 데이터를 찾을 수 없습니다."
@@ -403,7 +513,7 @@ paths:
                   value:
                     status: 404
                     code: "NOT_FOUND"
-                    message: "해당 회사 또는 연도의 스킬 트렌드 데이터를 찾을 수 없습니다."
+                    message: "해당 회사의 스킬 트렌드 데이터를 찾을 수 없습니다."
         
         '500':
           description: "서버 내부 오류"
@@ -419,14 +529,15 @@ paths:
         지정된 기간과 회사에 대한 스킬 통계 데이터를 조회합니다.
         스킬별 공고 수, 비율, 변화율, 관련 스킬 정보를 제공합니다.
         스킬 클라우드 시각화에 사용됩니다.
+        start_date와 end_date를 지정하지 않으면 현재 연도 1월 1일부터 현재 날짜까지의 데이터를 반환합니다.
       operationId: getSkillsStatistics
       tags:
         - Skill Cloud
       parameters:
         - name: start_date
           in: query
-          required: true
-          description: "시작 날짜 (YYYY-MM-DD 형식)"
+          required: false
+          description: "시작 날짜 (YYYY-MM-DD 형식). 미입력 시 현재 연도 1월 1일"
           schema:
             type: string
             format: date
@@ -435,8 +546,8 @@ paths:
         
         - name: end_date
           in: query
-          required: true
-          description: "종료 날짜 (YYYY-MM-DD 형식)"
+          required: false
+          description: "종료 날짜 (YYYY-MM-DD 형식). 미입력 시 현재 날짜"
           schema:
             type: string
             format: date
@@ -471,7 +582,7 @@ paths:
                 $ref: '#/components/schemas/SkillStatisticsResponse'
               examples:
                 success:
-                  summary: 성공 응답 예시
+                  summary: 날짜 범위 지정 조회 성공
                   value:
                     status: 200
                     code: "SUCCESS"
@@ -488,41 +599,185 @@ paths:
                           percentage: 22.9
                           change: 5.2
                           relatedSkills:
-                            - "react"
-                            - "nodejs"
-                            - "angular"
+                            - name: "react"
+                              count: 245
+                              percentage: 19.6
+                              change: 3.5
+                            - name: "nodejs"
+                              count: 198
+                              percentage: 15.8
+                              change: 2.8
+                            - name: "angular"
+                              count: 156
+                              percentage: 12.5
+                              change: 1.2
                         - name: "react"
                           count: 245
                           percentage: 19.6
                           change: 3.5
                           relatedSkills:
-                            - "typescript"
-                            - "javascript"
-                            - "nextjs"
+                            - name: "typescript"
+                              count: 286
+                              percentage: 22.9
+                              change: 5.2
+                            - name: "javascript"
+                              count: 189
+                              percentage: 15.1
+                              change: -1.3
+                            - name: "nextjs"
+                              count: 134
+                              percentage: 10.7
+                              change: 4.2
                         - name: "python"
                           count: 198
                           percentage: 15.8
                           change: 2.1
                           relatedSkills:
-                            - "django"
-                            - "flask"
-                            - "fastapi"
+                            - name: "django"
+                              count: 123
+                              percentage: 9.8
+                              change: 1.5
+                            - name: "flask"
+                              count: 98
+                              percentage: 7.8
+                              change: 0.8
+                            - name: "fastapi"
+                              count: 87
+                              percentage: 7.0
+                              change: 3.2
                         - name: "aws"
                           count: 187
                           percentage: 15.0
                           change: 4.3
                           relatedSkills:
-                            - "cloud"
-                            - "lambda"
-                            - "s3"
+                            - name: "cloud"
+                              count: 165
+                              percentage: 13.2
+                              change: 3.8
+                            - name: "lambda"
+                              count: 112
+                              percentage: 9.0
+                              change: 5.1
+                            - name: "s3"
+                              count: 98
+                              percentage: 7.8
+                              change: 2.3
                         - name: "docker"
                           count: 165
                           percentage: 13.2
                           change: 2.5
                           relatedSkills:
-                            - "kubernetes"
-                            - "container"
-                            - "ci/cd"
+                            - name: "kubernetes"
+                              count: 143
+                              percentage: 11.4
+                              change: 3.7
+                            - name: "container"
+                              count: 134
+                              percentage: 10.7
+                              change: 2.1
+                            - name: "ci/cd"
+                              count: 98
+                              percentage: 7.8
+                              change: 1.8
+                
+                currentYearSuccess:
+                  summary: 현재 연도 조회 성공 (날짜 미입력)
+                  value:
+                    status: 200
+                    code: "SUCCESS"
+                    message: "스킬 통계 조회 성공 (현재 연도 1월 1일 ~ 현재 날짜)"
+                    data:
+                      period:
+                        start_date: "2024-01-01"
+                        end_date: "2024-12-03"
+                      company: null
+                      total_job_postings: 5680
+                      skills:
+                        - name: "python"
+                          count: 1245
+                          percentage: 21.9
+                          change: 4.5
+                          relatedSkills:
+                            - name: "django"
+                              count: 678
+                              percentage: 11.9
+                              change: 3.2
+                            - name: "flask"
+                              count: 456
+                              percentage: 8.0
+                              change: 1.8
+                            - name: "fastapi"
+                              count: 389
+                              percentage: 6.8
+                              change: 5.6
+                        - name: "java"
+                          count: 1102
+                          percentage: 19.4
+                          change: -2.1
+                          relatedSkills:
+                            - name: "spring"
+                              count: 876
+                              percentage: 15.4
+                              change: -1.5
+                            - name: "springboot"
+                              count: 734
+                              percentage: 12.9
+                              change: -0.8
+                            - name: "jpa"
+                              count: 567
+                              percentage: 10.0
+                              change: 1.2
+                        - name: "typescript"
+                          count: 987
+                          percentage: 17.4
+                          change: 6.3
+                          relatedSkills:
+                            - name: "react"
+                              count: 856
+                              percentage: 15.1
+                              change: 5.8
+                            - name: "nodejs"
+                              count: 623
+                              percentage: 11.0
+                              change: 4.2
+                            - name: "angular"
+                              count: 445
+                              percentage: 7.8
+                              change: 2.1
+                        - name: "react"
+                          count: 856
+                          percentage: 15.1
+                          change: 5.8
+                          relatedSkills:
+                            - name: "typescript"
+                              count: 987
+                              percentage: 17.4
+                              change: 6.3
+                            - name: "javascript"
+                              count: 723
+                              percentage: 12.7
+                              change: -2.3
+                            - name: "nextjs"
+                              count: 512
+                              percentage: 9.0
+                              change: 7.1
+                        - name: "aws"
+                          count: 734
+                          percentage: 12.9
+                          change: 7.2
+                          relatedSkills:
+                            - name: "cloud"
+                              count: 645
+                              percentage: 11.4
+                              change: 6.5
+                            - name: "ec2"
+                              count: 423
+                              percentage: 7.4
+                              change: 4.8
+                            - name: "s3"
+                              count: 389
+                              percentage: 6.8
+                              change: 3.9
         
         '400':
           description: "잘못된 요청 파라미터"
@@ -577,8 +832,18 @@ components:
               example: "토스"
             year:
               type: string
-              description: "조회 연도"
+              description: "조회 연도 (단일 연도 조회 시)"
               example: "2024"
+            comparison_year:
+              type: string
+              description: "비교 연도 (회사별 단일 연도 조회 시, 전년도)"
+              example: "2023"
+            years:
+              type: array
+              description: "조회 연도 목록 (다중 연도 조회 시)"
+              items:
+                type: string
+              example: ["2020", "2021", "2022", "2023", "2024"]
             skills:
               type: array
               description: "상위 스킬 목록"
@@ -587,9 +852,69 @@ components:
               example: ["python", "java", "react", "typescript", "spring"]
             trends:
               type: array
-              description: "월별 스킬 트렌드 데이터"
+              description: "월별 스킬 트렌드 데이터 (사용되지 않음 - 하위 호환성 유지용)"
               items:
                 $ref: '#/components/schemas/MonthlySkillTrend'
+            skill_frequencies:
+              type: object
+              description: "연도별 스킬 빈도수 (다중 연도 조회 시)"
+              additionalProperties:
+                type: object
+                description: "각 연도의 스킬별 빈도수"
+                additionalProperties:
+                  type: integer
+                  description: "스킬별 공고 수"
+              example:
+                "2020":
+                  python: 1489
+                  java: 1234
+                  react: 856
+                "2021":
+                  python: 2145
+                  java: 1789
+                  react: 1234
+            quarterly_trends:
+              type: object
+              description: "분기별 스킬 트렌드 (회사별 단일 연도 조회 시, 현재 연도와 전년도 비교)"
+              additionalProperties:
+                type: object
+                description: "각 연도의 분기별 데이터"
+                properties:
+                  Q1:
+                    type: object
+                    description: "1분기 (1-3월) 스킬 빈도수. 현재일이 포함된 경우 시작일은 해당 연도 1월 1일, 종료일은 현재 날짜입니다."
+                    additionalProperties:
+                      type: integer
+                  Q2:
+                    type: object
+                    description: "2분기 (4-6월) 스킬 빈도수. 현재일이 포함된 경우 시작일은 해당 연도 4월 1일, 종료일은 현재 날짜입니다."
+                    additionalProperties:
+                      type: integer
+                  Q3:
+                    type: object
+                    description: "3분기 (7-9월) 스킬 빈도수. 현재일이 포함된 경우 시작일은 해당 연도 7월 1일, 종료일은 현재 날짜입니다."
+                    additionalProperties:
+                      type: integer
+                  Q4:
+                    type: object
+                    description: "4분기 (10-12월) 스킬 빈도수. 현재일이 포함된 경우 시작일은 해당 연도 10월 1일, 종료일은 현재 날짜입니다."
+                    additionalProperties:
+                      type: integer
+              example:
+                "2024":
+                  Q1:
+                    python: 52
+                    java: 43
+                  Q2:
+                    python: 48
+                    java: 40
+                "2023":
+                  Q1:
+                    python: 38
+                    java: 32
+                  Q2:
+                    python: 40
+                    java: 34
     
     MonthlySkillTrend:
       type: object
@@ -691,87 +1016,36 @@ components:
           example: 5.2
         relatedSkills:
           type: array
-          description: "관련 스킬 목록"
+          description: "관련 스킬 목록 (통계 정보 포함)"
           items:
-            type: string
-          example: ["react", "nodejs", "angular"]
-    
-    QuarterlyComparisonResponse:
-      type: object
-      required:
-        - status
-        - code
-        - message
-        - data
-      properties:
-        status:
-          type: integer
-          description: "HTTP 상태 코드"
-          example: 200
-        code:
-          type: string
-          description: "응답 코드"
-          enum: [SUCCESS, BAD_REQUEST, NOT_FOUND, ERROR]
-          example: "SUCCESS"
-        message:
-          type: string
-          description: "응답 메시지"
-          example: "분기별 스킬 트렌드 비교 조회 성공"
-        data:
-          type: object
-          properties:
-            current_period:
-              $ref: '#/components/schemas/QuarterlyPeriodData'
-            previous_period:
-              $ref: '#/components/schemas/QuarterlyPeriodData'
-    
-    QuarterlyPeriodData:
-      type: object
-      required:
-        - year
-        - quarter
-        - start_date
-        - end_date
-        - days
-        - skills
-        - trends
-      properties:
-        year:
-          type: string
-          description: "연도"
-          pattern: '^\d{4}$'
-          example: "2025"
-        quarter:
-          type: string
-          description: "분기"
-          enum: [Q1, Q2, Q3, Q4]
-          example: "Q4"
-        start_date:
-          type: string
-          format: date
-          description: "시작일 (YYYY-MM-DD)"
-          example: "2025-10-01"
-        end_date:
-          type: string
-          format: date
-          description: "종료일 (YYYY-MM-DD)"
-          example: "2025-12-03"
-        days:
-          type: integer
-          description: "기간 일수 (동기간 비교를 위한 계산 값)"
-          minimum: 1
-          example: 64
-        skills:
-          type: array
-          description: "상위 스킬 목록"
-          items:
-            type: string
-          example: ["python", "java", "react", "typescript", "spring"]
-        trends:
-          type: array
-          description: "월별 스킬 트렌드 데이터"
-          items:
-            $ref: '#/components/schemas/MonthlySkillTrend'
+            type: object
+            required:
+              - name
+              - count
+              - percentage
+              - change
+            properties:
+              name:
+                type: string
+                description: "관련 스킬 이름"
+                example: "react"
+              count:
+                type: integer
+                description: "해당 스킬이 요구된 채용 공고 수"
+                minimum: 0
+                example: 245
+              percentage:
+                type: number
+                format: float
+                description: "전체 공고 대비 비율 (%)"
+                minimum: 0
+                maximum: 100
+                example: 19.6
+              change:
+                type: number
+                format: float
+                description: "이전 기간 대비 변화율 (%)"
+                example: 3.5
     
     ErrorResponse:
       type: object
@@ -793,4 +1067,3 @@ components:
           type: string
           description: "에러 메시지"
           example: "해당 연도의 스킬 트렌드 데이터를 찾을 수 없습니다."
-

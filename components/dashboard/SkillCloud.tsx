@@ -229,17 +229,18 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
   }
 
   return (
-    <div className="relative w-full h-full min-h-[500px] overflow-hidden">
+    <div className={`relative w-full h-full min-h-[500px] ${selectedSkill ? 'overflow-visible' : 'overflow-hidden'}`}>
       {/* 스킬 클라우드 영역 */}
       <div 
         className={`relative w-full flex items-center justify-center transition-all duration-300 ${
           selectedSkill ? 'bg-gray-100/50' : ''
         }`}
         style={{ 
-          height: '500px',
+          height: selectedSkill ? '600px' : '500px',
           maxWidth: '100%',
           margin: '0 auto',
-          padding: '20px',
+          padding: selectedSkill ? '40px' : '20px',
+          minHeight: selectedSkill ? '600px' : '500px',
         }}
       >
         {/* 배경 오버레이 */}
@@ -264,8 +265,8 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             ? getFinalSkillPosition(expandedIndex)
             : { x: 0, y: 0 }
           const radius = 130
-          const containerCenterX = 250
-          const containerCenterY = 250
+          const containerCenterX = 300
+          const containerCenterY = 300
           const expandedX = containerCenterX + expandedPosition.x
           const expandedY = containerCenterY + expandedPosition.y
           
@@ -274,7 +275,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
               key={`lines-${expandedSkillName}`}
               className="absolute inset-0 pointer-events-none z-5"
               style={{ width: '100%', height: '100%' }}
-              viewBox="0 0 500 500"
+              viewBox="0 0 600 600"
               preserveAspectRatio="xMidYMid meet"
             >
               {expandedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
@@ -286,8 +287,22 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                 
                 const relatedX = Math.cos(adjustedAngle) * radius
                 const relatedY = Math.sin(adjustedAngle) * radius
-                const lineEndX = expandedX + relatedX
-                const lineEndY = expandedY + relatedY
+                
+                // SVG viewBox 경계 내에 위치하도록 제한 (패딩 고려)
+                const padding = 40
+                const maxX = 600 - padding
+                const maxY = 600 - padding
+                const minX = padding
+                const minY = padding
+                
+                let lineEndX = expandedX + relatedX
+                let lineEndY = expandedY + relatedY
+                
+                // 경계 체크 및 조정
+                if (lineEndX > maxX) lineEndX = maxX
+                if (lineEndX < minX) lineEndX = minX
+                if (lineEndY > maxY) lineEndY = maxY
+                if (lineEndY < minY) lineEndY = minY
                 
                 return (
                   <line
@@ -407,6 +422,24 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             const relatedX = Math.cos(adjustedAngle) * radius
             const relatedY = Math.sin(adjustedAngle) * radius
             
+            // 컨테이너 경계 내에 위치하도록 제한 (패딩 고려)
+            const containerWidth = 600
+            const containerHeight = 600
+            const padding = 40
+            const maxX = (containerWidth / 2) - padding
+            const maxY = (containerHeight / 2) - padding
+            const minX = -(containerWidth / 2) + padding
+            const minY = -(containerHeight / 2) + padding
+            
+            let finalRelatedX = expandedPosition.x + relatedX
+            let finalRelatedY = expandedPosition.y + relatedY
+            
+            // 경계 체크 및 조정
+            if (finalRelatedX > maxX) finalRelatedX = maxX
+            if (finalRelatedX < minX) finalRelatedX = minX
+            if (finalRelatedY > maxY) finalRelatedY = maxY
+            if (finalRelatedY < minY) finalRelatedY = minY
+            
             const visibleSkills = skillsToUse
             const relatedSkillData = visibleSkills.find(s => s.name === relatedSkillName)
             const isRelatedSkillInData = !!relatedSkillData
@@ -431,8 +464,8 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                     : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-50 shadow-sm'
                 }`}
                 style={{
-                  left: `calc(50% + ${expandedPosition.x + relatedX}px)`,
-                  top: `calc(50% + ${expandedPosition.y + relatedY}px)`,
+                  left: `calc(50% + ${finalRelatedX}px)`,
+                  top: `calc(50% + ${finalRelatedY}px)`,
                   transform: `translate(-50%, -50%)`,
                   position: 'absolute',
                   willChange: 'auto',

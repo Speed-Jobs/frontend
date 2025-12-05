@@ -326,8 +326,39 @@ export default function RecruitmentSchedulePage() {
   
   // 사용자가 직접 추가한 데이터
   const [userSchedules, setUserSchedules] = useState<CompanySchedule[]>([])
-  const [userPins, setUserPins] = useState<UserPin[]>([])
+  // localStorage에서 시뮬레이션 데이터 불러오기
+  const loadUserPinsFromStorage = (): UserPin[] => {
+    if (typeof window === 'undefined') return []
+    try {
+      const stored = localStorage.getItem('recruitment-schedule-user-pins')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        // Date 객체 복원
+        return parsed.map((pin: any) => ({
+          ...pin,
+          date: new Date(pin.date),
+          endDate: pin.endDate ? new Date(pin.endDate) : undefined,
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to load user pins from storage:', error)
+    }
+    return []
+  }
+
+  const [userPins, setUserPins] = useState<UserPin[]>(loadUserPinsFromStorage)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+
+  // userPins가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('recruitment-schedule-user-pins', JSON.stringify(userPins))
+      } catch (error) {
+        console.error('Failed to save user pins to storage:', error)
+      }
+    }
+  }, [userPins])
 
   const addCompanySchedule = (schedule: Omit<CompanySchedule, 'id'>) => {
     const newSchedule = {

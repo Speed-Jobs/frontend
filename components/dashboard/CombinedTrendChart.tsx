@@ -219,6 +219,11 @@ export default function CombinedTrendChart({
     )
   }
 
+  // 단일 회사 선택 시 선택된 회사 정보 가져오기
+  const selectedCompany = selectedCompanies.length === 1 
+    ? companies.find(c => c.name === selectedCompanies[0])
+    : null
+
   return (
     <ResponsiveContainer width="100%" height={400}>
       <ComposedChart data={mergedData}>
@@ -227,6 +232,13 @@ export default function CombinedTrendChart({
             <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3}/>
             <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
           </linearGradient>
+          {/* 단일 회사 선택 시 사용할 gradient */}
+          {selectedCompany && (
+            <linearGradient id={`colorSelectedCompany-${selectedCompany.key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={selectedCompany.color} stopOpacity={0.3}/>
+              <stop offset="95%" stopColor={selectedCompany.color} stopOpacity={0}/>
+            </linearGradient>
+          )}
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis 
@@ -251,6 +263,11 @@ export default function CombinedTrendChart({
           }}
           formatter={(value: number, name: string) => {
             if (name === 'totalCount') {
+              // 단일 회사 선택 시에는 선택된 회사명 표시
+              if (selectedCompanies.length === 1) {
+                const selectedCompany = companies.find(c => c.name === selectedCompanies[0])
+                return [`${value}건`, selectedCompany ? selectedCompany.name : '공고 수']
+              }
               return [`${value}건`, '전체 공고 수']
             }
             const company = companies.find(c => c.key === name)
@@ -262,14 +279,19 @@ export default function CombinedTrendChart({
           iconType="line"
           formatter={(value: string) => {
             if (value === 'totalCount') {
+              // 단일 회사 선택 시에는 선택된 회사명 표시
+              if (selectedCompanies.length === 1) {
+                const selectedCompany = companies.find(c => c.name === selectedCompanies[0])
+                return selectedCompany ? selectedCompany.name : '공고 수'
+              }
               return '전체 공고 수'
             }
             const company = companies.find(c => c.key === value)
             return company ? company.name : value
           }}
         />
-        {/* 전체 채용 공고 수 - Area 차트 */}
-        {jobPostingsTrendData && jobPostingsTrendData.length > 0 && (
+        {/* 전체 채용 공고 수 - Area 차트 (단일 회사 선택 시에는 숨김) */}
+        {jobPostingsTrendData && jobPostingsTrendData.length > 0 && selectedCompanies.length !== 1 && (
           <Area
             type="monotone"
             dataKey="totalCount"
@@ -280,8 +302,20 @@ export default function CombinedTrendChart({
             name="전체 공고 수"
           />
         )}
-        {/* 회사별 채용 활동 - Line 차트 */}
-        {companies.map((company) => {
+        {/* 단일 회사 선택 시: 선택된 회사의 공고 수를 Area 차트로 표시 */}
+        {jobPostingsTrendData && jobPostingsTrendData.length > 0 && selectedCompanies.length === 1 && selectedCompany && (
+          <Area
+            type="monotone"
+            dataKey="totalCount"
+            stroke={selectedCompany.color}
+            strokeWidth={2}
+            fillOpacity={0.3}
+            fill={`url(#colorSelectedCompany-${selectedCompany.key})`}
+            name={selectedCompanies[0]}
+          />
+        )}
+        {/* 회사별 채용 활동 - Line 차트 (단일 회사 선택 시에는 숨김, Area 차트로 표시) */}
+        {selectedCompanies.length !== 1 && companies.map((company) => {
           // selectedCompanies는 회사 이름 배열이므로 name으로 비교
           if (selectedCompanies.includes(company.name)) {
             return (

@@ -173,22 +173,26 @@ export function CalendarCell({
 
   // Calculate opacity based on overlap (more overlaps = darker)
   const getBackgroundStyle = () => {
-    // 전체 일정 범위가 있으면 빨간색으로 표시 (최소 opacity)
+    // 경쟁 강도 배경색 계산
+    const baseOpacity = 0.15;
+    const incrementPerOverlap = 0.08;
+    const opacity = overlapCount > 0 
+      ? Math.min(baseOpacity + (overlapCount - 1) * incrementPerOverlap, 0.9)
+      : 0;
+    
+    // 전체 일정 범위가 있으면 빨간색으로 표시 (경쟁 강도에 따라 opacity 조절)
     if (isInAnyCompanyTotalSchedule) {
-      const baseOpacity = 0.15;
+      // 경쟁 강도가 있으면 그에 맞는 opacity 사용, 없으면 최소 opacity
+      const finalOpacity = overlapCount > 0 ? opacity : baseOpacity;
       return {
-        backgroundColor: `rgba(234, 0, 44, ${baseOpacity})`, // SK Red
+        backgroundColor: `rgba(234, 0, 44, ${finalOpacity})`, // SK Red
       };
     }
     
-    // 경쟁 강도 배경색 반환
+    // 전체 일정 범위 밖의 날짜
     if (overlapCount === 0) {
       return { backgroundColor: 'white' };
     }
-    
-    const baseOpacity = 0.15;
-    const incrementPerOverlap = 0.08;
-    const opacity = Math.min(baseOpacity + (overlapCount - 1) * incrementPerOverlap, 0.9);
     
     return {
       backgroundColor: `rgba(234, 0, 44, ${opacity})`, // SK Red

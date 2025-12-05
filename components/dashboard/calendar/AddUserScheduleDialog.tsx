@@ -39,6 +39,20 @@ const getPreviousStage = (currentStage: UserPin['type'], selectedTypes: Set<User
   return null
 }
 
+// 다음 전형 찾기
+const getNextStage = (currentStage: UserPin['type'], selectedTypes: Set<UserPin['type']>): UserPin['type'] | null => {
+  const currentIndex = STAGE_ORDER.indexOf(currentStage)
+  if (currentIndex < 0 || currentIndex >= STAGE_ORDER.length - 1) return null
+  
+  // 현재 전형보다 뒤에 있는 전형들 중 선택된 것 찾기
+  for (let i = currentIndex + 1; i < STAGE_ORDER.length; i++) {
+    if (selectedTypes.has(STAGE_ORDER[i])) {
+      return STAGE_ORDER[i]
+    }
+  }
+  return null
+}
+
 export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleDialogProps) {
   const [step, setStep] = useState<Step>('stages')
   const [selectedTypes, setSelectedTypes] = useState<Set<UserPin['type']>>(new Set())
@@ -147,7 +161,27 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
     return `${year}-${month}-${day}`
   }
   
+  // 다음 전형의 시작일 계산 (최대 종료일)
+  const getMaxDate = (): string | undefined => {
+    if (!currentStage) return undefined
+    
+    const nextStage = getNextStage(currentStage, selectedTypes)
+    if (!nextStage) return undefined
+    
+    const nextDates = stageDates[nextStage]
+    if (!nextDates || !nextDates.startDate) return undefined
+    
+    // 다음 전형 시작일의 이전 날
+    const startDate = new Date(nextDates.startDate)
+    startDate.setDate(startDate.getDate() - 1)
+    const year = startDate.getFullYear()
+    const month = String(startDate.getMonth() + 1).padStart(2, '0')
+    const day = String(startDate.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
   const minDate = getMinDate()
+  const maxDate = getMaxDate()
   
   // 현재 전형의 날짜가 minDate보다 이전이면 초기화
   const currentStageDates = (() => {
@@ -171,8 +205,20 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
     return dates && dates.startDate && dates.endDate
   })
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // 다이얼로그가 닫힐 때만 onClose 호출
+      onClose()
+      // 폼 초기화
+      setStep('stages')
+      setSelectedTypes(new Set())
+      setStageDates({})
+      setCurrentStageIndex(0)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -223,29 +269,50 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
           {/* Step 2: Date Selection */}
           {step === 'dates' && currentStage && (
             <div className="space-y-4">
-              {minDate && (
+              {(minDate || maxDate) && (
                 <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
                   <p className="font-medium mb-1">⚠️ 날짜 제한</p>
-                  <p className="text-xs">
-                    이 전형은 이전 전형 종료일 다음 날부터 선택할 수 있습니다.
-                    {(() => {
-                      const prevStage = getPreviousStage(currentStage, selectedTypes)
-                      const prevDates = prevStage ? stageDates[prevStage] : null
-                      if (prevDates && prevDates.endDate) {
-                        const endDate = new Date(prevDates.endDate)
-                        const minStartDate = new Date(endDate)
-                        minStartDate.setDate(minStartDate.getDate() + 1)
-                        return ` (최소 시작일: ${minStartDate.getFullYear()}. ${minStartDate.getMonth() + 1}. ${minStartDate.getDate()}.)`
-                      }
-                      return ''
-                    })()}
-                  </p>
+                  <div className="text-xs space-y-1">
+                    {minDate && (
+                      <p>
+                        이 전형은 이전 전형 종료일 다음 날부터 선택할 수 있습니다.
+                        {(() => {
+                          const prevStage = getPreviousStage(currentStage, selectedTypes)
+                          const prevDates = prevStage ? stageDates[prevStage] : null
+                          if (prevDates && prevDates.endDate) {
+                            const endDate = new Date(prevDates.endDate)
+                            const minStartDate = new Date(endDate)
+                            minStartDate.setDate(minStartDate.getDate() + 1)
+                            return ` (최소 시작일: ${minStartDate.getFullYear()}. ${minStartDate.getMonth() + 1}. ${minStartDate.getDate()}.)`
+                          }
+                          return ''
+                        })()}
+                      </p>
+                    )}
+                    {maxDate && (
+                      <p>
+                        이 전형은 다음 전형 시작일 이전 날까지 선택할 수 있습니다.
+                        {(() => {
+                          const nextStage = getNextStage(currentStage, selectedTypes)
+                          const nextDates = nextStage ? stageDates[nextStage] : null
+                          if (nextDates && nextDates.startDate) {
+                            const startDate = new Date(nextDates.startDate)
+                            const maxEndDate = new Date(startDate)
+                            maxEndDate.setDate(maxEndDate.getDate() - 1)
+                            return ` (최대 종료일: ${maxEndDate.getFullYear()}. ${maxEndDate.getMonth() + 1}. ${maxEndDate.getDate()}.)`
+                          }
+                          return ''
+                        })()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
               <DateRangePicker
                 startDate={currentStageDates?.startDate}
                 endDate={currentStageDates?.endDate}
                 minDate={minDate}
+                maxDate={maxDate}
                 stageType={currentStage}
                 onChange={(startDate, endDate) => {
                   setStageDates({

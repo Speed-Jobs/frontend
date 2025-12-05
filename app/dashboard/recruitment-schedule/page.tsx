@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import { Calendar } from '@/components/dashboard/calendar/Calendar'
 import { CompanySchedule, UserPin } from '@/components/dashboard/calendar/types'
 import { CompanyScheduleManager } from '@/components/dashboard/calendar/CompanyScheduleManager'
@@ -11,7 +10,7 @@ import { UserPinManager } from '@/components/dashboard/calendar/UserPinManager'
 import { InsightPanel } from '@/components/dashboard/calendar/InsightPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Check } from 'lucide-react'
 
 // 프리셋 색상 목록 (color가 없을 때 자동 할당)
 const PRESET_COLORS = [
@@ -125,6 +124,7 @@ interface ApiCompanySchedule {
   color?: string
   type: '신입' | '경력'
   data_type?: 'actual' | 'predicted'
+  job_role?: string // 직군 정보 (선택적)
   stages: ApiScheduleStage[]
 }
 
@@ -149,6 +149,7 @@ function transformApiResponse(apiData: ApiCompanySchedule[]): CompanySchedule[] 
       color: color,
       type: schedule.type,
       dataType: schedule.data_type,
+      jobRole: schedule.job_role, // 직군 정보 추가
       stages: schedule.stages.map((stage) => ({
         id: stage.id,
         stage: stage.stage,
@@ -159,11 +160,30 @@ function transformApiResponse(apiData: ApiCompanySchedule[]): CompanySchedule[] 
   })
 }
 
+// 직군 목록 (SKAX 직무기술서 기준)
+const JOB_ROLES = [
+  'Software Development',
+  'Factory AX Engineering',
+  'Solution Development',
+  'Cloud/Infra Engineering',
+  'Architect',
+  'Project Management',
+  'Quality Management',
+  'AI',
+  '정보보호',
+  'Sales',
+  'Domain Expert',
+  'Consulting',
+  'Biz. Supporting',
+]
+
 export default function RecruitmentSchedulePage() {
   const router = useRouter()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [activeTab, setActiveTab] = useState<'신입' | '경력'>('신입')
   const [dataFilter, setDataFilter] = useState<'all' | 'actual' | 'predicted'>('all')
+  const [selectedJobRoles, setSelectedJobRoles] = useState<string[]>(JOB_ROLES) // 기본값: 모든 직군 선택
+  const [isJobRoleDropdownOpen, setIsJobRoleDropdownOpen] = useState(false)
   
   // 서버에서 받아온 데이터
   const [serverSchedules, setServerSchedules] = useState<CompanySchedule[]>([])
@@ -182,6 +202,11 @@ export default function RecruitmentSchedulePage() {
         params.append('type', activeTab)
         if (activeTab === '신입' && dataFilter !== 'all') {
           params.append('data_type', dataFilter)
+        }
+        // 경력 공고일 때 직군 필터 추가 (API가 지원하는 경우)
+        // 여러 직군을 선택한 경우, 첫 번째 직군만 전달 (API가 배열을 지원하지 않을 수 있음)
+        if (activeTab === '경력' && selectedJobRoles.length > 0 && selectedJobRoles.length < JOB_ROLES.length) {
+          params.append('job_role', selectedJobRoles[0])
         }
         
         const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/recruitment-schedule/companies?${params.toString()}`
@@ -215,7 +240,7 @@ export default function RecruitmentSchedulePage() {
     }
     
     fetchSchedules()
-  }, [activeTab, dataFilter])
+  }, [activeTab, dataFilter, selectedJobRoles])
   
   // 더미 데이터 (API 실패 시 fallback)
   const fallbackSchedules: CompanySchedule[] = [
@@ -365,15 +390,32 @@ export default function RecruitmentSchedulePage() {
     (schedule) => schedule.type === activeTab
   )
 
-  // Apply data type filter for 신입 공고
-  const finalFilteredSchedules = activeTab === '신입'
-    ? filteredSchedules.filter((schedule) => {
+  // Apply filters based on active tab
+  const finalFilteredSchedules = useMemo(() => {
+    let result = filteredSchedules
+
+    // 신입 공고: data_type 필터 적용
+    if (activeTab === '신입') {
+      result = result.filter((schedule) => {
         if (dataFilter === 'all') return true
         if (dataFilter === 'actual') return schedule.dataType === 'actual'
         if (dataFilter === 'predicted') return schedule.dataType === 'predicted'
         return true
       })
-    : filteredSchedules
+    }
+    
+    // 경력 공고: 직군 필터 적용 (토글 방식)
+    if (activeTab === '경력' && selectedJobRoles.length < JOB_ROLES.length) {
+      result = result.filter((schedule) => {
+        // jobRole이 없으면 모든 경력 공고를 표시 (하위 호환성)
+        if (!schedule.jobRole) return true
+        // 선택된 직군 목록에 포함되어 있으면 표시
+        return selectedJobRoles.includes(schedule.jobRole)
+      })
+    }
+
+    return result
+  }, [filteredSchedules, activeTab, dataFilter, selectedJobRoles])
 
   return (
     <div className="min-h-screen bg-white">
@@ -408,8 +450,8 @@ export default function RecruitmentSchedulePage() {
 
         {/* 필터링 기능 - 중앙 배치 */}
         <div className="flex flex-col items-center gap-4 mb-6">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
-            <div className="flex justify-center mb-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
               <TabsList className="inline-flex h-9 w-auto">
                 <TabsTrigger value="신입" className="text-sm px-6">
                   신입 공고
@@ -418,11 +460,15 @@ export default function RecruitmentSchedulePage() {
                   경력 공고
                 </TabsTrigger>
               </TabsList>
-            </div>
-          </Tabs>
+            </Tabs>
+
+            {activeTab === '경력' && (
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">직군 필터</label>
+            )}
+          </div>
 
           {activeTab === '신입' && (
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-2 flex-wrap">
               <Button
                 variant={dataFilter === 'all' ? 'default' : 'outline'}
                 size="sm"
@@ -444,6 +490,85 @@ export default function RecruitmentSchedulePage() {
               >
                 예측치만
               </Button>
+            </div>
+          )}
+
+          {activeTab === '경력' && (
+            <div className="flex flex-row items-center gap-3 justify-center">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">직군 필터</label>
+              <div className="relative w-[250px]">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsJobRoleDropdownOpen(!isJobRoleDropdownOpen)}
+                  className="w-full justify-between text-sm"
+                >
+                  <span>
+                    {selectedJobRoles.length === 0 
+                      ? '직군을 선택하세요' 
+                      : selectedJobRoles.length === JOB_ROLES.length
+                      ? '전체 직군'
+                      : `${selectedJobRoles.length}개 직군 선택됨`}
+                  </span>
+                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isJobRoleDropdownOpen ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {isJobRoleDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsJobRoleDropdownOpen(false)}
+                    />
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-200">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (selectedJobRoles.length === JOB_ROLES.length) {
+                              setSelectedJobRoles([])
+                            } else {
+                              setSelectedJobRoles([...JOB_ROLES])
+                            }
+                          }}
+                          className="w-full text-xs justify-start"
+                        >
+                          {selectedJobRoles.length === JOB_ROLES.length ? '전체 해제' : '전체 선택'}
+                        </Button>
+                      </div>
+                      <div className="p-1">
+                        {JOB_ROLES.map((role) => {
+                          const isSelected = selectedJobRoles.includes(role)
+                          return (
+                            <div
+                              key={role}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedJobRoles(selectedJobRoles.filter(r => r !== role))
+                                } else {
+                                  setSelectedJobRoles([...selectedJobRoles, role])
+                                }
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer rounded text-sm"
+                            >
+                              <div className={`flex items-center justify-center w-4 h-4 border-2 rounded ${
+                                isSelected 
+                                  ? 'bg-blue-600 border-blue-600' 
+                                  : 'border-gray-300'
+                              }`}>
+                                {isSelected && <Check className="h-3 w-3 text-white" />}
+                              </div>
+                              <span className={isSelected ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                                {role}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -502,7 +627,6 @@ export default function RecruitmentSchedulePage() {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   )
 }

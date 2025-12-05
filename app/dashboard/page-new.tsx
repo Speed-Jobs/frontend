@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import NotificationToast from '@/components/NotificationToast'
 import jobPostingsData from '@/data/jobPostings.json'
 import { useJobNotifications } from '@/hooks/useJobNotifications'
@@ -525,8 +524,6 @@ export default function Dashboard() {
           </DarkDashboardCard>
         </div>
       </div>
-
-      <Footer />
     </div>
   )
 }

@@ -379,91 +379,208 @@ const jobRoleDetails: Record<string, JobRoleDetail> = {
     skillSetDetails: {
       'Software Architect': {
         name: 'Software Architect',
-        description: '소프트웨어 시스템의 전체 구조를 설계하고, 비즈니스 요구사항을 기술적 솔루션으로 변환하여 확장 가능하고 유지보수가 용이한 시스템 아키텍처를 설계',
+        description: '소프트웨어 시스템의 기능, 성능, 보안 등의 각 품질 속성을 보장하고 소프트웨어를 구성하는 요소와 그 상호관계를 분석/설계하여 소프트웨어의 전체적인 구조를 체계화. 다양한 이해관계자의 요구사항을 반영하여 기술적 방향을 설정하고, 시스템 성능 최적화를 포함하여 안정적이고 확장 가능한 시스템 아키텍처를 수립',
         technologies: [
           {
-            category: 'Architecture Design',
-            items: ['시스템 아키텍처 설계', '소프트웨어 아키텍처 패턴', '마이크로서비스 아키텍처', '모놀리식 아키텍처', '이벤트 기반 아키텍처']
+            category: '소프트웨어 아키텍처 설계 및 문서화',
+            items: ['요구사항 기반 소프트웨어 구조 설계', '명확한 아키텍처 문서 작성']
           },
           {
-            category: 'Technology Stack',
-            items: ['프레임워크 선정', '기술 스택 설계', 'API 설계', '인터페이스 설계']
+            category: '비기능 요구사항 관리 및 기술 부채 관리',
+            items: ['성능, 보안, 확장성 등 비기능 요구사항 정의 및 관리', '원인 분석 및 최적화', '기술 부채 식별 및 개선 전략 수립']
           },
           {
-            category: 'Performance & Scalability',
-            items: ['성능 최적화', '확장성 설계', '로드 밸런싱', '캐싱 전략']
+            category: '소프트웨어 품질 관리 및 표준 준수 지원',
+            items: ['코드 리뷰', '테스트 전략 수립', '표준 및 가이드라인 준수 지속적 관리']
           }
         ]
       },
       'Data Architect': {
         name: 'Data Architect',
-        description: '데이터 구조와 데이터 관리 시스템을 설계하여 조직의 데이터 전략을 수립하고, 데이터 품질, 보안, 통합을 위한 아키텍처를 설계',
+        description: '조직의 데이터 전략을 수립하고, 보유한 데이터를 체계적이고 구조적으로 설계하여 데이터의 일관성, 품질 확보 및 데이터 구조 품질 검증. 데이터 표준을 수립하고 데이터 아키텍처 요구사항 분석 후, 이를 기반으로 데이터 거버넌스 수립을 통해 데이터 기반 의사결정 지원. DB 관점에서 성능저하 원인분석 및 성능 이슈 해결 수행',
         technologies: [
           {
-            category: 'Data Architecture',
-            items: ['데이터 모델링', '데이터베이스 설계', '데이터 웨어하우스 설계', '데이터 레이크 설계', '데이터 파이프라인 설계']
+            category: '데이터 표준 정의 및 기반 기술 활용',
+            items: ['데이터 표준 및 데이터 표준화 정의', '데이터 모델링 표준 및 가이드 수립', '데이터 모델링 도구 활용', '메타데이터 관리 도구 및 데이터 품질 관리 도구 적용 및 활용']
           },
           {
-            category: 'Data Management',
-            items: ['데이터 거버넌스', '데이터 품질 관리', '데이터 보안', '데이터 통합', '데이터 마이그레이션']
+            category: '데이터 아키텍처 설계',
+            items: ['데이터 아키텍처 프레임워크 정의', '데이터 참조 모델 정의', '데이터 아키텍처 방향 수립', '데이터 아키텍처 설계·검증·실행 관리']
           },
           {
-            category: 'Big Data & Analytics',
-            items: ['빅데이터 아키텍처', '실시간 데이터 처리', '데이터 분석 플랫폼', 'BI 솔루션 설계']
+            category: '데이터 거버넌스 설계',
+            items: ['체계적이고 일관된 데이터 관리 및 활용을 위한 관리 정책 및 가이드라인 수립', '데이터 관리 프로세스 수립', '관리 조직 및 Roles & Responsibilities (R&R) 정의']
+          },
+          {
+            category: 'DB 성능 최적화',
+            items: ['DBMS 성능 이슈 원인 분석', '관련 이슈 해결 및 최적화 활동 수행']
           }
         ]
       },
       'Infra Architect': {
         name: 'Infra Architect',
-        description: '인프라스트럭처의 전체 구조를 설계하고, 클라우드 및 온프레미스 환경에서 안정적이고 확장 가능한 인프라 아키텍처를 설계',
+        description: '하드웨어, 미들웨어, 네트워크, 클라우드를 포함한 인프라를 설계 및 구성하여 모든 자원의 적합성과 신뢰성 있는 서비스를 제공할 수 있도록 체계화. 시스템 장애 대응, 고가용성 설계, 백업 및 복구 정책, DR (Disaster Recovery) 체계 등을 포함한 인프라 표준과 운영 절차를 수립',
         technologies: [
           {
-            category: 'Infrastructure Design',
-            items: ['인프라 아키텍처 설계', '클라우드 아키텍처 설계', '네트워크 아키텍처 설계', '보안 아키텍처 설계', '하이브리드 클라우드 설계']
+            category: 'Infra 기반 기술',
+            items: ['컴퓨팅, 스토리지, 네트워크, 보안, OS, DB, Container, DR 설계 및 구성']
           },
           {
-            category: 'Cloud & Virtualization',
-            items: ['AWS/Azure/GCP 아키텍처', '컨테이너 아키텍처', '서버리스 아키텍처', '가상화 설계']
+            category: 'Cloud Native 기술',
+            items: ['Public 및 Private Cloud 기반 오픈소스 솔루션 활용', 'CSP 제품군 특성 분석 및 적용 전략 수립 (Managed, Serverless)']
           },
           {
-            category: 'Reliability & Operations',
-            items: ['고가용성 설계', '재해 복구 설계', '모니터링 아키텍처', '자동화 설계']
+            category: 'System Architecture',
+            items: ['고객 요구사항 기반 인프라 아키텍처 설계 및 평가', '가용성, 확장성, 보안, 성능을 고려한 선진화 계획 수립']
+          },
+          {
+            category: '운영 자동화 및 SRE',
+            items: ['Kubernetes, CI/CD, 모니터링, IaC를 포함한 운영 자동화 설계 및 구현', '장애 대응 자동화', '로그 분석', '인프라 성능 지표 수집 등 SRE 기반 운영 최적화']
+          },
+          {
+            category: '성능 및 품질 관리',
+            items: ['인프라 성능 분석 및 설계', '기술적·운영적 효율성 향상 계획 수립']
           }
         ]
       },
       'AI Architect': {
         name: 'AI Architect',
-        description: 'AI/ML 시스템의 아키텍처를 설계하고, 머신러닝 모델의 배포 및 운영을 위한 인프라와 시스템을 설계',
+        description: 'AI 기반 시스템 구축에 필요한 전반적인 기술 요소를 폭넓게 이해하고, 고객의 요구사항을 충족하는 서비스 구현을 위해 데이터 정제, 모델 활용, Evaluation, Ops에 이르는 AI Pipeline을 종합적으로 분석 및 설계',
         technologies: [
           {
-            category: 'AI/ML Architecture',
-            items: ['ML 시스템 아키텍처', '딥러닝 아키텍처', 'AI 파이프라인 설계', '모델 서빙 아키텍처', 'MLOps 아키텍처']
+            category: 'Orchestration',
+            items: ['Document Structuring', 'Data Chunking', 'Metadata Management', 'Workflow Frameworks (LangChain, TaskWeaver, AutoGPT 등)']
           },
           {
-            category: 'AI Platform',
-            items: ['AI 플랫폼 설계', '데이터 처리 파이프라인', '모델 학습 인프라', '추론 시스템 설계']
+            category: 'Prompt Engineering',
+            items: ['Prompt Design Methodologies (Chain-of-Thought, Few-shot Prompting 등)', 'Prompt Automation 및 Template Management Technology', 'Human-in-the-loop', 'Prompt Continuous Improvement Technology']
           },
           {
-            category: 'AI Integration',
-            items: ['AI 시스템 통합', 'AI API 설계', 'AI 서비스 아키텍처', 'Generative AI 아키텍처']
+            category: 'VectorDB 및 검색기술',
+            items: ['Vector Database Design 및 Operation (Pinecone, Milvus, Faiss 등)', 'RAG Implementation Technology', 'Semantic Search Engines (ElasticSearch, OpenSearch, AI Search 등)', 'Embedding Management 및 Optimization Technology']
+          },
+          {
+            category: 'LLMOps',
+            items: ['Model Serving & Deployment (TensorRT, Triton, vLLM, TGI 등)', 'Data Ingestion Pipeline 구축 및 관리', 'Data Preprocessing (Tokenization, Prompt Engineering 등)', 'Parallel Processing (Distributed training 및 inference)', 'GPU Resource Management 및 Fractionalization Technology']
+          },
+          {
+            category: 'Fine-tuning & Optimization',
+            items: ['Lightweight Fine-tuning Technologies (LoRA, QLoRA 등)', 'Prompt Tuning, P-Tuning', 'Quantization, Distillation 및 기타 Model Optimization Technologies', 'Hyperparameter Optimization (HPO) Technology']
+          },
+          {
+            category: 'AI 윤리 및 신뢰성 (Trustworthy AI)',
+            items: ['Bias Detection 및 Fairness Evaluation Technology', 'AI Evaluation Technology', 'Explainable AI (XAI) 및 Output Transparency Enhancement Technology', 'Content Moderation 및 Safety Management Technology', '개인정보 보호 기술 (Differential Privacy 등)']
+          },
+          {
+            category: 'Agent 및 자동화',
+            items: ['Multi-Agent Design Technology', 'Agentic AI Platform Design Technology', 'Autonomous Workflow Management Technology', 'Planning 및 Action Automation Technology']
           }
         ]
       },
       'Automation Architect': {
         name: 'Automation Architect',
-        description: '자동화 시스템의 아키텍처를 설계하고, 프로세스 자동화 및 운영 자동화를 위한 시스템 아키텍처를 설계',
+        description: '생산성 극대화 및 물류 효율화/안정성 확보를 위해 공장 전체 레이아웃과 생산라인의 공간 배치를 분석/설계하여 설비 및 동선을 최적화. Smart Factory 구축을 위한 Digital Twin 기반의 설계 및 검증을 수행하며, 신규 설비 도입 및 라인 증설의 타당성 분석하고 IT-OT 통합 인프라 설계를 통해 공장 자동화 효율화/최적화를 확보하는 역할 수행',
         technologies: [
           {
-            category: 'Automation Architecture',
-            items: ['자동화 시스템 아키텍처', 'RPA 아키텍처', '워크플로우 자동화 설계', 'CI/CD 아키텍처', 'DevOps 아키텍처']
+            category: '설계 및 모델링 도구',
+            items: ['CAD/CAE (AutoCAD, SolidWorks, Tecnomatix, CATIA 등)', 'Digital Twin Platform (3D 모델링, BIM, 시뮬레이션) 등']
           },
           {
-            category: 'Process Automation',
-            items: ['비즈니스 프로세스 자동화', 'IT 프로세스 자동화', '인프라 자동화', '배포 자동화']
+            category: '시뮬레이션 및 최적화',
+            items: ['생산·물류 시뮬레이션 소프트웨어 (FlexSim, AnyLogic 등)', '최적화 알고리즘 (공간, 동선, 설비 배치 자동화)', '데이터 분석', 'Lean Manufacturing 원칙 이해 등']
           },
           {
-            category: 'Automation Tools',
-            items: ['자동화 도구 선정', '자동화 플랫폼 설계', '오케스트레이션 설계', '자동화 모니터링']
+            category: '시각화 및 협업 도구 활용',
+            items: ['VR/AR 시각화 및 협업툴 (설계 검토 및 공간 커뮤니케이션) 등']
+          }
+        ]
+      }
+    }
+  },
+  'Project Management': {
+    name: 'Project Management',
+    definition: '프로젝트 범위, 시간, 비용, 품질에 대한 수행 계획을 수립하고, 효율적인 자원 조달과 이슈/Risk 등의 관리를 통해 프로젝트 목표 달성',
+    composition: ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+    skillSetDetails: {
+      'Application PM': {
+        name: 'Application PM',
+        description: '전체 프로젝트 프로세스를 리딩하여 고객 니즈 및 업무 효율성 향상을 위한 솔루션/시스템 제공. 목표 설정, 자원 배분, 실행, 리스크 예방 및 관리 포함',
+        technologies: [
+          {
+            category: 'SDLC 프로세스',
+            items: ['Waterfall', 'Prototype', 'Iterative', 'Agile 프로세스 등']
+          }
+        ]
+      },
+      'Infra PM': {
+        name: 'Infra PM',
+        description: '고객의 H/W, Network, Cloud 시스템 관련 기술 이슈 및 니즈 해결을 위한 프로젝트 목표 설정, 실행, 리스크 예방 및 관리 리딩',
+        technologies: [
+          {
+            category: 'Infra Fundamental',
+            items: ['Cloud Computing', 'Container Platform', 'Infra / Cloud Architecture 등']
+          },
+          {
+            category: '제조 공정 Fundamental',
+            items: ['제조 공정 프로세스', '공정/반송 장비', '자동화/지능화 Concept Design', 'Digital Factory 구현 등']
+          },
+          {
+            category: 'Engineering Fundamental',
+            items: ['자동화설비 (Conveyor, ASRS, AGV, AMR, OHT, Lifter, Transfer)', '제어시스템 (CIM, PLC, MCS)', '산업용 로봇', '생산라인설계(CAD)', 'Factory Infra (배관, 유틸리티, HVAC 시스템, 네트워크)', 'Safety (OHSA, 내진규정, 안전관리) 규정 등']
+          }
+        ]
+      },
+      'Solution PM': {
+        name: 'Solution PM',
+        description: 'ERP, HR Solution 등 상용 솔루션에 대한 지식과 경험을 바탕으로 고객 요구사항에 맞는 최적화된 기능/시스템 구축 프로젝트 리딩. 또는 시장 및 기술 트렌드를 기반으로 직접 기획한 Digital Products/Services 또는 계약 프로젝트와 통합하여 브랜드 관리, 판매/프로모션, 판매, 유지보수, 기술지원 등 Product Life Cycle 전반을 관리하는 역할 수행',
+        technologies: [
+          {
+            category: 'Solution Knowledge',
+            items: ['ERP', 'Groupware', 'HR Solution', 'CRM 등']
+          },
+          {
+            category: 'PLM (Product Lifecycle Management)',
+            items: ['제품/서비스 기획 (제품 로드맵 수립/관리, 요구사항 정의, 범위 및 우선순위 결정, 자원/일정/예산 관리)', '제품화', '마케팅 기획 (가격 정책 수립, 브로셔 등 프로모션 자료 작성)', '마케팅/프로모션 활동', '판매/유지보수', '기술지원']
+          },
+          {
+            category: 'Solution Architecture',
+            items: ['Cloud 및 On-premise 환경 이해', '아키텍처 설계', '기술 검토', 'PoC (Proof of Concept) 수행', '개발 리딩']
+          }
+        ]
+      },
+      'AI PM': {
+        name: 'AI PM',
+        description: 'AI 기술을 활용하여 고객 니즈 및 이슈 해결 방안 제안. 프로젝트 관리 역량(목표 설정, 자원 배분, 리스크 관리) 및 기술 역량(AI 개발 프로세스 이해, Agentic Systems, 최신 기술 트렌드 분석, AI 적용 방법의 장단점 파악)을 바탕으로 전체 프로젝트 프로세스 리딩',
+        technologies: [
+          {
+            category: 'Development Process and Methodologies',
+            items: ['Agile Process', 'Iterative Process', 'Prototype Process']
+          },
+          {
+            category: 'AI Tool Utilization',
+            items: ['AI Literacy', '다양한 AI Tools 활용', 'AI Trends 이해 (기본 AI 지식, 최신 트렌드 파악, 실무 도구 활용 역량)']
+          },
+          {
+            category: 'Agent and System Understanding',
+            items: ['MCP (Multi-Agent System) 이해', 'Agentic Systems 이해', 'Agent 관련 Frameworks 특징 및 장단점 파악 (langchain, langgraph, langmem, code interpreter, autogen, autogpt, manus, n8n 등)', 'AI Architect 역할 이해']
+          }
+        ]
+      },
+      'Automation PM': {
+        name: 'Automation PM',
+        description: '제조 자동화 프로젝트의 목표/일정/비용/품질/리스크/성과를 종합 관리하고, 고객, 파트너, 내부 조직 등 이해관계자와의 커뮤니케이션을 통해 프로젝트 목표 달성. 신기술/신사업 기획 및 파일럿 운영을 통해 고객 생산성 향상 및 운영 효율성 리딩',
+        technologies: [
+          {
+            category: 'TBM Operation and On-site Safety Management Leadership',
+            items: ['TBM (Total Productive Maintenance) 운영 및 Safety 관련 규정 준수 관리 (KOSHA, OHSA, 내부 규정, 일반 안전관리 등)', '작업 허가제 관리', '사고 예방 문화 조성']
+          },
+          {
+            category: 'On-site Process/Commissioning Management',
+            items: ['설치/시운전 단계 관리 (FAT/SAT 수행 포함)', 'Line Balancing 원칙 이해']
+          },
+          {
+            category: 'Automation/Control/AI Technology Understanding',
+            items: ['자동화 설비 (Conveyor, ASRS, AGV, AMR, OHT, Lifter, Transfer 등) 및 설비 지능화', '설비 OT (Operational Technology)', '제어시스템 (CIM, PLC 등)', '산업용 로봇']
           }
         ]
       }
@@ -503,6 +620,49 @@ const cloudInfraCommonTechnologies = {
   'Industry Knowledge': ['1/2금융', '대외 제조', '대내 Hi-Tech', '대내 Process', '통신', '유통/물류/서비스', '미디어/콘텐츠', '공공', 'Global']
 }
 
+// Architect 공통 기술 스택
+const architectCommonTechnologies = {
+  '아키텍처 전략 및 기술 표준 수립/관리': ['전체 IT 시스템 아키텍처 전략 수립', '기술 표준 정의', '구현 가이드라인 수립 및 관리'],
+  '아키텍처 설계 검토/기술 리스크 관리': ['프로젝트 단계별 아키텍처 설계 검토 및 승인', '잠재적 기술 리스크 식별 및 대응 방안 준비'],
+  '이해관계자와의 협력 및 아키텍처 역량 확산': ['프로젝트 내부·외부 이해관계자와의 커뮤니케이션', '기술적 조언 제공', '아키텍처 역량 확산을 위한 교육 및 지원 활동 수행'],
+  'AI 활용': ['AI Literacy / Collaboration 역량'],
+  'Industry Knowledge': ['1/2금융', '대외 제조', '대내 Hi-Tech', '대내 Process', '통신', '유통/물류/서비스', '미디어/콘텐츠', '공공', 'Global 등']
+}
+
+// Project Management 공통 기술 스택
+const projectManagementCommonTechnologies = {
+  '개발/관리 방법론': ['SKPE-AL 1.1', 'SKPM 2.0', 'Agile / Scrum 등'],
+  '프로젝트 계획 수립': [
+    '범위 계획: 범위 기술서 (Scope Statement), WBS 작성 등',
+    '일정 계획: 공수 산정 기법, 일정 관리 Tool (마일스톤, 간트차트, PJT Network Diagram), Critical Path 등',
+    '예산 계획: 예산 관리 프로세스, 예산 산정, 원가 구성 등'
+  ],
+  '프로젝트 실행 및 통제': [
+    '인력 관리: 인력계획 수립, Project Team Acquire / Develop / Manage 등',
+    '외주 관리: 외주 계약 형태, 계약 유형 선정 방법, 하도급법 등 Compliance Issue',
+    '진척 관리: 예산 통제, 기성고 분석 (Earned Value), 일정 단축기법 등',
+    '변경 관리: 변경관리 프로세스, 통합 변경관리, 비용/일정/예산 통합 변경 영향도 평가 등'
+  ],
+  '위험 및 이슈 관리': [
+    '위험/이슈관리 프로세스: 계획 수립, 식별, 정성적 위험분석, 정량적 위험분석, 대응 계획, 감시 및 통제',
+    '위험 분석: 위험 노출도, Decision Tree Analysis, 기대 화폐 가치 (Expected Monetary Value), 민감도 분석, 전문가 판단 등',
+    '위험 대응 계획: Negative (Avoid / Transfer / Mitigate / Acceptance), Positive (Exploit / Share / Enhance / Acceptance)',
+    '위험 감시 및 통제: 위험 재평가, Risk Audit, Variance and Trend Analysis 등'
+  ],
+  '안전인증': [
+    '프로젝트 해당 Site의 지역별 안전인증에 대한 검증: UL, CE, 자율안전인증, 전자파인증, 구조해석, NRTL, 전파인증 외',
+    '자동화 설비의 안전인증 및 해당 Site 안전규정에 맞는 제작 및 부품 사용에 대한 검증 및 관리'
+  ],
+  '프로젝트 품질관리': [
+    '품질관리 계획 수립: Cost-Benefit Analysis, 품질 비용 산정 (Cost of Quality), 품질통제 도구 활용 (Control Chart, Pareto Diagram, Fishbone Diagram 등), 품질관리계획, 프로세스 개선 활동, Quality Metrics, 품질 체크리스트 등',
+    '품질 보증 수행: Quality Audits, Process Analysis 등',
+    '품질통제: 품질통제 도구 (Control Chart, Pareto Diagram, Fishbone Diagram 등), Inspection / Review 등'
+  ],
+  'Soft Skill': ['Communication Skill', '변화 리더십 (Change Leadership)', '포용적 사고방식 (Inclusive Thinking)', 'Problem Solving', 'Presentation Skill', 'Speech', 'Biz. Writing 등'],
+  'AI 활용': ['AI Literacy / Collaboration 역량', 'DAVIS (Delivery AI Agent & Virtual Intelligence Suite)'],
+  'Industry Knowledge': ['대외 제조', '대내 Digital Factory/Hi-Tech', '유통/물류', '이차전지', '자동차', '전자', '반도체 등']
+}
+
 const jobRoleData: CategoryData[] = [
   {
     category: 'Tech 전문가',
@@ -534,7 +694,8 @@ const jobRoleData: CategoryData[] = [
       },
       {
         name: 'Project Management',
-        skillSets: ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM']
+        skillSets: ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+        detail: jobRoleDetails['Project Management']
       },
       {
         name: 'Quality Management',
@@ -1019,6 +1180,10 @@ export default function JobRoleSkillSetGuide() {
                       ? solutionDevelopmentCommonTechnologies
                       : selectedJobRoleDetail.name === 'Cloud/Infra Engineering'
                       ? cloudInfraCommonTechnologies
+                      : selectedJobRoleDetail.name === 'Architect'
+                      ? architectCommonTechnologies
+                      : selectedJobRoleDetail.name === 'Project Management'
+                      ? projectManagementCommonTechnologies
                       : commonTechnologies
                   ).map(([category, items]: [string, string[]]) => (
                     <div key={category} className="bg-white rounded-lg p-4 border border-gray-200">

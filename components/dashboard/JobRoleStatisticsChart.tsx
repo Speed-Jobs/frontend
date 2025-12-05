@@ -133,19 +133,21 @@ export default function JobRoleStatisticsChart({
   const previousData = data.map(item => ({ name: item.name, value: item.previousValue }))
   
   // 차트에 표시할 데이터 (0보다 큰 값만)
-  const currentChartData = currentData.filter(item => item.value > 0)
-  const previousChartData = previousData.filter(item => item.value > 0)
+  let currentChartData = currentData.filter(item => item.value > 0)
+  let previousChartData = previousData.filter(item => item.value > 0)
   
-  // 현재 기간 데이터가 모두 0인 경우에도 최소한 하나의 직무는 표시 (첫 번째 직무를 1로 설정)
+  // 현재 기간 데이터가 모두 0인 경우: 모든 직군을 균등하게 표시 (각각 1씩)
+  // 이렇게 하면 실제 데이터가 없을 때도 모든 직군이 표시되고, 실제 데이터가 있으면 정상적으로 표시됨
   if (currentChartData.length === 0 && currentData.length > 0) {
-    currentChartData.push({ name: currentData[0].name, value: 1 })
+    // 모든 직군을 균등하게 표시 (각각 1씩)
+    currentChartData = currentData.map(item => ({ name: item.name, value: 1 }))
   }
   
   // 이전 기간 데이터가 모두 0인 경우: 모든 직군을 균등하게 표시 (각각 1씩)
   // 이렇게 하면 실제 데이터가 없을 때도 모든 직군이 표시되고, 실제 데이터가 있으면 정상적으로 표시됨
   if (previousChartData.length === 0 && previousData.length > 0) {
     // 모든 직군을 균등하게 표시 (각각 1씩)
-    previousChartData.push(...previousData.map(item => ({ name: item.name, value: 1 })))
+    previousChartData = previousData.map(item => ({ name: item.name, value: 1 }))
   }
   
   // 총합 계산
@@ -247,17 +249,28 @@ export default function JobRoleStatisticsChart({
   
   const insights = generateInsights()
 
+  // 타이틀 생성
+  const getTitle = () => {
+    const modeText = viewMode === 'Weekly' ? 'QoQ (전분기 대비)' : 'MoM (전월 대비)'
+    if (selectedCompanyFilter && selectedCompanyFilter !== '전체') {
+      return `${selectedCompanyFilter} ${modeText} 직군 비중 변화`
+    }
+    return `${modeText} 직군 비중 변화`
+  }
+
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-gray-700">직무</h4>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h4 className="text-sm font-semibold text-gray-700">
+          {getTitle()}
+        </h4>
         {onCompanyFilterChange && availableCompanies.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600">경쟁사 선택:</span>
+            <span className="text-xs text-gray-600 whitespace-nowrap">경쟁사 선택:</span>
             <select
               value={selectedCompanyFilter}
               onChange={(e) => onCompanyFilterChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
             >
               <option value="전체">전체</option>
               {availableCompanies.map((company) => (
@@ -270,14 +283,14 @@ export default function JobRoleStatisticsChart({
         )}
       </div>
       
-      {/* 두 개의 도넛 차트 나란히 표시 */}
-      <div className="grid grid-cols-[1fr_auto_1.3fr] gap-4 mb-4 w-full items-start">
+      {/* 두 개의 도넛 차트 나란히 표시 - 반응형, 중앙 정렬 */}
+      <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 mb-4 w-full">
         {/* 첫 번째 차트 (이전 기간) */}
-        <div className="w-full min-w-0">
+        <div className="w-full lg:w-auto flex flex-col items-center max-w-[400px] lg:max-w-none">
           <div className="text-center mb-2">
             <p className="text-xs font-medium text-gray-500">{previousPeriodLabel}</p>
           </div>
-          <div style={{ width: '100%', height: '380px' }}>
+          <div className="w-full max-w-[350px] lg:max-w-[380px]" style={{ height: 'min(350px, 50vw)', maxHeight: '380px' }}>
             {previousChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -287,8 +300,8 @@ export default function JobRoleStatisticsChart({
                     cy="50%"
                     labelLine={false}
                     label={false}
-                    outerRadius={100}
-                    innerRadius={45}
+                    outerRadius="80%"
+                    innerRadius="35%"
                     fill="#6b7280"
                     dataKey="value"
                     onClick={(data: any) => {
@@ -330,10 +343,17 @@ export default function JobRoleStatisticsChart({
           </div>
         </div>
         
-        {/* 화살표 (이전 기간 -> 현재 기간) */}
-        <div className="flex items-center justify-center pt-12 px-2">
-          <div className="flex flex-col items-center gap-2">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-blue-500">
+        {/* 화살표 (이전 기간 -> 현재 기간) - 모바일에서는 세로로, 데스크톱에서는 가로로 */}
+        <div className="flex lg:flex-col items-center justify-center px-2 py-4 lg:py-0">
+          <div className="flex lg:flex-col items-center gap-2">
+            <svg 
+              width="40" 
+              height="40" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="text-blue-500 rotate-90 lg:rotate-0"
+            >
               <path d="M13 7L18 12L13 17M6 12H17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <span className="text-xs font-semibold text-blue-600 whitespace-nowrap">현재</span>
@@ -341,12 +361,12 @@ export default function JobRoleStatisticsChart({
         </div>
         
         {/* 두 번째 차트 (현재 기간) - 더 크게 강조 */}
-        <div className="w-full min-w-0">
+        <div className="w-full lg:w-auto flex flex-col items-center max-w-[400px] lg:max-w-none">
           <div className="text-center mb-3">
-            <p className="text-lg font-bold text-gray-900">{currentPeriodLabel}</p>
+            <p className="text-base lg:text-lg font-bold text-gray-900">{currentPeriodLabel}</p>
             <p className="text-xs text-blue-600 font-semibold mt-1">현재 기간</p>
           </div>
-          <div className="relative" style={{ width: '100%', height: '450px' }}>
+          <div className="w-full max-w-[400px] lg:max-w-[450px] relative" style={{ height: 'min(400px, 55vw)', maxHeight: '450px' }}>
               {currentChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -359,8 +379,8 @@ export default function JobRoleStatisticsChart({
                         const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
                         return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
                       }}
-                      outerRadius={130}
-                      innerRadius={60}
+                      outerRadius="85%"
+                      innerRadius="45%"
                       fill="#6b7280"
                       dataKey="value"
                       onClick={(data: any) => {
@@ -404,35 +424,37 @@ export default function JobRoleStatisticsChart({
       </div>
       
       {/* 범례 */}
-      <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+      <div className="flex flex-wrap justify-center gap-x-3 sm:gap-x-6 gap-y-2 px-2">
         {allRoleNames.map((roleName, index) => {
           const hasCurrent = currentChartData.some(d => d.name === roleName)
           const hasPrevious = previousChartData.some(d => d.name === roleName)
           if (!hasCurrent && !hasPrevious) return null
           
           return (
-            <div key={roleName} className="flex items-center gap-2">
+            <div key={roleName} className="flex items-center gap-1.5 sm:gap-2">
               <div 
-                className="w-3 h-3 rounded-full flex-shrink-0" 
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
                 style={{ backgroundColor: pieColors[index % pieColors.length] }}
               />
-              <span className="text-xs text-gray-600 whitespace-nowrap">{roleName}</span>
+              <span className="text-xs text-gray-600 whitespace-nowrap break-keep">{roleName}</span>
             </div>
           )
         })}
       </div>
       
       {/* 인사이트 섹션 */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          <span className="text-lg">💡</span>
-          {previousPeriodLabel} vs {currentPeriodLabel} 비교 인사이트
+      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+          <span className="text-base sm:text-lg">💡</span>
+          <span className="break-words">
+            {previousPeriodLabel} vs {currentPeriodLabel} 비교 인사이트
+          </span>
         </h4>
-        <ul className="space-y-2">
+        <ul className="space-y-1.5 sm:space-y-2">
           {insights.map((insight, index) => (
-            <li key={index} className="text-sm text-blue-800 flex items-start gap-2">
-              <span className="text-blue-500 mt-1">•</span>
-              <span>{insight}</span>
+            <li key={index} className="text-xs sm:text-sm text-blue-800 flex items-start gap-2">
+              <span className="text-blue-500 mt-0.5 sm:mt-1 flex-shrink-0">•</span>
+              <span className="break-words">{insight}</span>
             </li>
           ))}
         </ul>

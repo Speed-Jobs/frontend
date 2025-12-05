@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import NotificationToast from '@/components/NotificationToast'
 import jobPostingsData from '@/data/jobPostings.json'
 import { useJobNotifications } from '@/hooks/useJobNotifications'
@@ -1457,7 +1456,13 @@ export default function Dashboard() {
         const result = await response.json()
         
         if (result.status === 200 && result.data) {
-          setJobRoleStatisticsApiData(result.data)
+          // statistics 배열이 비어있거나 없는 경우도 처리
+          if (result.data.statistics && Array.isArray(result.data.statistics) && result.data.statistics.length > 0) {
+            setJobRoleStatisticsApiData(result.data)
+          } else {
+            // 빈 배열이면 fallback 데이터 사용을 위해 null로 설정
+            setJobRoleStatisticsApiData(null)
+          }
         } else {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
@@ -1658,7 +1663,7 @@ export default function Dashboard() {
     })
     
     // 데이터 변환 (모든 직군 포함, 0인 값도 포함)
-    return rolesForCategory.map(role => {
+    const result = rolesForCategory.map(role => {
       const counts = roleCounts[role] || { current: 0, previous: 0 }
       return {
         name: role,
@@ -1667,34 +1672,73 @@ export default function Dashboard() {
         industries: roleIndustries[role] || [],
       }
     })
+    
+    // 결과가 비어있지 않도록 보장 (최소한 하나의 직군은 있어야 함)
+    if (result.length === 0) {
+      // 카테고리에 맞는 기본 직군 반환
+      const defaultRole = selectedExpertCategory === 'Tech' ? 'Software Development' 
+        : selectedExpertCategory === 'Biz' ? 'Sales' 
+        : 'Biz. Supporting'
+      return [{
+        name: defaultRole,
+        value: 0,
+        previousValue: 0,
+        industries: roleIndustries[defaultRole] || [],
+      }]
+    }
+    
+    return result
   }, [selectedExpertCategory, jobRoleStatisticsViewMode, selectedJobRoleCompanyFilter])
 
   // 직군별 통계 데이터 변환 (API 응답을 컴포넌트 형식으로 변환)
   const jobRoleStatisticsData = useMemo(() => {
-    // API 데이터가 있으면 사용
+    // API 데이터가 있고 statistics 배열이 비어있지 않으면 사용
     if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.statistics) {
       // statistics가 배열인지 확인
       const statisticsArray = Array.isArray(jobRoleStatisticsApiData.statistics) 
         ? jobRoleStatisticsApiData.statistics 
         : []
       
-      return statisticsArray.map((stat: any) => {
-        // API 응답 형식에 따라 필드명 처리 (current_count/previous_count 또는 value/previousValue)
-        const currentCount = stat.current_count !== undefined ? stat.current_count : stat.value
-        const previousCount = stat.previous_count !== undefined ? stat.previous_count : stat.previousValue
+      // 빈 배열이 아니면 변환하여 반환
+      if (statisticsArray.length > 0) {
+        const transformedData = statisticsArray.map((stat: any) => {
+          // API 응답 형식에 따라 필드명 처리 (current_count/previous_count 또는 value/previousValue)
+          const currentCount = stat.current_count !== undefined ? stat.current_count : stat.value
+          const previousCount = stat.previous_count !== undefined ? stat.previous_count : stat.previousValue
+          
+          return {
+            name: stat.name,
+            value: currentCount || 0,
+            previousValue: previousCount || 0,
+            industries: stat.industries || [],
+          }
+        })
         
-        return {
-          name: stat.name,
-          value: currentCount || 0,
-          previousValue: previousCount || 0,
-          industries: stat.industries || [],
+        // 변환된 데이터가 비어있지 않으면 반환
+        if (transformedData.length > 0) {
+          return transformedData
         }
-      })
+      }
     }
     
-    // API 데이터가 없으면 로컬 더미 데이터 사용
-    return jobRoleStatisticsDataFallback
-  }, [jobRoleStatisticsApiData, jobRoleStatisticsDataFallback])
+    // API 데이터가 없거나 빈 배열이면 로컬 fallback 데이터 사용
+    const fallbackData = jobRoleStatisticsDataFallback
+    
+    // fallback 데이터도 비어있으면 최소한의 기본 데이터 반환
+    if (!fallbackData || fallbackData.length === 0) {
+      const defaultRole = selectedExpertCategory === 'Tech' ? 'Software Development' 
+        : selectedExpertCategory === 'Biz' ? 'Sales' 
+        : 'Biz. Supporting'
+      return [{
+        name: defaultRole,
+        value: 0,
+        previousValue: 0,
+        industries: [],
+      }]
+    }
+    
+    return fallbackData
+  }, [jobRoleStatisticsApiData, jobRoleStatisticsDataFallback, selectedExpertCategory])
 
   // 직군별 통계 기간 정보 (API 응답에서 가져오기, 없으면 로컬 계산)
   const jobRoleStatisticsPeriods = useMemo(() => {
@@ -2187,8 +2231,8 @@ export default function Dashboard() {
               currentPeriodEnd={jobRoleStatisticsPeriods.currentPeriodEnd}
               previousPeriodStart={jobRoleStatisticsPeriods.previousPeriodStart}
               previousPeriodEnd={jobRoleStatisticsPeriods.previousPeriodEnd}
-              isLoading={false}
-              error={null}
+              isLoading={isLoadingJobRoleStatistics}
+              error={jobRoleStatisticsError}
               selectedCompanyFilter={selectedJobRoleCompanyFilter}
               onCompanyFilterChange={setSelectedJobRoleCompanyFilter}
               availableCompanies={recruitmentCompanies}
@@ -2252,8 +2296,6 @@ export default function Dashboard() {
           </DarkDashboardCard>
         </div>
       </div>
-
-      <Footer />
     </div>
   )
 }

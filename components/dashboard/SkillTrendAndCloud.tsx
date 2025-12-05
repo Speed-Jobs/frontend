@@ -10,8 +10,33 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  TooltipProps,
 } from 'recharts'
 import SkillCloud from './SkillCloud'
+
+// 커스텀 Tooltip 컴포넌트 (스킬 이름과 값 표시)
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
+        <div className="space-y-1">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-sm"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-xs text-gray-700 font-medium">{entry.name}:</span>
+              <span className="text-xs text-gray-900 font-semibold">{entry.value}회</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+  return null
+}
 
 interface SkillTrendAndCloudProps {
   // 스킬 트렌드 데이터 (월별)
@@ -511,14 +536,7 @@ export default function SkillTrendAndCloud({
                 label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 12 } }}
               />
               <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#ffffff', 
-                  border: '1px solid #e5e7eb', 
-                  borderRadius: '8px', 
-                  color: '#374151',
-                  fontSize: '13px'
-                }}
-                formatter={(value: number) => [`${value}회`, '']}
+                content={<CustomTooltip />}
                 cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
               />
               <Legend 
@@ -649,14 +667,7 @@ export default function SkillTrendAndCloud({
                           label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 10 } }}
                         />
                         <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#ffffff', 
-                            border: '1px solid #e5e7eb', 
-                            borderRadius: '8px', 
-                            color: '#374151',
-                            fontSize: '11px'
-                          }}
-                          formatter={(value: number) => [`${value}회`, '']}
+                          content={<CustomTooltip />}
                         />
                         <Legend 
                           wrapperStyle={{ fontSize: '10px', paddingTop: '5px', color: '#6b7280' }}
@@ -708,14 +719,7 @@ export default function SkillTrendAndCloud({
                           label={{ value: '스킬 언급 횟수', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 10 } }}
                         />
                         <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#ffffff', 
-                            border: '1px solid #e5e7eb', 
-                            borderRadius: '8px', 
-                            color: '#374151',
-                            fontSize: '11px'
-                          }}
-                          formatter={(value: number) => [`${value}회`, '']}
+                          content={<CustomTooltip />}
                         />
                         <Legend 
                           wrapperStyle={{ fontSize: '10px', paddingTop: '5px', color: '#6b7280' }}

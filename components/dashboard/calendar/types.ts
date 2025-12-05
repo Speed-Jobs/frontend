@@ -4,6 +4,7 @@ export interface CompanySchedule {
   color: string;
   type: '신입' | '경력';
   dataType?: 'actual' | 'predicted'; // 실제 공고 or 예측치 (신입 공고에만 적용)
+  jobRole?: string; // 직군 정보 (경력 공고에만 적용)
   stages: ScheduleStage[];
 }
 

@@ -153,7 +153,7 @@ export function DateRangePicker({
         setTempEndDate(null)
         setSelectingStart(false)
       } else {
-        // 종료일로 설정
+        // 종료일로 설정 (시작일과 같아도 허용)
         setTempEndDate(dateStr)
         onChange(tempStartDate!, dateStr)
       }

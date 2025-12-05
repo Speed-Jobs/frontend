@@ -63,15 +63,29 @@ export function CalendarCell({
     return <div className="border border-slate-100 bg-white" style={{ aspectRatio: '1' }} />;
   }
 
+  // 날짜를 YYYY-MM-DD 형식으로 정규화하여 시간 부분 제거
+  const normalizeDateForComparison = (d: Date): Date => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
   // Get all company-stage combinations on this date
   const companyStagesOnThisDate: Array<{
     company: CompanySchedule;
     stage: { stage: string; startDate: Date; endDate: Date };
   }> = [];
 
+  const normalizedCurrentDate = normalizeDateForComparison(date);
+  
   companySchedules.forEach((company) => {
     company.stages.forEach((stage) => {
-      if (date >= stage.startDate && date <= stage.endDate) {
+      const normalizedStartDate = normalizeDateForComparison(stage.startDate);
+      const normalizedEndDate = normalizeDateForComparison(stage.endDate);
+      // 종료일은 하루 끝까지 포함하도록 설정
+      normalizedEndDate.setHours(23, 59, 59, 999);
+      
+      if (normalizedCurrentDate >= normalizedStartDate && normalizedCurrentDate <= normalizedEndDate) {
         companyStagesOnThisDate.push({ company, stage });
       }
     });
@@ -83,13 +97,45 @@ export function CalendarCell({
   );
   const overlapCount = uniqueCompaniesWithActiveStages.size;
 
+  // 각 경쟁사의 전체 채용 일정 범위 계산 (첫 전형 시작일부터 마지막 전형 종료일까지)
+  const getCompanyTotalScheduleRanges = () => {
+    const ranges: Array<{ start: Date; end: Date }> = [];
+    
+    companySchedules.forEach((company) => {
+      if (company.stages.length === 0) return;
+      
+      // 모든 전형의 시작일과 종료일 수집
+      const allDates = company.stages.flatMap(stage => [
+        normalizeDateForComparison(stage.startDate),
+        normalizeDateForComparison(stage.endDate)
+      ]);
+      
+      const minStart = new Date(Math.min(...allDates.map(d => d.getTime())));
+      const maxEnd = new Date(Math.max(...allDates.map(d => d.getTime())));
+      
+      minStart.setHours(0, 0, 0, 0);
+      maxEnd.setHours(23, 59, 59, 999);
+      
+      ranges.push({ start: minStart, end: maxEnd });
+    });
+    
+    return ranges;
+  };
+
+  const companyTotalScheduleRanges = getCompanyTotalScheduleRanges();
+  const isInAnyCompanyTotalSchedule = companyTotalScheduleRanges.some(range => 
+    normalizedCurrentDate >= range.start && normalizedCurrentDate <= range.end
+  );
+
   // Check if this date is within any user pin range
   const userPinRangesOnThisDate: UserPin[] = [];
   userPins.forEach((pin) => {
     if (pin.endDate) {
-      const startDate = new Date(pin.date);
-      const endDate = new Date(pin.endDate);
-      if (date >= startDate && date <= endDate) {
+      const startDate = normalizeDateForComparison(new Date(pin.date));
+      const endDate = normalizeDateForComparison(new Date(pin.endDate));
+      // 종료일은 하루 끝까지 포함하도록 설정
+      endDate.setHours(23, 59, 59, 999);
+      if (normalizedCurrentDate >= startDate && normalizedCurrentDate <= endDate) {
         userPinRangesOnThisDate.push(pin);
       }
     }
@@ -97,10 +143,36 @@ export function CalendarCell({
 
   const allPinsOnThisDate = [...userPinRangesOnThisDate];
 
+  // 전체 채용 일정 기간 계산 (모든 전형의 시작일부터 마지막 전형의 종료일까지)
+  const getTotalScheduleRange = () => {
+    if (userPins.length === 0) return null;
+    
+    const dates = userPins.map(pin => {
+      const start = normalizeDateForComparison(new Date(pin.date));
+      const end = pin.endDate ? normalizeDateForComparison(new Date(pin.endDate)) : normalizeDateForComparison(new Date(pin.date));
+      return { start, end };
+    });
+    
+    const minStart = new Date(Math.min(...dates.map(d => d.start.getTime())));
+    const maxEnd = new Date(Math.max(...dates.map(d => d.end.getTime())));
+    
+    // 시간 부분 제거
+    minStart.setHours(0, 0, 0, 0);
+    maxEnd.setHours(23, 59, 59, 999); // 종료일은 하루 끝까지 포함
+    
+    return { start: minStart, end: maxEnd };
+  };
+
+  const totalScheduleRange = getTotalScheduleRange();
+  const isInTotalScheduleRange = totalScheduleRange && 
+    normalizedCurrentDate >= totalScheduleRange.start && 
+    normalizedCurrentDate <= totalScheduleRange.end;
+
   const hasOverlap = overlapCount > 0;
 
   // Calculate opacity based on overlap (more overlaps = darker)
   const getBackgroundStyle = () => {
+    // 경쟁 강도 배경색만 반환 (전체 일정 범위는 별도 레이어로 표시)
     if (overlapCount === 0) return { backgroundColor: 'white' };
     
     const baseOpacity = 0.15;
@@ -170,6 +242,13 @@ export function CalendarCell({
             style={{ ...getBackgroundStyle(), aspectRatio: '1' }}
             onClick={handleClick}
           >
+            {/* 전체 일정 범위 배경 레이어 */}
+            {((isInTotalScheduleRange && userPins.length > 0) || isInAnyCompanyTotalSchedule) && (
+              <div 
+                className="absolute inset-0 pointer-events-none z-0"
+                style={{ backgroundColor: 'rgba(200, 200, 200, 0.15)' }}
+              />
+            )}
             <div className="flex flex-col h-full relative z-10">
               <div
                 className={`text-[10px] ${

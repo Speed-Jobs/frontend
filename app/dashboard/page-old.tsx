@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import JobPostingCard from '@/components/JobPostingCard'
 import NotificationToast from '@/components/NotificationToast'
 import CompanyLogo from '@/components/CompanyLogo'
@@ -5316,8 +5315,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   ) 
 }

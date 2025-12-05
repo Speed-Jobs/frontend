@@ -182,7 +182,7 @@ export default function RecruitmentSchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [activeTab, setActiveTab] = useState<'신입' | '경력'>('신입')
   const [dataFilter, setDataFilter] = useState<'all' | 'actual' | 'predicted'>('all')
-  const [selectedJobRoles, setSelectedJobRoles] = useState<string[]>(JOB_ROLES) // 기본값: 모든 직군 선택
+  const [selectedJobRoles, setSelectedJobRoles] = useState<string[]>([]) // 기본값: 전체 해제
   const [isJobRoleDropdownOpen, setIsJobRoleDropdownOpen] = useState(false)
   
   // 서버에서 받아온 데이터
@@ -204,9 +204,9 @@ export default function RecruitmentSchedulePage() {
           params.append('data_type', dataFilter)
         }
         // 경력 공고일 때 직군 필터 추가 (API가 지원하는 경우)
-        // 여러 직군을 선택한 경우, 첫 번째 직군만 전달 (API가 배열을 지원하지 않을 수 있음)
-        if (activeTab === '경력' && selectedJobRoles.length > 0 && selectedJobRoles.length < JOB_ROLES.length) {
-          params.append('job_role', selectedJobRoles[0])
+        // 선택된 직군들을 콤마로 구분하여 전달
+        if (activeTab === '경력' && selectedJobRoles.length > 0) {
+          params.append('job_role', selectedJobRoles.join(','))
         }
         
         const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/recruitment-schedule/companies?${params.toString()}`
@@ -404,11 +404,11 @@ export default function RecruitmentSchedulePage() {
       })
     }
     
-    // 경력 공고: 직군 필터 적용 (토글 방식)
-    if (activeTab === '경력' && selectedJobRoles.length < JOB_ROLES.length) {
+    // 경력 공고: 직군 필터 적용 (선택된 직군만 표시)
+    if (activeTab === '경력' && selectedJobRoles.length > 0) {
       result = result.filter((schedule) => {
-        // jobRole이 없으면 모든 경력 공고를 표시 (하위 호환성)
-        if (!schedule.jobRole) return true
+        // jobRole이 없으면 표시하지 않음 (선택된 직군만 표시)
+        if (!schedule.jobRole) return false
         // 선택된 직군 목록에 포함되어 있으면 표시
         return selectedJobRoles.includes(schedule.jobRole)
       })
@@ -461,10 +461,6 @@ export default function RecruitmentSchedulePage() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-
-            {activeTab === '경력' && (
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">직군 필터</label>
-            )}
           </div>
 
           {activeTab === '신입' && (

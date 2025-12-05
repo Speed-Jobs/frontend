@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react';
 import { CompanySchedule, UserPin } from './types';
 import {
   Tooltip,
@@ -172,8 +173,18 @@ export function CalendarCell({
 
   // Calculate opacity based on overlap (more overlaps = darker)
   const getBackgroundStyle = () => {
-    // 경쟁 강도 배경색만 반환 (전체 일정 범위는 별도 레이어로 표시)
-    if (overlapCount === 0) return { backgroundColor: 'white' };
+    // 전체 일정 범위가 있으면 빨간색으로 표시 (최소 opacity)
+    if (isInAnyCompanyTotalSchedule) {
+      const baseOpacity = 0.15;
+      return {
+        backgroundColor: `rgba(234, 0, 44, ${baseOpacity})`, // SK Red
+      };
+    }
+    
+    // 경쟁 강도 배경색 반환
+    if (overlapCount === 0) {
+      return { backgroundColor: 'white' };
+    }
     
     const baseOpacity = 0.15;
     const incrementPerOverlap = 0.08;
@@ -242,13 +253,6 @@ export function CalendarCell({
             style={{ ...getBackgroundStyle(), aspectRatio: '1' }}
             onClick={handleClick}
           >
-            {/* 전체 일정 범위 배경 레이어 */}
-            {((isInTotalScheduleRange && userPins.length > 0) || isInAnyCompanyTotalSchedule) && (
-              <div 
-                className="absolute inset-0 pointer-events-none z-0"
-                style={{ backgroundColor: 'rgba(200, 200, 200, 0.15)' }}
-              />
-            )}
             <div className="flex flex-col h-full relative z-10">
               <div
                 className={`text-[10px] ${
@@ -260,7 +264,7 @@ export function CalendarCell({
 
               {/* Long bars for user ranges */}
               {userBadges.length > 0 && (
-                <div className="absolute left-0 right-0 top-3 flex flex-col z-20">
+                <div className="absolute left-0 right-0 top-5 flex flex-col z-20">
                   {userBadges.map((badge, index) => {
                     const roundedClass = badge.isStart && badge.isEnd 
                       ? 'rounded-full px-2' 

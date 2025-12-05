@@ -148,10 +148,17 @@ export function DateRangePicker({
       const clicked = new Date(date)
       
       if (clicked < start) {
-        // 시작일보다 이전 날짜를 클릭하면 시작일로 설정
-        setTempStartDate(dateStr)
-        setTempEndDate(null)
-        setSelectingStart(false)
+        // 시작일보다 이전 날짜를 클릭하면
+        if (tempEndDate) {
+          // 종료일이 이미 있으면: 클릭한 날짜를 새로운 시작일로, 기존 종료일은 유지
+          setTempStartDate(dateStr)
+          onChange(dateStr, tempEndDate)
+        } else {
+          // 종료일이 없으면: 시작일로만 설정
+          setTempStartDate(dateStr)
+          setTempEndDate(null)
+          setSelectingStart(false)
+        }
       } else {
         // 종료일로 설정 (시작일과 같아도 허용)
         setTempEndDate(dateStr)

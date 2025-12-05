@@ -52,14 +52,6 @@ export default function CompanyInsightView({
 
 
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-400">데이터를 불러오는 중...</div>
-      </div>
-    )
-  }
-
   if (error) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -78,6 +70,12 @@ export default function CompanyInsightView({
             style={{ backgroundColor: companyColor }}
           />
           <h3 className="text-lg font-semibold text-gray-900">{companyName} 채용 인사이트</h3>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              <span>인사이트 생성 중...</span>
+            </div>
+          )}
         </div>
         {recruitmentData && recruitmentData.length > 0 && (
           <div className="flex gap-4 text-sm">

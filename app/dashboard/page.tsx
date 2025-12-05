@@ -777,8 +777,9 @@ export default function Dashboard() {
         const companyKeyword = selectedCompanyName ? getCompanyKeyword(selectedCompanyName) : null
         
         // API URL 구성 (회사 파라미터가 있으면 추가)
-        // include_insight=false로 설정 (새로운 API 형식)
-        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=false`
+        // 회사가 선택되었을 때는 include_insight=true로 설정하여 인사이트 데이터 가져오기
+        const includeInsight = companyKeyword ? 'true' : 'false'
+        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=${includeInsight}`
         if (companyKeyword) {
           // company_keyword를 영어 소문자로 전달
           apiUrl += `&company_keyword=${encodeURIComponent(companyKeyword)}`
@@ -2082,8 +2083,8 @@ export default function Dashboard() {
           params.append('end_date', endDate)
         }
         
-        // 회사 필터 추가 (스킬 클라우드용)
-        if (selectedSkillCloudCompany !== '전체') {
+        // 회사 필터 추가 (스킬 클라우드용) - 빈 값이 아닐 때만 추가
+        if (selectedSkillCloudCompany && selectedSkillCloudCompany !== '전체' && selectedSkillCloudCompany.trim() !== '') {
           params.append('company', selectedSkillCloudCompany)
         }
         
@@ -2101,7 +2102,14 @@ export default function Dashboard() {
           credentials: 'omit',
         })
         
+        // 404 에러는 조용히 처리 (API가 존재하지 않을 수 있음)
         if (!response.ok) {
+          if (response.status === 404) {
+            // 404 에러는 fallback 데이터 사용 (콘솔 에러 방지)
+            setSkillsApiData(defaultSkillsData)
+            setIsLoadingSkills(false)
+            return
+          }
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         
@@ -2340,26 +2348,17 @@ export default function Dashboard() {
 
                   return (
                     <div className="mt-3 pt-3 border-t border-gray-200 pb-0 flex-shrink-0">
-                      {isInsightLoading ? (
-                        <div className="bg-white rounded-lg border border-gray-200 px-5 py-3">
-                          <div className="flex items-center justify-center gap-3">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                            <span className="text-gray-600 text-sm">인사이트 생성 중...</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <CompanyInsightView
-                          companyKey={selectedCompany.key}
-                          companyName={selectedCompany.name}
-                          companyColor={selectedCompany.color}
-                          timeframe={jobPostingsTrendTimeframe}
-                          recruitmentData={singleCompanyRecruitmentData}
-                          totalTrendData={jobPostingsTrendApiData}
-                          insightData={combinedTrendData?.insight}
-                          isLoading={false}
-                          error={jobPostingsTrendError || companyRecruitmentError}
-                        />
-                      )}
+                      <CompanyInsightView
+                        companyKey={selectedCompany.key}
+                        companyName={selectedCompany.name}
+                        companyColor={selectedCompany.color}
+                        timeframe={jobPostingsTrendTimeframe}
+                        recruitmentData={singleCompanyRecruitmentData}
+                        totalTrendData={jobPostingsTrendApiData}
+                        insightData={combinedTrendData?.insight}
+                        isLoading={isInsightLoading}
+                        error={jobPostingsTrendError || companyRecruitmentError}
+                      />
                     </div>
                   )
                 }

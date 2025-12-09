@@ -104,7 +104,7 @@ export default function CompanyInsightAnalysis({
             요약
           </h3>
           <p className="text-gray-700 text-sm leading-relaxed">
-            {apiInsights.summary}
+            {typeof apiInsights.summary === 'string' ? apiInsights.summary : String(apiInsights.summary)}
           </p>
         </div>
       )}
@@ -117,10 +117,10 @@ export default function CompanyInsightAnalysis({
             주요 발견사항
           </h3>
           <ul className="space-y-1.5">
-            {apiInsights.keyFindings.map((finding: string, index: number) => (
+            {apiInsights.keyFindings.map((finding: any, index: number) => (
               <li key={index} className="text-gray-700 text-sm leading-relaxed flex items-start gap-2.5">
                 <span className="text-blue-500 mt-1 font-bold flex-shrink-0">•</span>
-                <span>{finding}</span>
+                <span>{typeof finding === 'string' ? finding : String(finding)}</span>
               </li>
             ))}
           </ul>
@@ -134,9 +134,50 @@ export default function CompanyInsightAnalysis({
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             원인 분석
           </h3>
-          <p className="text-gray-700 text-sm leading-relaxed">
-            {apiInsights.causeAnalysis}
-          </p>
+          <div className="text-gray-700 text-sm leading-relaxed">
+            {typeof apiInsights.causeAnalysis === 'string' ? (
+              <p>{apiInsights.causeAnalysis}</p>
+            ) : typeof apiInsights.causeAnalysis === 'object' && apiInsights.causeAnalysis !== null ? (
+              <div className="space-y-2">
+                {apiInsights.causeAnalysis.possible_causes && (
+                  <div>
+                    <p className="font-medium mb-1">가능한 원인:</p>
+                    {Array.isArray(apiInsights.causeAnalysis.possible_causes) ? (
+                      <ul className="list-disc list-inside space-y-1">
+                        {apiInsights.causeAnalysis.possible_causes.map((cause: string, idx: number) => (
+                          <li key={idx}>{cause}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>{String(apiInsights.causeAnalysis.possible_causes)}</p>
+                    )}
+                  </div>
+                )}
+                {apiInsights.causeAnalysis.news_evidence && (
+                  <div>
+                    <p className="font-medium mb-1">뉴스 증거:</p>
+                    {Array.isArray(apiInsights.causeAnalysis.news_evidence) ? (
+                      <ul className="list-disc list-inside space-y-1">
+                        {apiInsights.causeAnalysis.news_evidence.map((evidence: string, idx: number) => (
+                          <li key={idx}>{evidence}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>{String(apiInsights.causeAnalysis.news_evidence)}</p>
+                    )}
+                  </div>
+                )}
+                {apiInsights.causeAnalysis.confidence && (
+                  <div>
+                    <p className="font-medium mb-1">신뢰도:</p>
+                    <p>{String(apiInsights.causeAnalysis.confidence)}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p>{String(apiInsights.causeAnalysis)}</p>
+            )}
+          </div>
         </div>
       )}
       
@@ -148,10 +189,10 @@ export default function CompanyInsightAnalysis({
             전략적 인사이트
           </h3>
           <ul className="space-y-1.5">
-            {apiInsights.strategicInsights.map((insight: string, index: number) => (
+            {apiInsights.strategicInsights.map((insight: any, index: number) => (
               <li key={index} className="text-gray-700 text-sm leading-relaxed flex items-start gap-2.5">
                 <span className="text-yellow-500 mt-1 font-bold flex-shrink-0">•</span>
-                <span>{insight}</span>
+                <span>{typeof insight === 'string' ? insight : String(insight)}</span>
               </li>
             ))}
           </ul>

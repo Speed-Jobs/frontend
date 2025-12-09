@@ -32,6 +32,88 @@ const COMPANY_GROUPS: Record<string, string[]> = {
   "lg cns": ["LG_CNS%", "LG CNS%"],
 }
 
+// 한글 회사명을 영어 회사명으로 매핑
+const COMPANY_NAME_MAP: Record<string, string> = {
+  "토스": "Toss",
+  "토스뱅크": "Toss",
+  "토스증권": "Toss",
+  "비바리퍼블리카": "Toss",
+  "AICC": "Toss",
+  "카카오": "Kakao",
+  "한화시스템": "Hanwha Systems",
+  "한화시스템템": "Hanwha Systems",
+  "현대오토에버": "Hyundai Autoever",
+  "우아한형제들": "woowahan",
+  "우아한": "woowahan",
+  "배달의민족": "woowahan",
+  "배민": "woowahan",
+  "쿠팡": "Coupang",
+  "라인": "LINE",
+  "네이버": "NAVER",
+  "LG CNS": "LG CNS",
+  "LG_CNS": "LG CNS",
+}
+
+// COMPANY_GROUPS 키를 영어 회사명으로 매핑
+const COMPANY_KEY_TO_NAME: Record<string, string> = {
+  "toss": "Toss",
+  "kakao": "Kakao",
+  "hanwha": "Hanwha Systems",
+  "hyundai autoever": "Hyundai Autoever",
+  "woowahan": "woowahan",
+  "coupang": "Coupang",
+  "line": "LINE",
+  "naver": "NAVER",
+  "lg cns": "LG CNS",
+}
+
+// 한글 회사명을 영어 회사명으로 변환하는 함수
+const getEnglishCompanyName = (koreanName: string): string => {
+  if (!koreanName) return koreanName
+  
+  // 정확히 일치하는 경우
+  if (COMPANY_NAME_MAP[koreanName]) {
+    return COMPANY_NAME_MAP[koreanName]
+  }
+  
+  // 부분 일치 확인
+  for (const [korean, english] of Object.entries(COMPANY_NAME_MAP)) {
+    if (koreanName.includes(korean) || korean.includes(koreanName)) {
+      return english
+    }
+  }
+  
+  // COMPANY_GROUPS에서 매칭되는 키 찾기
+  const normalizeCompanyName = (name: string): string => {
+    return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+  }
+  
+  const cleanName = normalizeCompanyName(koreanName)
+  for (const [key, keywords] of Object.entries(COMPANY_GROUPS)) {
+    const matched = keywords.some(keyword => {
+      const cleanKeyword = keyword.replace(/%/g, '').toLowerCase().trim()
+      return cleanName.includes(cleanKeyword) || cleanKeyword.includes(cleanName)
+    })
+    if (matched) {
+      // COMPANY_KEY_TO_NAME에서 영어 회사명 가져오기
+      if (COMPANY_KEY_TO_NAME[key]) {
+        return COMPANY_KEY_TO_NAME[key]
+      }
+      // 없으면 키를 영어 회사명으로 변환 (첫 글자 대문자)
+      return key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    }
+  }
+  
+  // 키 자체가 영어 회사명일 수도 있으므로 확인
+  const normalizedKey = koreanName.toLowerCase().trim()
+  if (COMPANY_KEY_TO_NAME[normalizedKey]) {
+    return COMPANY_KEY_TO_NAME[normalizedKey]
+  }
+  
+  // 매칭되지 않으면 원본 반환
+  return koreanName
+}
+
 // COMPANY_GROUPS를 기반으로 companyKeywords 문자열 생성
 const getCompanyKeywords = (): string => {
   const keywords: string[] = []
@@ -744,19 +826,21 @@ export default function Dashboard() {
       setIsLoadingJobPostingsTrend(true)
       setJobPostingsTrendError(null)
       
-      // 회사가 변경되면 이전 인사이트 데이터만 초기화 (차트 데이터는 유지)
+      // 회사가 변경되면 이전 차트 데이터와 인사이트 데이터 초기화
       if (selectedRecruitmentCompanies.length === 1) {
         const selectedCompanyName = selectedRecruitmentCompanies[0] // 이미 회사 이름
         const currentInsightCompany = combinedTrendData?.selectedCompany?.company_name
-        // 선택된 회사가 변경되면 인사이트 데이터만 초기화 (companyRecruitmentApiData는 유지)
+        // 선택된 회사가 변경되면 차트 데이터와 인사이트 데이터 모두 초기화
         if (selectedCompanyName && currentInsightCompany && selectedCompanyName !== currentInsightCompany) {
-          setCombinedTrendData(prev => prev ? { ...prev, insight: null } : null)
-          // companyRecruitmentApiData는 유지하여 차트가 계속 표시되도록 함
+          // 이전 차트 데이터 초기화하여 로딩 중에 이전 차트가 표시되지 않도록 함
+          setJobPostingsTrendApiData([])
+          setCombinedTrendData(null)
         }
       } else {
-        // 전체 선택으로 변경되면 인사이트 데이터만 초기화
-        if (combinedTrendData?.insight) {
-          setCombinedTrendData(prev => prev ? { ...prev, insight: null } : null)
+        // 전체 선택으로 변경되면 차트 데이터와 인사이트 데이터 초기화
+        if (combinedTrendData?.insight || jobPostingsTrendApiData.length > 0) {
+          setJobPostingsTrendApiData([])
+          setCombinedTrendData(null)
         }
       }
       
@@ -776,10 +860,9 @@ export default function Dashboard() {
         // 회사명을 영어 소문자 키워드로 변환
         const companyKeyword = selectedCompanyName ? getCompanyKeyword(selectedCompanyName) : null
         
-        // API URL 구성 (회사 파라미터가 있으면 추가)
-        // 회사가 선택되었을 때는 include_insight=true로 설정하여 인사이트 데이터 가져오기
-        const includeInsight = companyKeyword ? 'true' : 'false'
-        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=${includeInsight}`
+        // 차트 데이터를 먼저 빠르게 가져오기 위해 include_insight=false로 호출
+        // 인사이트는 별도로 나중에 가져옴
+        let apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=false`
         if (companyKeyword) {
           // company_keyword를 영어 소문자로 전달
           apiUrl += `&company_keyword=${encodeURIComponent(companyKeyword)}`
@@ -804,7 +887,7 @@ export default function Dashboard() {
         
         // 새로운 API 응답 형식 파싱
         if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
-          const { trends, insight, selected_company, top_companies } = result.data
+          const { trends, selected_company, top_companies } = result.data
           
           // 추이 데이터 설정: 회사가 선택되었으면 선택된 회사의 trends 사용, 아니면 전체 trends 사용
           if (selectedRecruitmentCompanies.length === 1 && selected_company && selected_company.trends && Array.isArray(selected_company.trends) && selected_company.trends.length > 0) {
@@ -841,267 +924,82 @@ export default function Dashboard() {
             setJobPostingsTrendApiData([])
           }
           
-          // 인사이트 데이터 저장 (include_insight=false이면 insight가 없을 수 있음)
-          if (insight) {
-            setCombinedTrendData({
-              trends: trends || [],
-              insight: insight,
-              selectedCompany: selected_company || null,
-              top_companies: top_companies || []
-            })
+          // 차트 데이터가 있으면 먼저 차트를 표시하기 위해 로딩 상태 해제
+          // 인사이트는 별도로 처리하여 나중에 추가
+          if (Array.isArray(trends) && trends.length > 0) {
             setIsLoadingJobPostingsTrend(false)
             
-            // 회사 이름 정규화 함수 (중복 체크용)
-            const normalizeCompanyName = (name: string): string => {
-              return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-            }
+            // selected_company와 top_companies의 한글 회사명을 영어로 변환
+            const convertedSelectedCompany = selected_company ? {
+              ...selected_company,
+              company_name: getEnglishCompanyName(selected_company.company_name)
+            } : null
             
-            // 회사 key 생성 함수 (normalizeCompanyName 기반)
-            const generateCompanyKey = (name: string): string => {
-              return normalizeCompanyName(name)
-            }
+            const convertedTopCompanies = top_companies ? top_companies.map((comp: any) => ({
+              ...comp,
+              company_name: getEnglishCompanyName(comp.company_name || comp.name)
+            })) : []
             
-            // top_companies 또는 competitor_comparison을 사용하여 회사 목록 구성
-            let companies: any[] = []
-            const companyMap = new Map<string, any>() // 정규화된 이름을 key로 사용하여 중복 제거
-            
-            // selected_company가 있으면 먼저 추가 (반드시 포함되어야 함)
-            if (selected_company && selected_company.company_name) {
-              const normalizedName = normalizeCompanyName(selected_company.company_name)
-              const selectedKey = generateCompanyKey(selected_company.company_name)
-              companyMap.set(normalizedName, {
-                id: selected_company.company_id || 0,
-                name: selected_company.company_name,
-                key: selectedKey,
-                total_count: selected_company.total_count || 0,
-                market_share: 0
-              })
-            }
-            
-            // top_companies가 있으면 우선 사용
-            if (top_companies && Array.isArray(top_companies) && top_companies.length > 0) {
-              top_companies.forEach((comp: any, index: number) => {
-                const companyName = comp.company_name || comp.name
-                const normalizedName = normalizeCompanyName(companyName)
-                if (!companyMap.has(normalizedName)) {
-                  companyMap.set(normalizedName, {
-                    id: comp.company_id || comp.id || index + 1,
-                    name: companyName,
-                    key: generateCompanyKey(companyName),
-                    total_count: comp.total_count || comp.count || 0,
-                    market_share: comp.market_share || 0
-                  })
-                }
-              })
-            }
-            // competitor_comparison이 있으면 사용
-            else if (insight.competitor_comparison && Array.isArray(insight.competitor_comparison)) {
-              insight.competitor_comparison.forEach((comp: any, index: number) => {
-                const normalizedName = normalizeCompanyName(comp.company_name)
-                if (!companyMap.has(normalizedName)) {
-                  companyMap.set(normalizedName, {
-                    id: comp.company_id || comp.rank || index + 1,
-                    name: comp.company_name,
-                    key: generateCompanyKey(comp.company_name),
-                    total_count: comp.total_count || 0,
-                    market_share: comp.market_share || 0
-                  })
-                }
-              })
-            }
-            
-            companies = Array.from(companyMap.values())
-            
-            // 회사별 채용 활동 데이터 구성 (selected_company.trends 사용)
-            if (companies.length > 0 && selected_company && selected_company.trends) {
-              // 회사 이름 정규화 함수 (매칭용)
-              const normalizeCompanyName = (name: string): string => {
-                return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-              }
-              
-              const normalizedSelectedCompanyName = normalizeCompanyName(selected_company.company_name)
-              
-              // selected_company.trends를 주간별로 집계
-              const trendsByPeriod = new Map<string, number>()
-              
-              // selected_company.trends의 모든 period를 Map에 저장
-              selected_company.trends.forEach((trend: any) => {
-                const period = trend.period
-                const count = trend.count || 0
-                if (period) {
-                  // 기존 값이 있으면 더하고, 없으면 새로 설정
-                  trendsByPeriod.set(period, (trendsByPeriod.get(period) || 0) + count)
-                }
-              })
-              
-              // 선택된 회사를 찾기
-              const selectedCompanyInList = companies.find((comp: any) => {
-                const normalizedCompName = normalizeCompanyName(comp.name)
-                return normalizedCompName === normalizedSelectedCompanyName || comp.name === selected_company.company_name
-              })
-              
-              // 전체 trends 데이터의 period 순서를 유지하면서 회사별 데이터 구성
-              const activities = trends.map((trendItem: any) => {
-                const activityData: { period: string; counts: Record<string, number> } = {
-                  period: trendItem.period,
-                  counts: {}
-                }
-              
-              // 각 회사의 counts 추가
-              companies.forEach((comp: any) => {
-                const normalizedCompName = normalizeCompanyName(comp.name)
-                // 선택된 회사인 경우 selected_company.trends에서 집계된 값 사용
-                if (normalizedCompName === normalizedSelectedCompanyName || comp.name === selected_company.company_name) {
-                  // trendsByPeriod에서 해당 period의 값을 가져옴
-                  let count = trendsByPeriod.get(trendItem.period) ?? 0
-                  
-                  // period가 일치하지 않으면 selected_company.trends에서 직접 찾기
-                  if (count === 0 && selected_company.trends && Array.isArray(selected_company.trends)) {
-                    const matchingTrend = selected_company.trends.find((t: any) => t.period === trendItem.period)
-                    if (matchingTrend && matchingTrend.count) {
-                      count = matchingTrend.count
-                    }
-                  }
-                  
-                  // 선택된 회사의 key로 데이터 저장
-                  activityData.counts[comp.key] = count
-                } else {
-                  // 다른 회사는 competitor_comparison의 market_share를 사용하여 추정
-                  const competitor = insight.competitor_comparison?.find((c: any) => {
-                    const normalizedCompetitorName = normalizeCompanyName(c.company_name)
-                    return normalizedCompetitorName === normalizedCompName || c.company_name === comp.name
-                  })
-                  if (competitor && trendItem.count && competitor.market_share) {
-                    // 전체 시장에서 해당 회사의 시장 점유율을 기반으로 추정
-                    const estimatedCount = Math.round((trendItem.count * competitor.market_share) / 100)
-                    activityData.counts[comp.key] = estimatedCount
-                  } else {
-                    activityData.counts[comp.key] = 0
-                  }
-                }
-              })
-                
-                return activityData
-              })
-              
-              // 기존 데이터와 병합하여 유지 (회사 변경 시에도 이전 데이터 유지)
-              setCompanyRecruitmentApiData(prev => {
-                if (!prev) {
-                  return {
-                    companies: companies,
-                    activities: activities
-                  }
-                }
-                
-                // 회사 이름 정규화 함수 (매칭용)
-                const normalizeCompanyName = (name: string): string => {
-                  return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-                }
-                
-                // 회사 key 생성 함수 (normalizeCompanyName 기반)
-                const generateCompanyKey = (name: string): string => {
-                  return normalizeCompanyName(name)
-                }
-                
-                // 선택된 회사의 이름과 key 찾기
-                const selectedCompanyName = selected_company.company_name
-                const selectedCompanyKey = generateCompanyKey(selectedCompanyName)
-                
-                // 기존 companies와 새 companies 병합 (중복 제거)
-                const existingCompanyMap = new Map(prev.companies.map(c => [c.key, c]))
-                companies.forEach(comp => {
-                  if (!existingCompanyMap.has(comp.key)) {
-                    existingCompanyMap.set(comp.key, comp)
-                  }
-                })
-                const mergedCompanies = Array.from(existingCompanyMap.values())
-                
-                // 기존 activities와 새 activities 병합 (period 기준)
-                const existingActivityMap = new Map(prev.activities.map(a => [a.period, { ...a, counts: { ...a.counts } }]))
-                
-                activities.forEach((activity: { period: string; counts: Record<string, number> }) => {
-                  const existing = existingActivityMap.get(activity.period)
-                  if (existing) {
-                    // 선택된 회사의 counts는 새 데이터로 덮어씌우고, 다른 회사는 유지
-                    Object.keys(activity.counts).forEach(companyKey => {
-                      if (companyKey === selectedCompanyKey) {
-                        // 선택된 회사의 데이터는 새 값으로 업데이트
-                        existing.counts[companyKey] = activity.counts[companyKey]
-                      } else {
-                        // 다른 회사의 데이터는 기존 값 유지 (없으면 새 값 추가)
-                        if (existing.counts[companyKey] === undefined) {
-                          existing.counts[companyKey] = activity.counts[companyKey]
-                        }
-                      }
-                    })
-                    // 선택된 회사가 새 데이터에 없으면 0으로 설정 (해당 period에 데이터가 없음을 명시)
-                    if (!activity.counts[selectedCompanyKey] && activity.counts[selectedCompanyKey] !== 0) {
-                      existing.counts[selectedCompanyKey] = 0
-                    }
-                  } else {
-                    // 새로운 period인 경우 그대로 추가
-                    existingActivityMap.set(activity.period, activity)
-                  }
-                })
-                
-                // 기존 activities에 있지만 새 activities에 없는 period의 선택된 회사 데이터는 0으로 설정
-                existingActivityMap.forEach((activity: { period: string; counts: Record<string, number> }, period) => {
-                  if (!activities.find((a: { period: string; counts: Record<string, number> }) => a.period === period)) {
-                    // 새 데이터에 없는 period는 선택된 회사의 데이터를 0으로 설정
-                    activity.counts[selectedCompanyKey] = 0
-                  }
-                })
-                
-                const mergedActivities = Array.from(existingActivityMap.values())
-                
-                return {
-                  companies: mergedCompanies,
-                  activities: mergedActivities
-                }
-              })
-              
-              // 초기 선택: 선택된 회사만 선택 (새로운 API 형식에서는 단일 회사만 지원)
-              if (selectedRecruitmentCompanies.length === 0 && selected_company) {
-                setSelectedRecruitmentCompanies([selected_company.company_name])
-              }
-            }
-          } else {
-            // insight가 없어도 trends는 저장 (전체 추이 그래프 표시용)
+            // 차트 데이터를 먼저 설정 (인사이트 없이도 차트 표시)
             setCombinedTrendData(prev => ({
               trends: trends || [],
-              insight: prev?.insight || null,
-              selectedCompany: selected_company || prev?.selectedCompany || null,
-              top_companies: top_companies || prev?.top_companies || []
+              insight: prev?.insight || null, // 이전 인사이트 유지 (없으면 null)
+              selectedCompany: convertedSelectedCompany || prev?.selectedCompany || null,
+              top_companies: convertedTopCompanies.length > 0 ? convertedTopCompanies : (prev?.top_companies || [])
             }))
-            // trends만 있어도 그래프는 표시할 수 있으므로 로딩 상태 해제
-            if (Array.isArray(trends) && trends.length > 0) {
-              setIsLoadingJobPostingsTrend(false)
-            }
           }
+          
+          // 회사가 선택되었을 때만 인사이트를 별도로 가져오기
+          if (companyKeyword && selected_company) {
+            // 인사이트는 백그라운드에서 별도로 가져오기 (차트 표시를 방해하지 않음)
+            fetch(`https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=true&company_keyword=${encodeURIComponent(companyKeyword)}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              mode: 'cors',
+              credentials: 'omit',
+            })
+              .then(response => {
+                if (!response.ok) {
+                  return null
+                }
+                return response.json()
+              })
+              .then(result => {
+                if (result && result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.insight) {
+                  const { insight, selected_company: insightSelectedCompany, top_companies: insightTopCompanies } = result.data
+                  
+                  // 인사이트 데이터만 추가 (차트 데이터는 이미 설정됨)
+                  const convertedSelectedCompany = insightSelectedCompany ? {
+                    ...insightSelectedCompany,
+                    company_name: getEnglishCompanyName(insightSelectedCompany.company_name)
+                  } : null
+                  
+                  const convertedTopCompanies = insightTopCompanies ? insightTopCompanies.map((comp: any) => ({
+                    ...comp,
+                    company_name: getEnglishCompanyName(comp.company_name || comp.name)
+                  })) : []
+                  
+                  setCombinedTrendData(prev => ({
+                    trends: prev?.trends || [],
+                    insight: insight,
+                    selectedCompany: convertedSelectedCompany || prev?.selectedCompany || null,
+                    top_companies: convertedTopCompanies.length > 0 ? convertedTopCompanies : (prev?.top_companies || [])
+                  }))
+                }
+              })
+              .catch(error => {
+                // 인사이트 로딩 실패는 무시 (차트는 이미 표시됨)
+                console.error('인사이트 로딩 실패:', error)
+              })
+          }
+          
         } else {
-          // 기존 형식 호환성 유지
-          let data: Array<{ period: string; count: number }> = []
-          
-          if (Array.isArray(result.data)) {
-            data = result.data
-          } else if (typeof result.data === 'object' && result.data !== null) {
-            const possibleArrayFields = ['trends', 'data', 'items', 'results', 'list']
-            for (const field of possibleArrayFields) {
-              if (Array.isArray(result.data[field])) {
-                data = result.data[field]
-                break
-              }
-            }
-          } else if (Array.isArray(result)) {
-            data = result
-          }
-          
-          const formattedData = data.map(item => ({
-            period: item.period,
-            count: item.count
-          }))
-          
-          setJobPostingsTrendApiData(formattedData)
+          // API 응답 형식이 예상과 다른 경우
+          setJobPostingsTrendApiData([])
+          setCombinedTrendData(null)
         }
       } catch (error) {
         setJobPostingsTrendError(error instanceof Error ? error.message : '데이터를 불러오는 중 오류가 발생했습니다.')
@@ -1152,9 +1050,405 @@ export default function Dashboard() {
               
               const result = await response.json()
               if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+                const koreanName = result.data.selected_company?.company_name || companyKey
+                const englishName = getEnglishCompanyName(koreanName)
                 return {
                   companyKey,
-                  companyName: result.data.selected_company?.company_name || companyKey,
+                  companyName: englishName,
+                  trends: result.data.selected_company?.trends || [],
+                  totalCount: result.data.selected_company?.total_count || 0
+                }
+              }
+              return null
+            } catch (error) {
+              return null
+            }
+          })
+          
+          const companyResults = await Promise.all(companyPromises)
+          const validResults = companyResults.filter(r => r !== null)
+          
+            if (validResults.length > 0) {
+              // 모든 회사의 period를 수집하여 통합
+              const allPeriodsSet = new Set<string>()
+              validResults.forEach(result => {
+                result!.trends.forEach((trend: any) => {
+                  allPeriodsSet.add(trend.period)
+                })
+              })
+              
+              // period 정렬 (날짜 형식에 따라)
+              const allPeriods = Array.from(allPeriodsSet).sort((a, b) => {
+                // "M월 N주" 형식 파싱
+                const parsePeriod = (period: string): number => {
+                  const monthMatch = period.match(/(\d+)월/)
+                  const weekMatch = period.match(/(\d+)주/)
+                  if (monthMatch && weekMatch) {
+                    const month = parseInt(monthMatch[1])
+                    const week = parseInt(weekMatch[1])
+                    return month * 100 + week
+                  }
+                  return 0
+                }
+                return parsePeriod(a) - parsePeriod(b)
+              })
+              
+              // 회사 정보 및 활동 데이터 구성
+              const companies = validResults.map((result, index) => ({
+                id: index + 1,
+                key: result!.companyKey.replace(/\s+/g, '_'),
+                name: result!.companyName
+              }))
+              
+              // 각 회사의 trends를 period별로 매핑 (company.key를 키로 사용)
+              const trendsMap = new Map<string, Map<string, number>>()
+              validResults.forEach((result, index) => {
+                const periodMap = new Map<string, number>()
+                result!.trends.forEach((trend: any) => {
+                  periodMap.set(trend.period, trend.count || 0)
+                })
+                // company.key를 키로 사용
+                trendsMap.set(companies[index].key, periodMap)
+              })
+              
+              const activities = allPeriods.map(period => {
+              const counts: Record<string, number> = {}
+              companies.forEach(company => {
+                const periodMap = trendsMap.get(company.key)
+                counts[company.key] = periodMap?.get(period) || 0
+              })
+              return {
+                period,
+                counts
+              }
+            })
+            
+            setCompanyRecruitmentApiData({
+              companies,
+              activities
+            })
+            
+            // 초기 선택: 전체 선택 (모든 회사)
+            if (selectedRecruitmentCompanies.length === 0 && companies.length > 0) {
+              setSelectedRecruitmentCompanies(companies.map(c => c.name))
+            }
+          }
+        } else {
+          // 단일 회사 선택 시 기존 방식 사용
+          // 이미 fetchJobPostingsTrend에서 처리되므로 여기서는 빈 데이터로 설정
+          setCompanyRecruitmentApiData(null)
+        }
+      } catch (error) {
+        setCompanyRecruitmentError(error instanceof Error ? error.message : '회사별 채용 활동 데이터를 불러오는 중 오류가 발생했습니다.')
+        setCompanyRecruitmentApiData(null)
+      } finally {
+        setIsLoadingCompanyRecruitment(false)
+      }
+    }
+    
+    fetchCompanyRecruitment()
+  }, [companyRecruitmentTimeframe, selectedRecruitmentCompanies.length])
+
+  // 스킬 트렌드 API 호출 (회사 선택 시, 최근 5년 데이터)
+  useEffect(() => {
+    const fetchSkillTrend = async () => {
+      if (selectedRecruitmentCompanies.length !== 1) {
+        setSkillTrendData([])
+        return
+      }
+
+      try {
+        setIsLoadingSkillTrend(true)
+        setSkillTrendError(null)
+        
+        const selectedCompanyName = selectedRecruitmentCompanies[0]
+        const companyKeyword = getCompanyKeyword(selectedCompanyName)
+        
+        if (!companyKeyword) {
+          setSkillTrendData([])
+          setIsLoadingSkillTrend(false)
+          return
+        }
+
+        const currentYear = new Date().getFullYear()
+        const allTrends: Array<{
+          month: string
+          [key: string]: string | number
+        }> = []
+
+        // 최근 5년 데이터 가져오기
+        for (let year = currentYear - 4; year <= currentYear; year++) {
+          try {
+            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trend?year=${year}&company_keyword=${encodeURIComponent(companyKeyword)}`
+            const response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              mode: 'cors',
+              credentials: 'omit',
+            })
+            
+            if (!response.ok) {
+              continue
+            }
+            
+            const result = await response.json()
+            if (result.status === 200 && result.code === 'SUCCESS' && result.data && Array.isArray(result.data)) {
+              const formattedTrends = result.data.map((trend: any) => {
+                const data: { month: string; [key: string]: string | number } = {
+                  month: trend.month || `${year}-${String(trend.month_index || 1).padStart(2, '0')}`
+                }
+                
+                if (trend.skills && typeof trend.skills === 'object') {
+                  Object.keys(trend.skills).forEach(key => {
+                    data[key] = Number(trend.skills[key] || 0)
+                  })
+                }
+                
+                return data
+              })
+              
+              allTrends.push(...formattedTrends)
+            }
+          } catch (yearErr) {
+            // 개별 연도 실패는 무시하고 계속 진행
+          }
+        }
+
+        setSkillTrendData(allTrends)
+      } catch (err) {
+        setSkillTrendError(err instanceof Error ? err.message : '스킬 트렌드를 불러오는 중 오류가 발생했습니다.')
+        setSkillTrendData([])
+      } finally {
+        setIsLoadingSkillTrend(false)
+      }
+    }
+
+    fetchSkillTrend()
+  }, [selectedRecruitmentCompanies])
+
+  // 회사 목록 구성 (recruitmentCompanies)
+  const recruitmentCompanies = useMemo(() => {
+    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
+    
+    // 회사 이름 정규화 함수 (중복 체크용)
+    const normalizeCompanyName = (name: string): string => {
+      return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+    }
+    
+    // 회사 key 생성 함수 (normalizeCompanyName 기반)
+    const generateCompanyKey = (name: string): string => {
+      return normalizeCompanyName(name)
+    }
+    
+    const companyMap = new Map<string, any>() // 정규화된 이름을 key로 사용
+    
+    // companyRecruitmentApiData의 companies를 우선 사용 (이미 선택된 회사들의 실제 데이터)
+    if (companyRecruitmentApiData?.companies && companyRecruitmentApiData.companies.length > 0) {
+      companyRecruitmentApiData.companies.forEach((company: { key: string; name: string }, index: number) => {
+        // 한글 회사명을 영어로 변환 (이미 영어일 수도 있지만 안전하게 변환)
+        const englishCompanyName = getEnglishCompanyName(company.name)
+        const normalizedName = normalizeCompanyName(englishCompanyName)
+        if (!companyMap.has(normalizedName)) {
+          companyMap.set(normalizedName, {
+            id: company.key || index + 1,
+            key: company.key || normalizedName,
+            name: englishCompanyName,
+            color: colors[companyMap.size % colors.length]
+          })
+        }
+      })
+    }
+    
+    // 새로운 API 형식: top_companies 우선, 없으면 competitor_comparison 사용
+    if (combinedTrendData?.insight) {
+      // 선택된 회사가 있으면 먼저 추가
+      if (combinedTrendData.selectedCompany) {
+        const selectedComp = combinedTrendData.selectedCompany
+        // 한글 회사명을 영어로 변환
+        const englishCompanyName = getEnglishCompanyName(selectedComp.company_name)
+        const normalizedName = normalizeCompanyName(englishCompanyName)
+        if (!companyMap.has(normalizedName)) {
+          const selectedKey = generateCompanyKey(englishCompanyName)
+          companyMap.set(normalizedName, {
+            id: selectedComp.company_id || 0,
+            key: selectedKey,
+            name: englishCompanyName,
+            color: colors[companyMap.size % colors.length]
+          })
+        }
+      }
+      
+      // top_companies가 있으면 우선 사용
+      if (combinedTrendData.top_companies && Array.isArray(combinedTrendData.top_companies) && combinedTrendData.top_companies.length > 0) {
+        combinedTrendData.top_companies.forEach((comp: any, index: number) => {
+          const koreanName = comp.company_name || comp.name
+          const companyName = getEnglishCompanyName(koreanName)
+          const normalizedName = normalizeCompanyName(companyName)
+          if (!companyMap.has(normalizedName)) {
+            const key = generateCompanyKey(companyName)
+            companyMap.set(normalizedName, {
+              id: comp.company_id || comp.id || index + 1,
+              key: key,
+              name: companyName,
+              color: colors[companyMap.size % colors.length]
+            })
+          }
+        })
+      }
+      // competitor_comparison 사용
+      else if (combinedTrendData.insight.competitor_comparison && Array.isArray(combinedTrendData.insight.competitor_comparison)) {
+        combinedTrendData.insight.competitor_comparison.forEach((comp: any, index: number) => {
+          const koreanName = comp.company_name
+          const companyName = getEnglishCompanyName(koreanName)
+          const normalizedName = normalizeCompanyName(companyName)
+          if (!companyMap.has(normalizedName)) {
+            const key = generateCompanyKey(companyName)
+            companyMap.set(normalizedName, {
+              id: comp.company_id || comp.rank || index + 1,
+              key: key,
+              name: companyName,
+              color: colors[companyMap.size % colors.length]
+            })
+          }
+        })
+      }
+    }
+    
+    const companies = Array.from(companyMap.values())
+    
+    if (companies.length > 0) {
+      return companies
+    }
+    
+    // 데이터가 로딩 중이거나 실제 데이터가 없을 때는 빈 배열 반환 (하드코딩된 기본 목록 표시 안 함)
+    return []
+  }, [companyRecruitmentApiData, combinedTrendData])
+
+  // 회사별 채용 활동 차트 데이터 변환
+  const companyRecruitmentChartData = useMemo(() => {
+    // companyRecruitmentApiData가 있으면 우선 사용 (selected_company.trends 기반 데이터)
+    if (companyRecruitmentApiData && companyRecruitmentApiData.activities && companyRecruitmentApiData.activities.length > 0) {
+      return companyRecruitmentApiData.activities.map(activity => {
+        const data: { period: string; [key: string]: string | number } = { period: activity.period }
+        // companyRecruitmentApiData.companies의 모든 회사에 대해 데이터 설정
+        companyRecruitmentApiData.companies.forEach(company => {
+          // activity.counts에 해당 회사의 key가 있으면 사용, 없으면 0
+          if (activity.counts.hasOwnProperty(company.key)) {
+            data[company.key] = activity.counts[company.key]
+          } else {
+            data[company.key] = 0
+          }
+        })
+        return data
+      })
+    }
+    
+    // 기존 형식: insight.trend_analysis 사용 (fallback)
+    if (combinedTrendData?.insight?.trend_analysis) {
+      const trendAnalysis = combinedTrendData.insight.trend_analysis
+      const competitorComparison = combinedTrendData.insight.competitor_comparison || []
+      
+      // 선택된 회사들에 대한 데이터만 구성
+      if (selectedRecruitmentCompanies.length === 0) return []
+      
+      return trendAnalysis.map((item: any) => {
+        const data: { period: string; [key: string]: string | number } = { 
+          period: item.period 
+        }
+        
+        // 회사 이름 정규화 함수 (매칭용)
+        const normalizeCompanyName = (name: string): string => {
+          return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+        }
+        
+        const normalizedSelectedCompanyName = combinedTrendData.selectedCompany?.company_name 
+          ? normalizeCompanyName(combinedTrendData.selectedCompany.company_name)
+          : null
+        
+        // 회사 key 생성 함수 (normalizeCompanyName 기반)
+        const generateCompanyKey = (name: string): string => {
+          return normalizeCompanyName(name)
+        }
+        
+        // 선택된 각 회사의 데이터 추가 (selectedRecruitmentCompanies는 이미 회사 이름)
+        selectedRecruitmentCompanies.forEach((companyName: string) => {
+          const normalizedCompanyName = normalizeCompanyName(companyName)
+          const companyKey = generateCompanyKey(companyName)
+          
+          // 선택된 회사인 경우
+          if (normalizedCompanyName === normalizedSelectedCompanyName) {
+            data[companyKey] = Number(item.company_count || 0)
+          } else {
+            // 다른 회사는 competitor_comparison에서 찾기
+            const competitor = competitorComparison.find((c: any) => {
+              const competitorEnglishName = getEnglishCompanyName(c.company_name)
+              const normalizedCompetitorName = normalizeCompanyName(competitorEnglishName)
+              return normalizedCompetitorName === normalizedCompanyName || competitorEnglishName === companyName
+            })
+            
+            if (competitor && item.total_count && competitor.market_share) {
+              // 전체 시장에서 해당 회사의 시장 점유율을 기반으로 추정
+              const estimatedCount = Math.round((item.total_count * competitor.market_share) / 100)
+              data[companyKey] = estimatedCount
+            } else {
+              data[companyKey] = 0
+            }
+          }
+        })
+        
+        return data
+      })
+    }
+    
+    return []
+  }, [companyRecruitmentApiData, combinedTrendData, selectedRecruitmentCompanies, recruitmentCompanies])
+
+
+  // 회사별 채용 활동 API 호출 (전체 조회 시 각 회사별로 정확한 데이터 가져오기)
+  useEffect(() => {
+    const fetchCompanyRecruitment = async () => {
+      try {
+        setIsLoadingCompanyRecruitment(true)
+        setCompanyRecruitmentError(null)
+        
+        const timeframeMap: Record<string, string> = {
+          'Daily': 'daily',
+          'Weekly': 'weekly',
+          'Monthly': 'monthly'
+        }
+        const timeframeParam = timeframeMap[companyRecruitmentTimeframe] || 'daily'
+        
+        // 전체 조회 시 각 회사별로 job-postings-trend API 호출하여 정확한 데이터 가져오기
+        if (selectedRecruitmentCompanies.length === 0 || selectedRecruitmentCompanies.length > 1) {
+          // COMPANY_GROUPS의 모든 회사에 대해 API 호출
+          const companyKeys = Object.keys(COMPANY_GROUPS)
+          const companyPromises = companyKeys.map(async (companyKey) => {
+            try {
+              const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&company_keyword=${encodeURIComponent(companyKey)}&include_insight=false`
+              const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                mode: 'cors',
+                credentials: 'omit',
+              })
+              
+              if (!response.ok) {
+                return null
+              }
+              
+              const result = await response.json()
+              if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+                const koreanName = result.data.selected_company?.company_name || companyKey
+                const englishName = getEnglishCompanyName(koreanName)
+                return {
+                  companyKey,
+                  companyName: englishName,
                   trends: result.data.selected_company?.trends || [],
                   totalCount: result.data.selected_company?.total_count || 0
                 }
@@ -1458,190 +1752,6 @@ export default function Dashboard() {
 
     fetchSkillTrend()
   }, [selectedSkillCompany])
-
-  // 회사별 채용 활동 회사 목록 (색상 포함)
-  const recruitmentCompanies = useMemo(() => {
-    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
-    
-    // 회사 이름 정규화 함수 (중복 체크용)
-    const normalizeCompanyName = (name: string): string => {
-      return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-    }
-    
-    // 회사 key 생성 함수 (normalizeCompanyName 기반)
-    const generateCompanyKey = (name: string): string => {
-      return normalizeCompanyName(name)
-    }
-    
-    const companyMap = new Map<string, any>() // 정규화된 이름을 key로 사용
-    
-    // companyRecruitmentApiData의 companies를 우선 사용 (이미 선택된 회사들의 실제 데이터)
-    if (companyRecruitmentApiData?.companies && companyRecruitmentApiData.companies.length > 0) {
-      companyRecruitmentApiData.companies.forEach((company: { key: string; name: string }, index: number) => {
-        const normalizedName = normalizeCompanyName(company.name)
-        if (!companyMap.has(normalizedName)) {
-          companyMap.set(normalizedName, {
-            id: company.key || index + 1,
-            key: company.key || normalizedName,
-            name: company.name,
-            color: colors[companyMap.size % colors.length]
-          })
-        }
-      })
-    }
-    
-    // 새로운 API 형식: top_companies 우선, 없으면 competitor_comparison 사용
-    if (combinedTrendData?.insight) {
-      // 선택된 회사가 있으면 먼저 추가
-      if (combinedTrendData.selectedCompany) {
-        const selectedComp = combinedTrendData.selectedCompany
-        const normalizedName = normalizeCompanyName(selectedComp.company_name)
-        if (!companyMap.has(normalizedName)) {
-          const selectedKey = generateCompanyKey(selectedComp.company_name)
-          companyMap.set(normalizedName, {
-            id: selectedComp.company_id || 0,
-            key: selectedKey,
-            name: selectedComp.company_name,
-            color: colors[companyMap.size % colors.length]
-          })
-        }
-      }
-      
-      // top_companies가 있으면 우선 사용
-      if (combinedTrendData.top_companies && Array.isArray(combinedTrendData.top_companies) && combinedTrendData.top_companies.length > 0) {
-        combinedTrendData.top_companies.forEach((comp: any, index: number) => {
-          const companyName = comp.company_name || comp.name
-          const normalizedName = normalizeCompanyName(companyName)
-          if (!companyMap.has(normalizedName)) {
-            const key = generateCompanyKey(companyName)
-            companyMap.set(normalizedName, {
-              id: comp.company_id || comp.id || index + 1,
-              key: key,
-              name: companyName,
-              color: colors[companyMap.size % colors.length]
-            })
-          }
-        })
-      }
-      // competitor_comparison 사용
-      else if (combinedTrendData.insight.competitor_comparison && Array.isArray(combinedTrendData.insight.competitor_comparison)) {
-        combinedTrendData.insight.competitor_comparison.forEach((comp: any, index: number) => {
-          const normalizedName = normalizeCompanyName(comp.company_name)
-          if (!companyMap.has(normalizedName)) {
-            const key = generateCompanyKey(comp.company_name)
-            companyMap.set(normalizedName, {
-              id: comp.company_id || comp.rank || index + 1,
-              key: key,
-              name: comp.company_name,
-              color: colors[companyMap.size % colors.length]
-            })
-          }
-        })
-      }
-    }
-    
-    const companies = Array.from(companyMap.values())
-    
-    if (companies.length > 0) {
-      return companies
-    }
-    
-    // 기본 회사 목록 (데이터가 없을 때 사용) - COMPANY_GROUPS 기반
-    const defaultCompanies = Object.entries(COMPANY_GROUPS).map(([groupKey, keywords], index) => {
-      // 첫 번째 키워드에서 % 제거하여 이름으로 사용
-      const name = keywords[0].replace(/%/g, '')
-      // 그룹 키를 key로 사용 (공백은 언더스코어로 변환)
-      const key = groupKey.replace(/\s+/g, '_')
-      return {
-        id: index + 1,
-        key: key,
-        name: name,
-        color: colors[index % colors.length]
-      }
-    })
-    
-    return defaultCompanies
-  }, [companyRecruitmentApiData, combinedTrendData])
-
-  // 회사별 채용 활동 차트 데이터 변환
-  const companyRecruitmentChartData = useMemo(() => {
-    // companyRecruitmentApiData가 있으면 우선 사용 (selected_company.trends 기반 데이터)
-    if (companyRecruitmentApiData && companyRecruitmentApiData.activities && companyRecruitmentApiData.activities.length > 0) {
-      return companyRecruitmentApiData.activities.map(activity => {
-        const data: { period: string; [key: string]: string | number } = { period: activity.period }
-        // companyRecruitmentApiData.companies의 모든 회사에 대해 데이터 설정
-        companyRecruitmentApiData.companies.forEach(company => {
-          // activity.counts에 해당 회사의 key가 있으면 사용, 없으면 0
-          if (activity.counts.hasOwnProperty(company.key)) {
-            data[company.key] = activity.counts[company.key]
-          } else {
-            data[company.key] = 0
-          }
-        })
-        return data
-      })
-    }
-    
-    // 기존 형식: insight.trend_analysis 사용 (fallback)
-    if (combinedTrendData?.insight?.trend_analysis) {
-      const trendAnalysis = combinedTrendData.insight.trend_analysis
-      const competitorComparison = combinedTrendData.insight.competitor_comparison || []
-      
-      // 선택된 회사들에 대한 데이터만 구성
-      if (selectedRecruitmentCompanies.length === 0) return []
-      
-      return trendAnalysis.map((item: any) => {
-        const data: { period: string; [key: string]: string | number } = { 
-          period: item.period 
-        }
-        
-        // 회사 이름 정규화 함수 (매칭용)
-        const normalizeCompanyName = (name: string): string => {
-          return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-        }
-        
-        const normalizedSelectedCompanyName = combinedTrendData.selectedCompany?.company_name 
-          ? normalizeCompanyName(combinedTrendData.selectedCompany.company_name)
-          : null
-        
-        // 회사 key 생성 함수 (normalizeCompanyName 기반)
-        const generateCompanyKey = (name: string): string => {
-          return normalizeCompanyName(name)
-        }
-        
-        // 선택된 각 회사의 데이터 추가 (selectedRecruitmentCompanies는 이미 회사 이름)
-        selectedRecruitmentCompanies.forEach((companyName: string) => {
-          if (companyName) {
-            // 회사 이름을 key로 변환 (normalizeCompanyName 기반)
-            const companyKey = generateCompanyKey(companyName)
-            const normalizedCompanyName = normalizeCompanyName(companyName)
-            
-            // 선택된 회사인 경우 company_count 사용
-            if (normalizedSelectedCompanyName && normalizedCompanyName === normalizedSelectedCompanyName) {
-              data[companyKey] = item.company_count || 0
-            } else {
-              // 다른 회사는 competitor_comparison의 market_share를 사용하여 추정
-              const competitor = competitorComparison.find((c: any) => {
-                const normalizedCompetitorName = normalizeCompanyName(c.company_name)
-                return normalizedCompetitorName === normalizedCompanyName || c.company_name === companyName
-              })
-              if (competitor && item.total_count && competitor.market_share) {
-                // 전체 시장 점유율을 기반으로 추정
-                const estimatedCount = Math.round((item.total_count * competitor.market_share) / 100)
-                data[companyKey] = estimatedCount
-              } else {
-                data[companyKey] = 0
-              }
-            }
-          }
-        })
-        
-        return data
-      })
-    }
-    
-    return []
-  }, [companyRecruitmentApiData, combinedTrendData, selectedRecruitmentCompanies, recruitmentCompanies])
 
   // 스킬 트렌드 회사 기본값 설정 (전체가 기본값이므로 자동 설정 로직 제거)
 
@@ -2225,58 +2335,63 @@ export default function Dashboard() {
                     월간
                   </button>
                 </div>
-                {recruitmentCompanies.length > 0 && (
-                  <div className="flex flex-wrap gap-2 ml-auto items-center">
-                    <button
-                      onClick={() => {
-                        // 전체 선택: 모든 회사 선택
-                        setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.name))
+                <div className="ml-auto items-center">
+                  {isLoadingJobPostingsTrend || isLoadingCompanyRecruitment ? (
+                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      회사 목록 로딩중...
+                    </div>
+                  ) : recruitmentCompanies.length > 0 ? (
+                    <select
+                      value={selectedRecruitmentCompanies.length === 1 ? selectedRecruitmentCompanies[0] : 'all'}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === 'all') {
+                          // 전체 선택: 모든 회사 선택
+                          setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.name))
+                        } else {
+                          // 단일 회사 선택
+                          setSelectedRecruitmentCompanies([value])
+                        }
                       }}
-                      className={`text-xs px-2 py-1 rounded transition-colors ${
-                        selectedRecruitmentCompanies.length === recruitmentCompanies.length || selectedRecruitmentCompanies.length === 0
-                          ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
-                          : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
-                      }`}
+                      className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent min-w-[150px]"
                     >
-                      전체
-                    </button>
-                    {recruitmentCompanies.map((company: { key: string; name: string; color: string }) => {
-                      const isSelected = selectedRecruitmentCompanies.length === 1 && selectedRecruitmentCompanies.includes(company.name)
-                      return (
-                        <button
-                          key={company.key}
-                          onClick={() => {
-                            if (isSelected) {
-                              // 이미 선택된 회사를 다시 클릭하면 전체 선택으로 변경
-                              setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.name))
-                            } else {
-                              // 단일 회사 선택: 다른 회사들은 자동 해제
-                              setSelectedRecruitmentCompanies([company.name])
-                            }
-                          }}
-                          className={`text-xs px-2 py-1 rounded transition-colors ${
-                            isSelected
-                              ? 'bg-gray-900/20 text-gray-700 border border-gray-900/50'
-                              : 'bg-white text-gray-600 border border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
+                      <option value="all">전체</option>
+                      {recruitmentCompanies.map((company: { key: string; name: string }) => (
+                        <option key={company.key} value={company.name}>
                           {company.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                </div>
               </div>
               <div className="flex-shrink-0" style={{ minHeight: '400px' }}>
-                <CombinedTrendChart
-                  jobPostingsTrendData={jobPostingsTrendApiData}
-                  companyRecruitmentData={companyRecruitmentChartData}
-                  companies={recruitmentCompanies}
-                  selectedCompanies={selectedRecruitmentCompanies}
-                  timeframe={jobPostingsTrendTimeframe}
-                  isLoading={jobPostingsTrendApiData.length === 0 && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment)}
-                  error={jobPostingsTrendError || companyRecruitmentError}
-                />
+                {(() => {
+                  // 회사가 변경되었는지 확인
+                  const isCompanyChanged = selectedRecruitmentCompanies.length === 1 && combinedTrendData?.selectedCompany?.company_name 
+                    ? selectedRecruitmentCompanies[0] !== combinedTrendData.selectedCompany.company_name
+                    : false
+                  
+                  // 회사가 변경되었거나 데이터가 없고 로딩 중이면 로딩 상태 표시
+                  const isLoading = (isCompanyChanged && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment)) || 
+                    (jobPostingsTrendApiData.length === 0 && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment))
+                  
+                  return (
+                    <CombinedTrendChart
+                      jobPostingsTrendData={isCompanyChanged && isLoading ? [] : jobPostingsTrendApiData}
+                      companyRecruitmentData={isCompanyChanged && isLoading ? [] : companyRecruitmentChartData}
+                      companies={recruitmentCompanies}
+                      selectedCompanies={selectedRecruitmentCompanies}
+                      timeframe={jobPostingsTrendTimeframe}
+                      isLoading={isLoading}
+                      error={jobPostingsTrendError || companyRecruitmentError}
+                    />
+                  )
+                })()}
               </div>
               
               {/* 인사이트 표시 */}

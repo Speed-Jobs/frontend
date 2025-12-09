@@ -114,6 +114,55 @@ const getEnglishCompanyName = (koreanName: string): string => {
   return koreanName
 }
 
+// 영어 회사명을 한글 회사명으로 변환하는 함수
+const getKoreanCompanyName = (englishName: string): string => {
+  if (!englishName) return englishName
+  
+  const normalizeCompanyName = (name: string): string => {
+    return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+  }
+  
+  const normalizedEnglish = normalizeCompanyName(englishName)
+  
+  // COMPANY_NAME_MAP의 역매핑 (영어 -> 한글)
+  for (const [korean, english] of Object.entries(COMPANY_NAME_MAP)) {
+    const normalizedEnglishMap = normalizeCompanyName(english)
+    if (normalizedEnglish === normalizedEnglishMap || normalizedEnglish.includes(normalizedEnglishMap) || normalizedEnglishMap.includes(normalizedEnglish)) {
+      // 가장 일반적인 한글 이름 반환 (토스, 카카오 등)
+      if (korean === "토스" || korean === "카카오" || korean === "네이버" || korean === "라인" || korean === "쿠팡" || korean === "LG CNS" || korean === "한화시스템" || korean === "현대오토에버" || korean === "우아한형제들") {
+        return korean
+      }
+      return korean
+    }
+  }
+  
+  // COMPANY_KEY_TO_NAME의 역매핑
+  for (const [key, english] of Object.entries(COMPANY_KEY_TO_NAME)) {
+    const normalizedEnglishMap = normalizeCompanyName(english)
+    if (normalizedEnglish === normalizedEnglishMap || normalizedEnglish.includes(normalizedEnglishMap) || normalizedEnglishMap.includes(normalizedEnglish)) {
+      // COMPANY_GROUPS에서 해당 키의 첫 번째 한글 키워드 반환
+      const keywords = COMPANY_GROUPS[key]
+      if (keywords && keywords.length > 0) {
+        const koreanKeyword = keywords[0].replace(/%/g, '').trim()
+        // 가장 일반적인 이름 반환
+        if (key === "woowahan") return "우아한형제들"
+        if (key === "toss") return "토스"
+        if (key === "kakao") return "카카오"
+        if (key === "naver") return "네이버"
+        if (key === "line") return "라인"
+        if (key === "coupang") return "쿠팡"
+        if (key === "lg cns") return "LG CNS"
+        if (key === "hanwha") return "한화시스템"
+        if (key === "hyundai autoever") return "현대오토에버"
+        return koreanKeyword
+      }
+    }
+  }
+  
+  // 매칭되지 않으면 원본 반환
+  return englishName
+}
+
 // COMPANY_GROUPS를 기반으로 companyKeywords 문자열 생성
 const getCompanyKeywords = (): string => {
   const keywords: string[] = []
@@ -852,13 +901,13 @@ export default function Dashboard() {
         }
         const timeframeParam = timeframeMap[jobPostingsTrendTimeframe] || 'daily'
         
-        // 선택된 회사가 있으면 해당 회사로, 없으면 전체로 호출 (selectedRecruitmentCompanies는 이미 회사 이름)
+        // 선택된 회사가 있으면 해당 회사로, 없으면 전체로 호출 (selectedRecruitmentCompanies는 한글 회사명)
         const selectedCompanyName = selectedRecruitmentCompanies.length === 1 
           ? selectedRecruitmentCompanies[0]
           : null
         
-        // 회사명을 영어 소문자 키워드로 변환
-        const companyKeyword = selectedCompanyName ? getCompanyKeyword(selectedCompanyName) : null
+        // 한글 회사명을 영어 소문자 키워드로 변환 (먼저 영어로 변환한 후 키워드로 변환)
+        const companyKeyword = selectedCompanyName ? getCompanyKeyword(getEnglishCompanyName(selectedCompanyName)) || getCompanyKeyword(selectedCompanyName) : null
         
         // 차트 데이터를 먼저 빠르게 가져오기 위해 include_insight=false로 호출
         // 인사이트는 별도로 나중에 가져옴
@@ -1093,11 +1142,11 @@ export default function Dashboard() {
                 return parsePeriod(a) - parsePeriod(b)
               })
               
-              // 회사 정보 및 활동 데이터 구성
+              // 회사 정보 및 활동 데이터 구성 (한글 이름 저장)
               const companies = validResults.map((result, index) => ({
                 id: index + 1,
                 key: result!.companyKey.replace(/\s+/g, '_'),
-                name: result!.companyName
+                name: result!.companyName // 이미 한글 이름
               }))
               
               // 각 회사의 trends를 period별로 매핑 (company.key를 키로 사용)
@@ -1162,7 +1211,8 @@ export default function Dashboard() {
         setSkillTrendError(null)
         
         const selectedCompanyName = selectedRecruitmentCompanies[0]
-        const companyKeyword = getCompanyKeyword(selectedCompanyName)
+        // 한글 회사명을 영어 소문자 키워드로 변환 (먼저 영어로 변환한 후 키워드로 변환)
+        const companyKeyword = getCompanyKeyword(getEnglishCompanyName(selectedCompanyName)) || getCompanyKeyword(selectedCompanyName)
         
         if (!companyKeyword) {
           setSkillTrendData([])
@@ -1248,14 +1298,16 @@ export default function Dashboard() {
     // companyRecruitmentApiData의 companies를 우선 사용 (이미 선택된 회사들의 실제 데이터)
     if (companyRecruitmentApiData?.companies && companyRecruitmentApiData.companies.length > 0) {
       companyRecruitmentApiData.companies.forEach((company: { key: string; name: string }, index: number) => {
-        // 한글 회사명을 영어로 변환 (이미 영어일 수도 있지만 안전하게 변환)
-        const englishCompanyName = getEnglishCompanyName(company.name)
+        // 영어 회사명을 한글로 변환 (드롭다운 표시용)
+        const koreanCompanyName = getKoreanCompanyName(company.name)
+        const englishCompanyName = getEnglishCompanyName(koreanCompanyName) // API 호출용
         const normalizedName = normalizeCompanyName(englishCompanyName)
         if (!companyMap.has(normalizedName)) {
           companyMap.set(normalizedName, {
             id: company.key || index + 1,
             key: company.key || normalizedName,
-            name: englishCompanyName,
+            name: koreanCompanyName, // 한글 이름 저장
+            englishName: englishCompanyName, // API 호출용 영어 이름
             color: colors[companyMap.size % colors.length]
           })
         }
@@ -1267,15 +1319,17 @@ export default function Dashboard() {
       // 선택된 회사가 있으면 먼저 추가
       if (combinedTrendData.selectedCompany) {
         const selectedComp = combinedTrendData.selectedCompany
-        // 한글 회사명을 영어로 변환
-        const englishCompanyName = getEnglishCompanyName(selectedComp.company_name)
+        // 영어 회사명을 한글로 변환
+        const koreanCompanyName = getKoreanCompanyName(selectedComp.company_name)
+        const englishCompanyName = getEnglishCompanyName(koreanCompanyName)
         const normalizedName = normalizeCompanyName(englishCompanyName)
         if (!companyMap.has(normalizedName)) {
           const selectedKey = generateCompanyKey(englishCompanyName)
           companyMap.set(normalizedName, {
             id: selectedComp.company_id || 0,
             key: selectedKey,
-            name: englishCompanyName,
+            name: koreanCompanyName, // 한글 이름 저장
+            englishName: englishCompanyName, // API 호출용 영어 이름
             color: colors[companyMap.size % colors.length]
           })
         }
@@ -1284,15 +1338,18 @@ export default function Dashboard() {
       // top_companies가 있으면 우선 사용
       if (combinedTrendData.top_companies && Array.isArray(combinedTrendData.top_companies) && combinedTrendData.top_companies.length > 0) {
         combinedTrendData.top_companies.forEach((comp: any, index: number) => {
-          const koreanName = comp.company_name || comp.name
-          const companyName = getEnglishCompanyName(koreanName)
-          const normalizedName = normalizeCompanyName(companyName)
+          const originalName = comp.company_name || comp.name
+          // 원본이 한글일 수도 있고 영어일 수도 있으므로, 한글로 변환 시도
+          const koreanCompanyName = getKoreanCompanyName(originalName) !== originalName ? getKoreanCompanyName(originalName) : originalName
+          const englishCompanyName = getEnglishCompanyName(koreanCompanyName)
+          const normalizedName = normalizeCompanyName(englishCompanyName)
           if (!companyMap.has(normalizedName)) {
-            const key = generateCompanyKey(companyName)
+            const key = generateCompanyKey(englishCompanyName)
             companyMap.set(normalizedName, {
               id: comp.company_id || comp.id || index + 1,
               key: key,
-              name: companyName,
+              name: koreanCompanyName, // 한글 이름 저장
+              englishName: englishCompanyName, // API 호출용 영어 이름
               color: colors[companyMap.size % colors.length]
             })
           }
@@ -1301,15 +1358,18 @@ export default function Dashboard() {
       // competitor_comparison 사용
       else if (combinedTrendData.insight.competitor_comparison && Array.isArray(combinedTrendData.insight.competitor_comparison)) {
         combinedTrendData.insight.competitor_comparison.forEach((comp: any, index: number) => {
-          const koreanName = comp.company_name
-          const companyName = getEnglishCompanyName(koreanName)
-          const normalizedName = normalizeCompanyName(companyName)
+          const originalName = comp.company_name
+          // 원본이 한글일 수도 있고 영어일 수도 있으므로, 한글로 변환 시도
+          const koreanCompanyName = getKoreanCompanyName(originalName) !== originalName ? getKoreanCompanyName(originalName) : originalName
+          const englishCompanyName = getEnglishCompanyName(koreanCompanyName)
+          const normalizedName = normalizeCompanyName(englishCompanyName)
           if (!companyMap.has(normalizedName)) {
-            const key = generateCompanyKey(companyName)
+            const key = generateCompanyKey(englishCompanyName)
             companyMap.set(normalizedName, {
               id: comp.company_id || comp.rank || index + 1,
               key: key,
-              name: companyName,
+              name: koreanCompanyName, // 한글 이름 저장
+              englishName: englishCompanyName, // API 호출용 영어 이름
               color: colors[companyMap.size % colors.length]
             })
           }
@@ -1487,11 +1547,11 @@ export default function Dashboard() {
                 return parsePeriod(a) - parsePeriod(b)
               })
               
-              // 회사 정보 및 활동 데이터 구성
+              // 회사 정보 및 활동 데이터 구성 (한글 이름 저장)
               const companies = validResults.map((result, index) => ({
                 id: index + 1,
                 key: result!.companyKey.replace(/\s+/g, '_'),
-                name: result!.companyName
+                name: result!.companyName // 이미 한글 이름
               }))
               
               // 각 회사의 trends를 period별로 매핑 (company.key를 키로 사용)
@@ -1548,12 +1608,17 @@ export default function Dashboard() {
             const result = await response.json()
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+              // 회사명을 한글로 변환
+              const companies = (result.data.companies || []).map((c: { name: string; id?: number; key?: string }) => ({
+                ...c,
+                name: getKoreanCompanyName(c.name) !== c.name ? getKoreanCompanyName(c.name) : c.name
+              }))
               setCompanyRecruitmentApiData({
-                companies: result.data.companies || [],
+                companies,
                 activities: result.data.activities || []
               })
-              if (selectedRecruitmentCompanies.length === 0 && result.data.companies?.length > 0) {
-                setSelectedRecruitmentCompanies(result.data.companies.map((c: { name: string }) => c.name))
+              if (selectedRecruitmentCompanies.length === 0 && companies.length > 0) {
+                setSelectedRecruitmentCompanies(companies.map((c: { name: string }) => c.name))
               }
             } else {
               setCompanyRecruitmentApiData(null)

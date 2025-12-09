@@ -116,7 +116,7 @@ export default function SkillTrendAndCloud({
       })
     })
 
-    // 연도별로 집계
+    // 연도별로 집계 (분기별 데이터를 연도별로 합산)
     const yearMap = new Map<string, Map<string, number>>()
 
     dataToUse.forEach(item => {
@@ -125,7 +125,7 @@ export default function SkillTrendAndCloud({
         return
       }
       
-      // "2025.09" 또는 "2025 Q3" 형식에서 연도 추출
+      // "2025.01" 또는 "2025 Q3" 형식에서 연도 추출
       let year = ''
       if (monthStr.includes('.')) {
         year = monthStr.split('.')[0]
@@ -145,6 +145,7 @@ export default function SkillTrendAndCloud({
       }
 
       const yearSkills = yearMap.get(year)!
+      // 모든 스킬에 대해 연도별로 합산
       allSkills.forEach(skill => {
         const count = Number(item[skill] || 0)
         if (count > 0) {
@@ -348,12 +349,18 @@ export default function SkillTrendAndCloud({
         let itemYear = ''
         let quarter = ''
 
-        // "2025.09" 형식에서 연도와 분기 추출
+        // "2025.01" 형식에서 연도와 분기 추출 (분기별 데이터는 Q1=1월, Q2=4월, Q3=7월, Q4=10월로 저장됨)
         if (monthStr.includes('.')) {
           const parts = monthStr.split('.')
           itemYear = parts[0]
           const month = parseInt(parts[1])
-          if (month >= 1 && month <= 3) quarter = 'Q1'
+          // 분기별 데이터는 첫 번째 월로 저장되므로 (Q1=1월, Q2=4월, Q3=7월, Q4=10월)
+          if (month === 1) quarter = 'Q1'
+          else if (month === 4) quarter = 'Q2'
+          else if (month === 7) quarter = 'Q3'
+          else if (month === 10) quarter = 'Q4'
+          // 일반 월별 데이터인 경우
+          else if (month >= 1 && month <= 3) quarter = 'Q1'
           else if (month >= 4 && month <= 6) quarter = 'Q2'
           else if (month >= 7 && month <= 9) quarter = 'Q3'
           else if (month >= 10 && month <= 12) quarter = 'Q4'
@@ -368,41 +375,30 @@ export default function SkillTrendAndCloud({
 
         if (!itemYear || !quarter) return
 
-        // 현재 분기 데이터 수집
+        // 현재 분기 데이터 수집 (해당 연도의 해당 분기)
         if (parseInt(itemYear) === year && quarter === currentQuarter) {
           Object.keys(item).forEach(key => {
             if (key !== 'month' && key !== 'quarter') {
               const count = Number(item[key] || 0)
               if (count > 0) {
-                currentQuarterMap.set(key, (currentQuarterMap.get(key) || 0) + count)
+                // 분기별 데이터는 이미 집계된 값이므로 그대로 사용
+                currentQuarterMap.set(key, count)
               }
             }
           })
         }
 
-        // 이전 분기 데이터 수집 (동기간: 전년도 동일 분기의 동일 기간)
+        // 이전 분기 데이터 수집 (전년도 동일 분기)
         if (parseInt(itemYear) === previousYear && quarter === previousQuarter) {
-          // 현재 분기의 시작일과 종료일에서 월 추출
-          const currentStartMonth = parseInt(currentQuarterDates.start.split('-')[1])
-          const currentEndMonth = parseInt(currentQuarterDates.end.split('-')[1])
-          
-          // 월별 데이터이므로, 현재 분기의 시작 월부터 종료 월까지의 데이터만 포함
-          let itemMonth = 0
-          if (monthStr.includes('.')) {
-            itemMonth = parseInt(monthStr.split('.')[1])
-          }
-          
-          // 전년도 동일 월 범위 내에 있는지 확인
-          if (itemMonth >= currentStartMonth && itemMonth <= currentEndMonth) {
-            Object.keys(item).forEach(key => {
-              if (key !== 'month' && key !== 'quarter') {
-                const count = Number(item[key] || 0)
-                if (count > 0) {
-                  previousQuarterMap.set(key, (previousQuarterMap.get(key) || 0) + count)
-                }
+          Object.keys(item).forEach(key => {
+            if (key !== 'month' && key !== 'quarter') {
+              const count = Number(item[key] || 0)
+              if (count > 0) {
+                // 분기별 데이터는 이미 집계된 값이므로 그대로 사용
+                previousQuarterMap.set(key, count)
               }
-            })
-          }
+            }
+          })
         }
       })
     }
@@ -432,8 +428,8 @@ export default function SkillTrendAndCloud({
     skills.forEach(skill => allSkills.add(skill))
 
     // 단일 데이터 포인트로 변환
-    const currentData: any = { quarter: currentQuarter }
-    const previousData: any = { quarter: previousQuarter }
+    const currentData: any = { quarter: `${year} ${currentQuarter}` }
+    const previousData: any = { quarter: `${previousYear} ${previousQuarter}` }
     
     allSkills.forEach(skill => {
       currentData[skill] = currentQuarterMap.get(skill) || 0

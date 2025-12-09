@@ -1868,23 +1868,88 @@ export default function Dashboard() {
         setIsLoadingSkillTrend(true)
         setSkillTrendError(null)
         
-        // 최근 5년 데이터 가져오기
-        const years = ['2021', '2022', '2023', '2024', '2025']
         const allTrends: Array<{
           month: string
           [skill: string]: string | number
         }> = []
 
+        // year 파라미터 없이 한 번에 전체 데이터 가져오기 시도 (전체 또는 회사별 모두 지원)
+        try {
+          let apiUrl: string
+          if (selectedSkillCompany === '전체') {
+            apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?top_n=13`
+          } else {
+            apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?top_n=13`
+          }
+          
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            mode: 'cors',
+            credentials: 'omit',
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+            
+            if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
+              // yearly_trends 처리 (year 파라미터 없을 때)
+              if (result.data.yearly_trends && typeof result.data.yearly_trends === 'object') {
+                const yearlyTrends = result.data.yearly_trends
+                
+                // 각 연도별로 순회
+                Object.keys(yearlyTrends).forEach(yearKey => {
+                  const yearData = yearlyTrends[yearKey]
+                  
+                  if (yearData && yearData.counts && typeof yearData.counts === 'object') {
+                    // 연도별 데이터를 4개 분기로 나누어 저장 (연도별 집계를 분기별로 분산)
+                    const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+                    quarters.forEach(quarter => {
+                      const quarterNum = parseInt(quarter.replace('Q', ''))
+                      const month = (quarterNum - 1) * 3 + 1
+                      const monthStr = `${yearKey}.${String(month).padStart(2, '0')}`
+                      
+                      // 데이터 객체 생성 (연도별 집계를 분기별로 동일하게 분산)
+                      const data: any = { month: monthStr }
+                      
+                      // counts 객체의 모든 스킬을 데이터에 추가 (연도별 값을 4로 나눔)
+                      Object.keys(yearData.counts).forEach(skill => {
+                        const yearlyCount = Number(yearData.counts[skill] || 0)
+                        // 연도별 집계를 분기별로 분산 (4분기로 나눔)
+                        data[skill] = Math.round(yearlyCount / 4)
+                      })
+                      
+                      allTrends.push(data)
+                    })
+                  }
+                })
+                
+                // yearly_trends로 데이터를 가져왔으면 종료
+                setSkillTrendData(allTrends)
+                setIsLoadingSkillTrend(false)
+                return
+              }
+            }
+          }
+        } catch (err) {
+          // 전체 데이터 가져오기 실패 시 연도별로 시도
+        }
+
+        // 연도별로 데이터 가져오기 (기존 방식)
+        const years = ['2021', '2022', '2023', '2024', '2025']
         for (const year of years) {
           try {
             // API 엔드포인트: 전체 선택 시 다른 URL 사용
             let apiUrl: string
             if (selectedSkillCompany === '전체') {
               // 전체 데이터를 가져오는 API (회사 파라미터 없음)
-              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?year=${year}&top_n=10`
+              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?year=${year}&top_n=13`
             } else {
               // 특정 회사 데이터를 가져오는 API
-              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?year=${year}&top_n=10`
+              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?year=${year}&top_n=13`
             }
             
             // 404 에러를 조용히 처리하기 위해 try-catch로 감싸기
@@ -1914,9 +1979,73 @@ export default function Dashboard() {
               const result = await response.json()
               
               if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
-                const { trends } = result.data
-                
-                if (Array.isArray(trends)) {
+                // 새로운 API 형식: quarterly_trends 객체 처리 (year 파라미터 있을 때)
+                if (result.data.quarterly_trends && typeof result.data.quarterly_trends === 'object') {
+                  const quarterlyTrends = result.data.quarterly_trends
+                  
+                  // 각 연도별로 순회
+                  Object.keys(quarterlyTrends).forEach(yearKey => {
+                    const yearData = quarterlyTrends[yearKey]
+                    
+                    // 각 분기별로 순회 (Q1, Q2, Q3, Q4)
+                    const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+                    quarters.forEach(quarter => {
+                      const quarterData = yearData[quarter]
+                      
+                      if (quarterData && quarterData.counts && typeof quarterData.counts === 'object') {
+                        // 분기를 월로 변환 (Q1=1월, Q2=4월, Q3=7월, Q4=10월)
+                        const quarterNum = parseInt(quarter.replace('Q', ''))
+                        const month = (quarterNum - 1) * 3 + 1
+                        const monthStr = `${yearKey}.${String(month).padStart(2, '0')}`
+                        
+                        // 데이터 객체 생성
+                        const data: any = { month: monthStr }
+                        
+                        // counts 객체의 모든 스킬을 데이터에 추가
+                        Object.keys(quarterData.counts).forEach(skill => {
+                          data[skill] = Number(quarterData.counts[skill] || 0)
+                        })
+                        
+                        allTrends.push(data)
+                      }
+                    })
+                  })
+                }
+                // 새로운 API 형식: yearly_trends 객체 처리 (year 파라미터 없을 때 - 최근 5개년)
+                else if (result.data.yearly_trends && typeof result.data.yearly_trends === 'object') {
+                  const yearlyTrends = result.data.yearly_trends
+                  
+                  // 각 연도별로 순회
+                  Object.keys(yearlyTrends).forEach(yearKey => {
+                    const yearData = yearlyTrends[yearKey]
+                    
+                    if (yearData && yearData.counts && typeof yearData.counts === 'object') {
+                      // 연도별 데이터를 4개 분기로 나누어 저장 (연도별 집계를 분기별로 분산)
+                      const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+                      quarters.forEach(quarter => {
+                        const quarterNum = parseInt(quarter.replace('Q', ''))
+                        const month = (quarterNum - 1) * 3 + 1
+                        const monthStr = `${yearKey}.${String(month).padStart(2, '0')}`
+                        
+                        // 데이터 객체 생성 (연도별 집계를 분기별로 동일하게 분산)
+                        const data: any = { month: monthStr }
+                        
+                        // counts 객체의 모든 스킬을 데이터에 추가 (연도별 값을 4로 나눔)
+                        Object.keys(yearData.counts).forEach(skill => {
+                          const yearlyCount = Number(yearData.counts[skill] || 0)
+                          // 연도별 집계를 분기별로 분산 (4분기로 나눔)
+                          data[skill] = Math.round(yearlyCount / 4)
+                        })
+                        
+                        allTrends.push(data)
+                      })
+                    }
+                  })
+                }
+                // 기존 API 형식: trends 배열 처리 (하위 호환성 유지)
+                else if (result.data.trends && Array.isArray(result.data.trends)) {
+                  const { trends } = result.data
+                  
                   // 데이터 형식 변환
                   const formattedTrends = trends.map((trend: any) => {
                     const data: any = {}
@@ -2055,6 +2184,18 @@ export default function Dashboard() {
           
           // insights는 statistics와 독립적으로 존재할 수 있으므로 별도로 확인
           const insightsData = result.data.insights || null
+          
+          // 디버깅: 인사이트 데이터 확인
+          if (insightsData) {
+            console.log('[직군 비중 변화 분석] 인사이트 데이터:', {
+              hasSummary: !!insightsData.summary,
+              summaryLength: insightsData.summary?.length || 0,
+              hasJobRoleInsights: !!insightsData.job_role_insights,
+              jobRoleInsightsCount: insightsData.job_role_insights?.length || 0
+            })
+          } else {
+            console.log('[직군 비중 변화 분석] 인사이트 데이터 없음')
+          }
           
           if (result.data.statistics) {
             // statistics 배열이 비어있어도 기간 정보는 있으므로 데이터로 저장
@@ -2555,7 +2696,7 @@ export default function Dashboard() {
           params.append('company', selectedSkillCloudCompany)
         }
         
-        params.append('limit', '20')
+        params.append('limit', '13')
         
         const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skills/statistics?${params.toString()}`
         
@@ -2585,7 +2726,28 @@ export default function Dashboard() {
         if ((result.status === 0 || result.status === 200) && result.code === 'SUCCESS' && result.data) {
           const { skills } = result.data
           if (Array.isArray(skills)) {
-            setSkillsApiData(skills.sort((a: any, b: any) => b.count - a.count))
+            // 상위 13개 스킬만 선택하고, 각 스킬의 relatedSkills를 3개로 제한
+            const processedSkills = skills
+              .sort((a: any, b: any) => b.count - a.count)
+              .slice(0, 13)
+              .map((skill: any) => {
+                // relatedSkills가 배열인 경우 3개로 제한
+                if (skill.relatedSkills && Array.isArray(skill.relatedSkills)) {
+                  return {
+                    ...skill,
+                    relatedSkills: skill.relatedSkills.slice(0, 3)
+                  }
+                }
+                // relatedSkills가 객체 배열인 경우 (API 응답 형식)
+                if (skill.relatedSkills && Array.isArray(skill.relatedSkills) && skill.relatedSkills.length > 0 && typeof skill.relatedSkills[0] === 'object') {
+                  return {
+                    ...skill,
+                    relatedSkills: skill.relatedSkills.slice(0, 3).map((rs: any) => rs.name || rs)
+                  }
+                }
+                return skill
+              })
+            setSkillsApiData(processedSkills)
           } else {
             setSkillsApiData(defaultSkillsData)
           }

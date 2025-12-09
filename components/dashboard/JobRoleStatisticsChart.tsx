@@ -301,12 +301,13 @@ export default function JobRoleStatisticsChart({
       }
     }
     
-    // summary가 없으면 null 반환 (로딩 중 표시)
+    // summary가 없으면 null 반환
     return null
   }
   
   const summaryInsight = getSummaryInsight()
   const hasSummary = summaryInsight !== null
+  const hasJobRoleInsights = insights?.job_role_insights && insights.job_role_insights.length > 0
   
   // 선택된 직군의 인사이트 가져오기
   const getSelectedRoleInsight = () => {
@@ -604,11 +605,21 @@ export default function JobRoleStatisticsChart({
                 <div className="text-xs sm:text-sm text-blue-800">
                   <div className="break-words">{summaryInsight}</div>
                 </div>
-                {insights?.job_role_insights && insights.job_role_insights.length > 0 && (
+                {hasJobRoleInsights && (
                   <div className="mt-3 text-xs text-blue-600">
                     💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
                   </div>
                 )}
+              </>
+            ) : hasJobRoleInsights ? (
+              // summary가 없지만 job_role_insights가 있는 경우
+              <>
+                <div className="text-xs sm:text-sm text-blue-800">
+                  <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
+                </div>
+                <div className="mt-3 text-xs text-blue-600">
+                  💡 {insights.job_role_insights.length}개의 직군에 대한 인사이트가 준비되어 있습니다.
+                </div>
               </>
             ) : (
               <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
@@ -616,7 +627,7 @@ export default function JobRoleStatisticsChart({
                 <span>
                   {insights === null 
                     ? '인사이트 생성 중...' 
-                    : insights && !insights.summary
+                    : insights && !insights.summary && !hasJobRoleInsights
                     ? '인사이트를 불러오는 중입니다...'
                     : '인사이트 생성 중...'}
                 </span>

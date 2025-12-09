@@ -8,7 +8,13 @@ interface SkillCloudProps {
     count: number
     percentage?: number
     change?: number
-    relatedSkills?: string[]
+    relatedSkills?: string[] | Array<{
+      name: string
+      count?: number
+      percentage?: number
+      change?: number
+      similarity?: number
+    }>
   }>
   selectedCompany?: string
 }
@@ -84,8 +90,15 @@ const generateSkillInsight = (skillData: {
     }
   }
   
-  if (skillData.relatedSkills && skillData.relatedSkills.length > 0) {
-    const relatedSkillsText = skillData.relatedSkills.slice(0, 3).join(', ')
+  // relatedSkills를 문자열 배열로 변환
+  const relatedSkillsStrings = skillData.relatedSkills 
+    ? (Array.isArray(skillData.relatedSkills) && skillData.relatedSkills.length > 0 && typeof skillData.relatedSkills[0] === 'string'
+        ? skillData.relatedSkills as string[]
+        : (skillData.relatedSkills as Array<{ name: string }>).map(rs => rs.name))
+    : []
+  
+  if (relatedSkillsStrings.length > 0) {
+    const relatedSkillsText = relatedSkillsStrings.slice(0, 3).join(', ')
     insight += `${skillName}과 함께 자주 언급되는 관련 스킬로는 ${relatedSkillsText} 등이 있으며, 이러한 기술 스택을 함께 보유한 개발자에 대한 수요가 높은 것으로 분석됩니다. `
   }
   
@@ -109,6 +122,32 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
 
   const maxCount = skillsToUse[0]?.count || 1
   
+  // relatedSkills를 문자열 배열로 변환하는 헬퍼 함수
+  const getRelatedSkillsAsStrings = useCallback((relatedSkills?: string[] | Array<{ name: string; [key: string]: any }>): string[] => {
+    if (!relatedSkills) return []
+    if (Array.isArray(relatedSkills) && relatedSkills.length > 0) {
+      if (typeof relatedSkills[0] === 'string') {
+        return relatedSkills as string[]
+      } else if (typeof relatedSkills[0] === 'object' && 'name' in relatedSkills[0]) {
+        return (relatedSkills as Array<{ name: string }>).map(rs => rs.name)
+      }
+    }
+    return []
+  }, [])
+
+  // relatedSkills에 특정 스킬이 포함되어 있는지 확인하는 헬퍼 함수
+  const hasRelatedSkill = useCallback((relatedSkills: string[] | Array<{ name: string; [key: string]: any }> | undefined, skillName: string): boolean => {
+    if (!relatedSkills) return false
+    if (Array.isArray(relatedSkills) && relatedSkills.length > 0) {
+      if (typeof relatedSkills[0] === 'string') {
+        return (relatedSkills as string[]).includes(skillName)
+      } else if (typeof relatedSkills[0] === 'object' && 'name' in relatedSkills[0]) {
+        return (relatedSkills as Array<{ name: string }>).some(rs => rs.name === skillName)
+      }
+    }
+    return false
+  }, [])
+
   // 선택된 스킬 데이터 찾기 (메인 스킬 또는 관련 스킬)
   const selectedSkillData = useMemo(() => {
     if (!selectedSkill) return null
@@ -123,7 +162,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
     
     // 관련 스킬 목록에서 찾기 (데이터가 없는 경우 기본 정보만 표시)
     for (const skill of skillsToUse) {
-      if (skill.relatedSkills?.includes(selectedSkill)) {
+      if (hasRelatedSkill(skill.relatedSkills, selectedSkill)) {
         // 관련 스킬이 메인 스킬 목록에 없으면, 해당 스킬의 기본 정보를 생성
         return {
           name: selectedSkill,
@@ -137,7 +176,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
     
     // 전체 skills 배열의 relatedSkills에서도 찾기
     for (const skill of skills) {
-      if (skill.relatedSkills?.includes(selectedSkill)) {
+      if (hasRelatedSkill(skill.relatedSkills, selectedSkill)) {
         return {
           name: selectedSkill,
           count: 0,
@@ -149,7 +188,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
     }
     
     return null
-  }, [selectedSkill, skillsToUse, skills])
+  }, [selectedSkill, skillsToUse, skills, hasRelatedSkill])
 
   // 상세 정보에 표시할 스킬 데이터 찾기 (detailViewSkill이 있으면 그것을, 없으면 selectedSkill 사용)
   const detailViewSkillData = useMemo(() => {
@@ -183,26 +222,27 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
     // 관련 스킬 목록에서 찾기 (데이터가 없는 경우 기본 정보만 표시)
     // 하지만 가능한 한 다른 스킬의 relatedSkills에서 정보를 찾아서 반환
     for (const skill of skills) {
-      if (skill.relatedSkills?.includes(skillToShow)) {
+      if (hasRelatedSkill(skill.relatedSkills, skillToShow)) {
         // 관련 스킬이 skills 배열에 직접 있는지 확인
         const relatedSkillData = skills.find(s => s.name === skillToShow)
         if (relatedSkillData) {
           return relatedSkillData
         }
         // 없으면 기본 정보 반환 (하지만 relatedSkills는 포함)
+        const relatedSkillsStrings = getRelatedSkillsAsStrings(skill.relatedSkills)
         return {
           name: skillToShow,
           count: 0,
           percentage: undefined,
           change: undefined,
-          relatedSkills: skill.relatedSkills.filter(rs => rs === skillToShow || skills.some(s => s.name === rs))
+          relatedSkills: relatedSkillsStrings.filter(rs => rs === skillToShow || skills.some(s => s.name === rs))
         }
       }
     }
     
     // 마지막으로 skillsToUse에서도 확인
     for (const skill of skillsToUse) {
-      if (skill.relatedSkills?.includes(skillToShow)) {
+      if (hasRelatedSkill(skill.relatedSkills, skillToShow)) {
         const relatedSkillData = skills.find(s => s.name === skillToShow)
         if (relatedSkillData) {
           return relatedSkillData
@@ -218,7 +258,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
     }
     
     return null
-  }, [detailViewSkill, selectedSkill, skillsToUse, skills])
+  }, [detailViewSkill, selectedSkill, skillsToUse, skills, hasRelatedSkill, getRelatedSkillsAsStrings])
 
   if (!skills || skills.length === 0) {
     return (
@@ -278,46 +318,49 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
               viewBox="0 0 600 600"
               preserveAspectRatio="xMidYMid meet"
             >
-              {expandedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
-                const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
-                const baseAngle = (idx / (expandedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
-                const adjustedAngle = isTopSkill && expandedPosition.y < -30
-                  ? baseAngle + Math.PI / 4
-                  : baseAngle
-                
-                const relatedX = Math.cos(adjustedAngle) * radius
-                const relatedY = Math.sin(adjustedAngle) * radius
-                
-                // SVG viewBox 경계 내에 위치하도록 제한 (패딩 고려)
-                const padding = 40
-                const maxX = 600 - padding
-                const maxY = 600 - padding
-                const minX = padding
-                const minY = padding
-                
-                let lineEndX = expandedX + relatedX
-                let lineEndY = expandedY + relatedY
-                
-                // 경계 체크 및 조정
-                if (lineEndX > maxX) lineEndX = maxX
-                if (lineEndX < minX) lineEndX = minX
-                if (lineEndY > maxY) lineEndY = maxY
-                if (lineEndY < minY) lineEndY = minY
-                
-                return (
-                  <line
-                    key={`${expandedSkillName}-${relatedSkillName}`}
-                    x1={expandedX}
-                    y1={expandedY}
-                    x2={lineEndX}
-                    y2={lineEndY}
-                    stroke="#9ca3af"
-                    strokeWidth="2"
-                    strokeDasharray="4 4"
-                    opacity="0.5"
-                  />
-                )
-              })}
+              {(() => {
+                const relatedSkillsStrings = getRelatedSkillsAsStrings(expandedSkillData.relatedSkills).slice(0, 3)
+                return relatedSkillsStrings.map((relatedSkillName, idx) => {
+                  const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
+                  const baseAngle = (idx / Math.max(relatedSkillsStrings.length, 1)) * Math.PI * 2 - Math.PI / 2
+                  const adjustedAngle = isTopSkill && expandedPosition.y < -30
+                    ? baseAngle + Math.PI / 4
+                    : baseAngle
+                  
+                  const relatedX = Math.cos(adjustedAngle) * radius
+                  const relatedY = Math.sin(adjustedAngle) * radius
+                  
+                  // SVG viewBox 경계 내에 위치하도록 제한 (패딩 고려)
+                  const padding = 40
+                  const maxX = 600 - padding
+                  const maxY = 600 - padding
+                  const minX = padding
+                  const minY = padding
+                  
+                  let lineEndX = expandedX + relatedX
+                  let lineEndY = expandedY + relatedY
+                  
+                  // 경계 체크 및 조정
+                  if (lineEndX > maxX) lineEndX = maxX
+                  if (lineEndX < minX) lineEndX = minX
+                  if (lineEndY > maxY) lineEndY = maxY
+                  if (lineEndY < minY) lineEndY = minY
+                  
+                  return (
+                    <line
+                      key={`${expandedSkillName}-${relatedSkillName}`}
+                      x1={expandedX}
+                      y1={expandedY}
+                      x2={lineEndX}
+                      y2={lineEndY}
+                      stroke="#9ca3af"
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      opacity="0.5"
+                    />
+                  )
+                })
+              })()}
             </svg>
           )
         })}
@@ -340,7 +383,8 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             const currentSelectedSkillData = skillsToUse.find(s => s.name === selectedSkill) || skills.find(s => s.name === selectedSkill)
             
             if (currentSelectedSkillData) {
-              const relatedSkillsSet = new Set(currentSelectedSkillData.relatedSkills || [])
+              const relatedSkillsStrings = getRelatedSkillsAsStrings(currentSelectedSkillData.relatedSkills)
+              const relatedSkillsSet = new Set(relatedSkillsStrings)
               
               if (isSelected) {
                 // 선택된 메인 스킬은 항상 표시
@@ -412,9 +456,12 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             : { x: 0, y: 0 }
           const radius = 130
           
-          return expandedSkillData.relatedSkills?.map((relatedSkillName, idx) => {
+          // relatedSkills를 문자열 배열로 변환하고 3개로 제한
+          const relatedSkillsStrings = getRelatedSkillsAsStrings(expandedSkillData.relatedSkills).slice(0, 3)
+          
+          return relatedSkillsStrings.map((relatedSkillName, idx) => {
             const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
-            const baseAngle = (idx / (expandedSkillData.relatedSkills?.length || 1)) * Math.PI * 2 - Math.PI / 2
+            const baseAngle = (idx / Math.max(relatedSkillsStrings.length, 1)) * Math.PI * 2 - Math.PI / 2
             const adjustedAngle = isTopSkill && expandedPosition.y < -30
               ? baseAngle + Math.PI / 4
               : baseAngle
@@ -536,11 +583,11 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
           </div>
 
           {/* 관련 스킬 */}
-          {detailViewSkillData.relatedSkills && detailViewSkillData.relatedSkills.length > 0 && (
+          {detailViewSkillData.relatedSkills && getRelatedSkillsAsStrings(detailViewSkillData.relatedSkills).length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <p className="text-xs font-medium text-gray-600 mb-2">관련 스킬</p>
               <div className="flex flex-wrap gap-2">
-                {detailViewSkillData.relatedSkills.map((relatedSkill) => (
+                {getRelatedSkillsAsStrings(detailViewSkillData.relatedSkills).slice(0, 3).map((relatedSkill) => (
                   <span
                     key={relatedSkill}
                     className="px-2 py-1 text-xs bg-gray-50 text-gray-700 border border-gray-200 rounded"

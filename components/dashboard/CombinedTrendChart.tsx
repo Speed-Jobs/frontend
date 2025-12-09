@@ -146,40 +146,66 @@ export default function CombinedTrendChart({
   const maxValue = useMemo(() => {
     const values: number[] = []
     
-    // 전체 채용 공고 수
-    if (mergedData.length > 0) {
-      mergedData.forEach(item => {
-        if (item.totalCount !== undefined) {
-          values.push(item.totalCount)
-        }
-      })
+    // 유효한 숫자인지 확인하는 함수
+    const isValidNumber = (value: any): boolean => {
+      if (value === null || value === undefined) return false
+      const num = Number(value)
+      return !isNaN(num) && isFinite(num) && num >= 0
     }
     
-    // 회사 이름 정규화 함수 (key 생성용)
-    const normalizeCompanyName = (name: string): string => {
-      return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
-    }
-    
-    // 회사 key 생성 함수 (normalizeCompanyName 기반)
-    const generateCompanyKey = (name: string): string => {
-      return normalizeCompanyName(name)
-    }
-    
-    // 선택된 회사들의 채용 활동 수 (selectedCompanies는 회사 이름 배열)
-    if (selectedCompanies.length > 0) {
-      mergedData.forEach(item => {
-        selectedCompanies.forEach(companyName => {
-          // 회사 이름을 key로 변환하여 매칭 (normalizeCompanyName 기반)
-          const companyKey = generateCompanyKey(companyName)
-          const value = Number(item[companyKey] || 0)
-          if (value > 0) {
-            values.push(value)
+    // 단일 회사 선택 시에는 totalCount만 사용
+    if (selectedCompanies.length === 1) {
+      if (mergedData.length > 0) {
+        mergedData.forEach(item => {
+          if (item.totalCount !== undefined && isValidNumber(item.totalCount)) {
+            values.push(Number(item.totalCount))
           }
         })
-      })
+      }
+    } else {
+      // 전체 선택 시: totalCount와 회사별 데이터 모두 고려
+      // 전체 채용 공고 수
+      if (mergedData.length > 0) {
+        mergedData.forEach(item => {
+          if (item.totalCount !== undefined && isValidNumber(item.totalCount)) {
+            values.push(Number(item.totalCount))
+          }
+        })
+      }
+      
+      // 회사 이름 정규화 함수 (key 생성용)
+      const normalizeCompanyName = (name: string): string => {
+        return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+      }
+      
+      // 회사 key 생성 함수 (normalizeCompanyName 기반)
+      const generateCompanyKey = (name: string): string => {
+        return normalizeCompanyName(name)
+      }
+      
+      // 선택된 회사들의 채용 활동 수 (selectedCompanies는 회사 이름 배열)
+      if (selectedCompanies.length > 0) {
+        mergedData.forEach(item => {
+          selectedCompanies.forEach(companyName => {
+            // 회사 이름을 key로 변환하여 매칭 (normalizeCompanyName 기반)
+            const companyKey = generateCompanyKey(companyName)
+            const value = item[companyKey]
+            if (isValidNumber(value)) {
+              values.push(Number(value))
+            }
+          })
+        })
+      }
     }
     
-    return Math.max(...values, 1)
+    // 유효한 값이 없으면 기본값 1 반환
+    if (values.length === 0) {
+      return 1
+    }
+    
+    const max = Math.max(...values)
+    // 최대값이 0이면 1 반환, 아니면 최대값 반환
+    return max > 0 ? max : 1
   }, [mergedData, selectedCompanies])
 
   if (isLoading) {
@@ -250,7 +276,15 @@ export default function CombinedTrendChart({
         />
         <YAxis 
           tick={{ fill: '#6b7280', fontSize: 12 }}
-          domain={[0, maxValue * 1.1]}
+          domain={[0, Math.ceil(maxValue * 1.1)]}
+          allowDecimals={false}
+          tickFormatter={(value) => {
+            // 큰 숫자는 천 단위로 표시
+            if (value >= 1000) {
+              return `${(value / 1000).toFixed(1)}k`
+            }
+            return value.toString()
+          }}
           label={{ value: '공고 수 (건)', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontSize: 12 } }}
         />
         <Tooltip 

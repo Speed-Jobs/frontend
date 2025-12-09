@@ -153,26 +153,6 @@ export default function CompanyInsightAnalysis({
                     )}
                   </div>
                 )}
-                {apiInsights.causeAnalysis.news_evidence && (
-                  <div>
-                    <p className="font-medium mb-1">뉴스 증거:</p>
-                    {Array.isArray(apiInsights.causeAnalysis.news_evidence) ? (
-                      <ul className="list-disc list-inside space-y-1">
-                        {apiInsights.causeAnalysis.news_evidence.map((evidence: string, idx: number) => (
-                          <li key={idx}>{evidence}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p>{String(apiInsights.causeAnalysis.news_evidence)}</p>
-                    )}
-                  </div>
-                )}
-                {apiInsights.causeAnalysis.confidence && (
-                  <div>
-                    <p className="font-medium mb-1">신뢰도:</p>
-                    <p>{String(apiInsights.causeAnalysis.confidence)}</p>
-                  </div>
-                )}
               </div>
             ) : (
               <p>{String(apiInsights.causeAnalysis)}</p>

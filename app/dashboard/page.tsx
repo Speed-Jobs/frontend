@@ -236,6 +236,7 @@ export default function Dashboard() {
   const [isLoadingCompanyRecruitment, setIsLoadingCompanyRecruitment] = useState(false)
   const [companyRecruitmentError, setCompanyRecruitmentError] = useState<string | null>(null)
   const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
+  const [isManualSelection, setIsManualSelection] = useState(false) // 사용자가 수동으로 선택했는지 추적
   
   // 새로운 API 응답 형식에 대한 상태
   const [combinedTrendData, setCombinedTrendData] = useState<{
@@ -1387,21 +1388,131 @@ export default function Dashboard() {
     return []
   }, [companyRecruitmentApiData, combinedTrendData])
 
+  // recruitmentCompanies가 로드되면 초기 선택 설정 (전체 선택) - 사용자가 수동으로 선택하지 않은 경우에만
+  useEffect(() => {
+    if (recruitmentCompanies.length > 0 && !isManualSelection && selectedRecruitmentCompanies.length === 0) {
+      // 초기 로딩 시에만 모든 회사 선택
+      const allCompanyNames = recruitmentCompanies.map((c: { name: string }) => c.name)
+      setSelectedRecruitmentCompanies(allCompanyNames)
+    }
+  }, [recruitmentCompanies, isManualSelection])
+
   // 회사별 채용 활동 차트 데이터 변환
   const companyRecruitmentChartData = useMemo(() => {
+    // 회사 이름 정규화 함수 (매칭용)
+    const normalizeCompanyName = (name: string): string => {
+      return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+    }
+    
     // companyRecruitmentApiData가 있으면 우선 사용 (selected_company.trends 기반 데이터)
     if (companyRecruitmentApiData && companyRecruitmentApiData.activities && companyRecruitmentApiData.activities.length > 0) {
-      return companyRecruitmentApiData.activities.map(activity => {
-        const data: { period: string; [key: string]: string | number } = { period: activity.period }
-        // companyRecruitmentApiData.companies의 모든 회사에 대해 데이터 설정
-        companyRecruitmentApiData.companies.forEach(company => {
-          // activity.counts에 해당 회사의 key가 있으면 사용, 없으면 0
-          if (activity.counts.hasOwnProperty(company.key)) {
-            data[company.key] = activity.counts[company.key]
-          } else {
-            data[company.key] = 0
+      // recruitmentCompanies가 로드되지 않았으면 companyRecruitmentApiData.companies 사용 (임시)
+      // 하지만 recruitmentCompanies가 로드되면 다시 계산되도록 의존성 배열에 포함됨
+      const availableCompanies = recruitmentCompanies.length > 0 
+        ? recruitmentCompanies 
+        : (companyRecruitmentApiData.companies || []).map((c: { name: string; key: string }) => ({
+            name: c.name,
+            key: c.key || normalizeCompanyName(c.name)
+          }))
+      
+      // "전체" 선택 시: selectedRecruitmentCompanies가 비어있거나 모든 회사가 선택된 경우 availableCompanies의 모든 회사 표시
+      const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
+        (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
+      
+      // "전체" 선택 시 recruitmentCompanies의 모든 회사를 표시, 아니면 selectedRecruitmentCompanies 사용
+      const companiesToShow = isAllSelected && recruitmentCompanies.length > 0
+        ? recruitmentCompanies.map((c: { name: string }) => c.name)
+        : selectedRecruitmentCompanies.length > 0 
+          ? selectedRecruitmentCompanies 
+          : availableCompanies.map((c: { name: string }) => c.name)
+      
+      // companyRecruitmentApiData.companies와 recruitmentCompanies를 매핑하는 맵 생성
+      const companyKeyMap = new Map<string, string>() // recruitmentCompanies의 key -> companyRecruitmentApiData의 key
+      if (recruitmentCompanies.length > 0 && companyRecruitmentApiData.companies) {
+        recruitmentCompanies.forEach((recCompany: { name: string; key: string }) => {
+          // companyRecruitmentApiData.companies에서 매칭되는 회사 찾기
+          const matchedCompany = companyRecruitmentApiData.companies.find((apiCompany: { name: string; key: string }) => {
+            // 여러 방법으로 매칭 시도: key 직접 비교, 이름 비교, 정규화된 이름 비교
+            if (recCompany.key === apiCompany.key) {
+              return true
+            }
+            
+            const apiKoreanName = getKoreanCompanyName(apiCompany.name)
+            const recKoreanName = getKoreanCompanyName(recCompany.name)
+            if (recKoreanName === apiKoreanName || recCompany.name === apiKoreanName || recCompany.name === apiCompany.name) {
+              return true
+            }
+            
+            const normalizedRecName = normalizeCompanyName(recKoreanName)
+            const normalizedApiName = normalizeCompanyName(apiKoreanName)
+            if (normalizedRecName === normalizedApiName) {
+              return true
+            }
+            
+            const recEnglishName = getEnglishCompanyName(recKoreanName)
+            const apiEnglishName = getEnglishCompanyName(apiKoreanName)
+            const normalizedRecEnglish = normalizeCompanyName(recEnglishName)
+            const normalizedApiEnglish = normalizeCompanyName(apiEnglishName)
+            if (normalizedRecEnglish === normalizedApiEnglish) {
+              return true
+            }
+            
+            return false
+          })
+          if (matchedCompany) {
+            companyKeyMap.set(recCompany.key, matchedCompany.key)
           }
         })
+      }
+      
+      return companyRecruitmentApiData.activities.map(activity => {
+        const data: { period: string; [key: string]: string | number } = { period: activity.period }
+        
+        // companiesToShow의 모든 회사에 대해 데이터 설정
+        companiesToShow.forEach((companyName: string) => {
+          // recruitmentCompanies에서 해당 회사 찾기 (우선)
+          let company = recruitmentCompanies.find((c: { name: string; key: string }) => {
+            const normalizedSelected = normalizeCompanyName(companyName)
+            const normalizedCompany = normalizeCompanyName(c.name)
+            return normalizedSelected === normalizedCompany || c.name === companyName
+          })
+          
+          // recruitmentCompanies에서 못 찾으면 availableCompanies에서 찾기
+          if (!company) {
+            company = availableCompanies.find((c: { name: string; key: string }) => {
+              const normalizedSelected = normalizeCompanyName(companyName)
+              const normalizedCompany = normalizeCompanyName(c.name)
+              return normalizedSelected === normalizedCompany || c.name === companyName
+            })
+          }
+          
+          if (company) {
+            // companyRecruitmentApiData의 key로 변환 (매핑이 있으면 사용)
+            const apiKey = companyKeyMap.get(company.key) || company.key
+            // activity.counts에 해당 회사의 key가 있으면 사용, 없으면 0
+            // 모든 가능한 key 형식으로 시도
+            let value = 0
+            if (activity.counts.hasOwnProperty(apiKey)) {
+              value = activity.counts[apiKey]
+            } else {
+              // 다른 가능한 key 형식으로도 시도
+              const possibleKeys = [
+                apiKey,
+                company.key,
+                normalizeCompanyName(company.name),
+                normalizeCompanyName(getEnglishCompanyName(company.name))
+              ]
+              for (const key of possibleKeys) {
+                if (activity.counts.hasOwnProperty(key)) {
+                  value = activity.counts[key]
+                  break
+                }
+              }
+            }
+            data[company.key] = value
+          }
+        })
+        
         return data
       })
     }
@@ -1465,7 +1576,6 @@ export default function Dashboard() {
     
     return []
   }, [companyRecruitmentApiData, combinedTrendData, selectedRecruitmentCompanies, recruitmentCompanies])
-
 
   // 회사별 채용 활동 API 호출 (전체 조회 시 각 회사별로 정확한 데이터 가져오기)
   useEffect(() => {
@@ -1547,22 +1657,54 @@ export default function Dashboard() {
                 return parsePeriod(a) - parsePeriod(b)
               })
               
-              // 회사 정보 및 활동 데이터 구성 (한글 이름 저장)
-              const companies = validResults.map((result, index) => ({
-                id: index + 1,
-                key: result!.companyKey.replace(/\s+/g, '_'),
-                name: result!.companyName // 이미 한글 이름
-              }))
+              // 회사 이름 정규화 함수 (key 생성용)
+              const normalizeCompanyName = (name: string): string => {
+                return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+              }
+              
+              // COMPANY_GROUPS의 모든 회사를 포함하도록 companies 배열 생성
+              const allCompanyKeys = Object.keys(COMPANY_GROUPS)
+              const companiesMap = new Map<string, { id: number; key: string; name: string }>()
+              
+              // validResults에 있는 회사들 추가
+              validResults.forEach((result, index) => {
+                const koreanName = getKoreanCompanyName(result!.companyName)
+                const englishName = getEnglishCompanyName(koreanName)
+                const normalizedKey = normalizeCompanyName(englishName)
+                companiesMap.set(normalizedKey, {
+                  id: index + 1,
+                  key: normalizedKey,
+                  name: koreanName
+                })
+              })
+              
+              // COMPANY_GROUPS의 모든 회사 추가 (없는 회사는 데이터가 0으로 설정됨)
+              allCompanyKeys.forEach((companyKey, index) => {
+                const englishName = COMPANY_KEY_TO_NAME[companyKey] || companyKey
+                const koreanName = getKoreanCompanyName(englishName)
+                const normalizedKey = normalizeCompanyName(englishName)
+                if (!companiesMap.has(normalizedKey)) {
+                  companiesMap.set(normalizedKey, {
+                    id: companiesMap.size + 1,
+                    key: normalizedKey,
+                    name: koreanName
+                  })
+                }
+              })
+              
+              const companies = Array.from(companiesMap.values())
               
               // 각 회사의 trends를 period별로 매핑 (company.key를 키로 사용)
               const trendsMap = new Map<string, Map<string, number>>()
-              validResults.forEach((result, index) => {
+              validResults.forEach((result) => {
+                const koreanName = getKoreanCompanyName(result!.companyName)
+                const englishName = getEnglishCompanyName(koreanName)
+                const normalizedKey = normalizeCompanyName(englishName)
                 const periodMap = new Map<string, number>()
                 result!.trends.forEach((trend: any) => {
                   periodMap.set(trend.period, trend.count || 0)
                 })
-                // company.key를 키로 사용
-                trendsMap.set(companies[index].key, periodMap)
+                trendsMap.set(normalizedKey, periodMap)
               })
               
               const activities = allPeriods.map(period => {
@@ -1608,14 +1750,62 @@ export default function Dashboard() {
             const result = await response.json()
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data) {
-              // 회사명을 한글로 변환
-              const companies = (result.data.companies || []).map((c: { name: string; id?: number; key?: string }) => ({
+              // 회사 이름 정규화 함수 (key 생성용)
+              const normalizeCompanyName = (name: string): string => {
+                return name.toLowerCase().replace(/\s+/g, '').replace(/[\/\(\)]/g, '').trim()
+              }
+              
+              // API 응답의 회사들을 한글로 변환하고 맵에 추가
+              const companiesMap = new Map<string, { id: number; key: string; name: string }>()
+              const apiCompanies = (result.data.companies || []).map((c: { name: string; id?: number; key?: string }) => ({
                 ...c,
                 name: getKoreanCompanyName(c.name) !== c.name ? getKoreanCompanyName(c.name) : c.name
               }))
+              
+              apiCompanies.forEach((c: { name: string; id?: number; key?: string }, index: number) => {
+                const englishName = getEnglishCompanyName(c.name)
+                const normalizedKey = normalizeCompanyName(englishName)
+                companiesMap.set(normalizedKey, {
+                  id: c.id || index + 1,
+                  key: c.key || normalizedKey,
+                  name: c.name
+                })
+              })
+              
+              // COMPANY_GROUPS의 모든 회사 추가 (없는 회사는 데이터가 0으로 설정됨)
+              const allCompanyKeys = Object.keys(COMPANY_GROUPS)
+              allCompanyKeys.forEach((companyKey, index) => {
+                const englishName = COMPANY_KEY_TO_NAME[companyKey] || companyKey
+                const koreanName = getKoreanCompanyName(englishName)
+                const normalizedKey = normalizeCompanyName(englishName)
+                if (!companiesMap.has(normalizedKey)) {
+                  companiesMap.set(normalizedKey, {
+                    id: companiesMap.size + 1,
+                    key: normalizedKey,
+                    name: koreanName
+                  })
+                }
+              })
+              
+              const companies = Array.from(companiesMap.values())
+              
+              // activities의 counts에 모든 회사가 포함되도록 보장
+              const activities = (result.data.activities || []).map((activity: { period: string; counts: Record<string, number> }) => {
+                const counts: Record<string, number> = { ...activity.counts }
+                companies.forEach(company => {
+                  if (!counts.hasOwnProperty(company.key)) {
+                    counts[company.key] = 0
+                  }
+                })
+                return {
+                  period: activity.period,
+                  counts
+                }
+              })
+              
               setCompanyRecruitmentApiData({
                 companies,
-                activities: result.data.activities || []
+                activities
               })
               if (selectedRecruitmentCompanies.length === 0 && companies.length > 0) {
                 setSelectedRecruitmentCompanies(companies.map((c: { name: string }) => c.name))
@@ -1859,11 +2049,33 @@ export default function Dashboard() {
         const result = await response.json()
         
         if (result.status === 200 && result.data) {
-          // statistics 배열이 비어있거나 없는 경우도 처리
-          if (result.data.statistics && Array.isArray(result.data.statistics) && result.data.statistics.length > 0) {
-            setJobRoleStatisticsApiData(result.data)
+          // API 응답 구조: result.data.statistics.statistics (배열)
+          // result.data.statistics.current_period, previous_period (기간 정보)
+          // result.data.insights (인사이트 정보)
+          
+          // insights는 statistics와 독립적으로 존재할 수 있으므로 별도로 확인
+          const insightsData = result.data.insights || null
+          
+          if (result.data.statistics) {
+            // statistics 배열이 비어있어도 기간 정보는 있으므로 데이터로 저장
+            const apiData = {
+              statistics: result.data.statistics.statistics || [],
+              current_period: result.data.statistics.current_period,
+              previous_period: result.data.statistics.previous_period,
+              insights: insightsData,
+            }
+            setJobRoleStatisticsApiData(apiData)
+          } else if (insightsData) {
+            // statistics가 없어도 insights가 있으면 저장
+            const apiData = {
+              statistics: [],
+              current_period: null,
+              previous_period: null,
+              insights: insightsData,
+            }
+            setJobRoleStatisticsApiData(apiData)
           } else {
-            // 빈 배열이면 fallback 데이터 사용을 위해 null로 설정
+            // 데이터 구조가 맞지 않으면 null로 설정
             setJobRoleStatisticsApiData(null)
           }
         } else {
@@ -2095,33 +2307,108 @@ export default function Dashboard() {
 
   // 직군별 통계 데이터 변환 (API 응답을 컴포넌트 형식으로 변환)
   const jobRoleStatisticsData = useMemo(() => {
-    // API 데이터가 있고 statistics 배열이 비어있지 않으면 사용
-    if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.statistics) {
-      // statistics가 배열인지 확인
-      const statisticsArray = Array.isArray(jobRoleStatisticsApiData.statistics) 
-        ? jobRoleStatisticsApiData.statistics 
-        : []
+    // 직군별 통계에 사용되는 모든 직군 목록 (SKAX 직무기술서 기준)
+    const allRoles = {
+      Tech: [
+        'Software Development',
+        'Factory AX Engineering',
+        'Solution Development',
+        'Cloud/Infra Engineering',
+        'Architect',
+        'Project Management',
+        'Quality Management',
+        'AI',
+        '정보보호',
+      ],
+      Biz: [
+        'Sales',
+        'Domain Expert',
+        'Consulting',
+      ],
+      BizSupporting: [
+        'Biz. Supporting',
+      ],
+    }
+    
+    const rolesForCategory = allRoles[selectedExpertCategory] || []
+    
+    // Industries 매핑
+    const roleIndustries: Record<string, string[]> = {
+      'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
+      'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
+      'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
+      'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
+      'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
+      'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+      'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
+      'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
+      '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
+      'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
+      'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
+      'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
+      'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
+    }
+    
+    // API 데이터가 있고 statistics 배열이 있으면 사용
+    if (jobRoleStatisticsApiData && Array.isArray(jobRoleStatisticsApiData.statistics)) {
+      const statisticsArray = jobRoleStatisticsApiData.statistics
       
-      // 빈 배열이 아니면 변환하여 반환
-      if (statisticsArray.length > 0) {
-        const transformedData = statisticsArray.map((stat: any) => {
-          // API 응답 형식에 따라 필드명 처리 (current_count/previous_count 또는 value/previousValue)
-          const currentCount = stat.current_count !== undefined ? stat.current_count : stat.value
-          const previousCount = stat.previous_count !== undefined ? stat.previous_count : stat.previousValue
+      // API 응답에서 받은 데이터를 맵으로 변환 (빠른 조회를 위해)
+      const apiDataMap = new Map<string, any>()
+      statisticsArray.forEach((stat: any) => {
+        const roleName = stat.name || stat.job_role || ''
+        if (roleName) {
+          apiDataMap.set(roleName, stat)
+        }
+      })
+      
+      // 모든 직군에 대해 데이터 생성 (API에 없는 직군은 0으로 채움)
+      const transformedData = rolesForCategory.map((roleName) => {
+        const apiStat = apiDataMap.get(roleName)
+        if (apiStat) {
+          // API 응답 형식에 따라 필드명 처리
+          const currentCount = apiStat.current_count !== undefined ? apiStat.current_count : (apiStat.value !== undefined ? apiStat.value : 0)
+          const previousCount = apiStat.previous_count !== undefined ? apiStat.previous_count : (apiStat.previous_value !== undefined ? apiStat.previous_value : (apiStat.previousValue !== undefined ? apiStat.previousValue : 0))
+          
+          // industries 처리: API 응답이 객체 배열이면 name 필드 추출, 아니면 그대로 사용
+          let industries: string[] = []
+          if (apiStat.industries && Array.isArray(apiStat.industries)) {
+            if (apiStat.industries.length > 0) {
+              // 객체 배열인지 확인 (첫 번째 요소가 객체인지)
+              if (typeof apiStat.industries[0] === 'object' && apiStat.industries[0] !== null && 'name' in apiStat.industries[0]) {
+                // 객체 배열이면 name 필드 추출
+                industries = apiStat.industries.map((ind: any) => ind.name || ind).filter((name: string) => name)
+              } else if (typeof apiStat.industries[0] === 'string') {
+                // 문자열 배열이면 그대로 사용
+                industries = apiStat.industries
+              }
+            }
+          }
+          
+          // industries가 비어있으면 기본 매핑 사용
+          if (industries.length === 0) {
+            industries = roleIndustries[roleName] || []
+          }
           
           return {
-            name: stat.name,
+            name: roleName,
             value: currentCount || 0,
             previousValue: previousCount || 0,
-            industries: stat.industries || [],
+            industries: industries,
           }
-        })
-        
-        // 변환된 데이터가 비어있지 않으면 반환
-        if (transformedData.length > 0) {
-          return transformedData
+        } else {
+          // API에 없는 직군은 0으로 채움
+          return {
+            name: roleName,
+            value: 0,
+            previousValue: 0,
+            industries: roleIndustries[roleName] || [],
+          }
         }
-      }
+      })
+      
+      // 변환된 데이터 반환
+      return transformedData
     }
     
     // API 데이터가 없거나 빈 배열이면 로컬 fallback 데이터 사용
@@ -2146,12 +2433,17 @@ export default function Dashboard() {
   // 직군별 통계 기간 정보 (API 응답에서 가져오기, 없으면 로컬 계산)
   const jobRoleStatisticsPeriods = useMemo(() => {
     // API 데이터가 있으면 API에서 기간 정보 사용
-    if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.current_period) {
-      return {
-        currentPeriodStart: new Date(jobRoleStatisticsApiData.current_period.start_date),
-        currentPeriodEnd: new Date(jobRoleStatisticsApiData.current_period.end_date),
-        previousPeriodStart: new Date(jobRoleStatisticsApiData.previous_period.start_date),
-        previousPeriodEnd: new Date(jobRoleStatisticsApiData.previous_period.end_date),
+    if (jobRoleStatisticsApiData && jobRoleStatisticsApiData.current_period && jobRoleStatisticsApiData.previous_period) {
+      try {
+        return {
+          currentPeriodStart: new Date(jobRoleStatisticsApiData.current_period.start_date),
+          currentPeriodEnd: new Date(jobRoleStatisticsApiData.current_period.end_date),
+          previousPeriodStart: new Date(jobRoleStatisticsApiData.previous_period.start_date),
+          previousPeriodEnd: new Date(jobRoleStatisticsApiData.previous_period.end_date),
+        }
+      } catch (error) {
+        // 날짜 파싱 실패 시 로컬 계산으로 fallback
+        console.error('기간 정보 파싱 실패:', error)
       }
     }
     
@@ -2414,6 +2706,7 @@ export default function Dashboard() {
                       value={selectedRecruitmentCompanies.length === 1 ? selectedRecruitmentCompanies[0] : 'all'}
                       onChange={(e) => {
                         const value = e.target.value
+                        setIsManualSelection(true) // 사용자가 수동으로 선택했음을 표시
                         if (value === 'all') {
                           // 전체 선택: 모든 회사 선택
                           setSelectedRecruitmentCompanies(recruitmentCompanies.map((c: { key: string; name: string }) => c.name))
@@ -2571,9 +2864,9 @@ export default function Dashboard() {
         {/* 하단 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* 직군 비중 변화 분석 */}
-          <DarkDashboardCard title="직군 비중 변화 분석">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex gap-2">
+          <DarkDashboardCard title="직군 비중 변화 분석" className="overflow-visible">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setJobRoleStatisticsViewMode('Weekly')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -2595,7 +2888,7 @@ export default function Dashboard() {
                   MoM (전월 대비)
                 </button>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSelectedExpertCategory('Tech')}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -2642,6 +2935,7 @@ export default function Dashboard() {
               selectedCompanyFilter={selectedJobRoleCompanyFilter}
               onCompanyFilterChange={setSelectedJobRoleCompanyFilter}
               availableCompanies={recruitmentCompanies}
+              insights={jobRoleStatisticsApiData?.insights || null}
             />
           </DarkDashboardCard>
 

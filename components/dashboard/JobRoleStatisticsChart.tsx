@@ -33,6 +33,25 @@ interface JobRoleStatisticsChartProps {
   selectedCompanyFilter?: string
   onCompanyFilterChange?: (company: string) => void
   availableCompanies?: Array<{ key: string; name: string }>
+  insights?: {
+    summary?: string
+    current_period?: {
+      start_date: string
+      end_date: string
+      total_count?: number
+    }
+    previous_period?: {
+      start_date: string
+      end_date: string
+      total_count?: number
+    }
+    job_role_insights?: Array<{
+      job_role_name: string
+      insight: string
+      change_description: string
+      external_factors: string
+    }>
+  } | null
 }
 
 // 회색 계열 색상 (사진과 유사하게)
@@ -76,15 +95,55 @@ const CustomTooltip = ({ active, payload, data, chartTotal, isCurrentPeriod }: C
   
   const roleData = data.find(item => item.name === name)
   const currentValue = roleData?.value || 0
+  const previousValue = roleData?.previousValue || 0
   
   // 퍼센테이지 계산
   const percentage = chartTotal > 0 ? ((value / chartTotal) * 100).toFixed(1) : '0.0'
   
+  // 현재 기간 차트인 경우에만 변화율 계산
+  const changeRate = isCurrentPeriod && previousValue > 0 
+    ? (((currentValue - previousValue) / previousValue) * 100).toFixed(1)
+    : isCurrentPeriod && currentValue > 0 ? '100.0' : '0.0'
+  const isIncrease = parseFloat(changeRate) > 0
+  const isDecrease = parseFloat(changeRate) < 0
+  
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg px-3.5 py-2.5">
-      <div className="text-xs font-medium text-gray-700 leading-tight">{name}</div>
-      <div className="text-xs text-gray-600 mt-0.5">{percentage}%</div>
-      <div className="text-sm font-bold text-gray-900 mt-0.5">{currentValue}건</div>
+    <div className="bg-white border border-gray-300 rounded-lg shadow-xl px-4 py-3 min-w-[180px] max-w-[250px] relative z-[10000]" style={{ pointerEvents: 'auto' }}>
+      <div className="space-y-1.5">
+        <div className="text-sm font-semibold text-gray-900 leading-tight break-words">
+          {name}
+        </div>
+        {isCurrentPeriod ? (
+          // 현재 기간 차트: 현재 기간과 이전 기간 비교 정보 표시
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-200">
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-500">현재 기간</span>
+              <span className="text-base font-bold text-gray-900">{currentValue.toLocaleString()}건</span>
+              <span className="text-xs text-gray-600 mt-0.5">{percentage}%</span>
+            </div>
+            {previousValue > 0 && (
+              <div className="flex flex-col items-end">
+                <span className="text-xs text-gray-500">이전 기간</span>
+                <span className="text-sm font-medium text-gray-700">{previousValue.toLocaleString()}건</span>
+                <span className={`text-xs font-medium mt-0.5 ${
+                  isIncrease ? 'text-green-600' : isDecrease ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {isIncrease ? '↑' : isDecrease ? '↓' : ''} {Math.abs(parseFloat(changeRate))}%
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          // 이전 기간 차트: 이전 기간 정보만 표시
+          <div className="pt-1 border-t border-gray-200">
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-500">이전 기간</span>
+              <span className="text-base font-bold text-gray-900">{value.toLocaleString()}건</span>
+              <span className="text-xs text-gray-600 mt-0.5">{percentage}%</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -102,7 +161,8 @@ export default function JobRoleStatisticsChart({
   error,
   selectedCompanyFilter = '전체',
   onCompanyFilterChange,
-  availableCompanies = []
+  availableCompanies = [],
+  insights = null
 }: JobRoleStatisticsChartProps) {
   if (isLoading) {
     return (
@@ -128,27 +188,13 @@ export default function JobRoleStatisticsChart({
     )
   }
 
-  // 현재 기간과 이전 기간 데이터 분리 (모든 데이터 포함, 0도 포함)
+  // 현재 기간과 이전 기간 데이터 분리
   const currentData = data.map(item => ({ name: item.name, value: item.value }))
   const previousData = data.map(item => ({ name: item.name, value: item.previousValue }))
   
-  // 차트에 표시할 데이터 (0보다 큰 값만)
-  let currentChartData = currentData.filter(item => item.value > 0)
-  let previousChartData = previousData.filter(item => item.value > 0)
-  
-  // 현재 기간 데이터가 모두 0인 경우: 모든 직군을 균등하게 표시 (각각 1씩)
-  // 이렇게 하면 실제 데이터가 없을 때도 모든 직군이 표시되고, 실제 데이터가 있으면 정상적으로 표시됨
-  if (currentChartData.length === 0 && currentData.length > 0) {
-    // 모든 직군을 균등하게 표시 (각각 1씩)
-    currentChartData = currentData.map(item => ({ name: item.name, value: 1 }))
-  }
-  
-  // 이전 기간 데이터가 모두 0인 경우: 모든 직군을 균등하게 표시 (각각 1씩)
-  // 이렇게 하면 실제 데이터가 없을 때도 모든 직군이 표시되고, 실제 데이터가 있으면 정상적으로 표시됨
-  if (previousChartData.length === 0 && previousData.length > 0) {
-    // 모든 직군을 균등하게 표시 (각각 1씩)
-    previousChartData = previousData.map(item => ({ name: item.name, value: 1 }))
-  }
+  // 차트에 표시할 데이터 (0보다 큰 값만) - 0개 공고수를 가진 직군은 제외
+  const currentChartData = currentData.filter(item => item.value > 0)
+  const previousChartData = previousData.filter(item => item.value > 0)
   
   // 총합 계산
   const currentTotal = currentData.reduce((sum, item) => sum + item.value, 0)
@@ -189,65 +235,105 @@ export default function JobRoleStatisticsChart({
   const currentPeriodLabel = formatPeriodRange(currentPeriodStart, currentPeriodEnd, false)
   const previousPeriodLabel = formatPeriodRange(previousPeriodStart, previousPeriodEnd, true)
   
-  // 인사이트 생성
-  const generateInsights = () => {
-    const insights: string[] = []
+  // 상세 날짜 범위 포맷팅 (insights의 날짜 정보 사용)
+  const formatDetailedDateRange = (startDate: string | undefined, endDate: string | undefined): string => {
+    if (!startDate || !endDate) return ''
     
-    // 전체 변화율
-    if (previousTotal > 0) {
-      const totalChange = ((currentTotal - previousTotal) / previousTotal) * 100
-      if (totalChange > 10) {
-        insights.push(`전체 채용 공고가 ${totalChange.toFixed(1)}% 증가했습니다.`)
-      } else if (totalChange < -10) {
-        insights.push(`전체 채용 공고가 ${Math.abs(totalChange).toFixed(1)}% 감소했습니다.`)
-      } else {
-        insights.push(`전체 채용 공고가 안정적으로 유지되고 있습니다.`)
+    try {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      
+      const startYear = start.getFullYear()
+      const startMonth = start.getMonth() + 1
+      const startDay = start.getDate()
+      
+      const endYear = end.getFullYear()
+      const endMonth = end.getMonth() + 1
+      const endDay = end.getDate()
+      
+      // 같은 년도, 같은 월인 경우
+      if (startYear === endYear && startMonth === endMonth) {
+        return `${startYear}년 ${startMonth}월 ${startDay}일부터 ${endDay}일까지`
+      }
+      // 같은 년도, 다른 월인 경우
+      if (startYear === endYear) {
+        return `${startYear}년 ${startMonth}월 ${startDay}일부터 ${endMonth}월 ${endDay}일까지`
+      }
+      // 다른 년도인 경우
+      return `${startYear}년 ${startMonth}월 ${startDay}일부터 ${endYear}년 ${endMonth}월 ${endDay}일까지`
+    } catch (error) {
+      return ''
+    }
+  }
+  
+  // 인사이트 제목용 상세 기간 레이블 생성
+  const getDetailedPeriodLabel = () => {
+    // insights에서 날짜 정보가 있으면 사용
+    if (insights?.current_period && insights?.previous_period) {
+      const previousRange = formatDetailedDateRange(
+        insights.previous_period.start_date,
+        insights.previous_period.end_date
+      )
+      const currentRange = formatDetailedDateRange(
+        insights.current_period.start_date,
+        insights.current_period.end_date
+      )
+      
+      if (previousRange && currentRange) {
+        return `${previousRange} vs ${currentRange} 비교 인사이트`
       }
     }
     
-    // 가장 증가한 직군
-    const increasedRoles = data
-      .filter(item => item.previousValue > 0)
-      .map(item => ({
-        name: item.name,
-        change: ((item.value - item.previousValue) / item.previousValue) * 100,
-        changeCount: item.value - item.previousValue
-      }))
-      .filter(item => item.change > 0)
-      .sort((a, b) => b.change - a.change)
-    
-    if (increasedRoles.length > 0) {
-      const topIncreased = increasedRoles[0]
-      insights.push(`${topIncreased.name} 직군이 ${topIncreased.change.toFixed(1)}% 증가하여 가장 큰 성장세를 보였습니다.`)
-    }
-    
-    // 가장 감소한 직군
-    const decreasedRoles = data
-      .filter(item => item.previousValue > 0)
-      .map(item => ({
-        name: item.name,
-        change: ((item.value - item.previousValue) / item.previousValue) * 100,
-        changeCount: item.value - item.previousValue
-      }))
-      .filter(item => item.change < 0)
-      .sort((a, b) => a.change - b.change)
-    
-    if (decreasedRoles.length > 0) {
-      const topDecreased = decreasedRoles[0]
-      insights.push(`${topDecreased.name} 직군이 ${Math.abs(topDecreased.change).toFixed(1)}% 감소했습니다.`)
-    }
-    
-    // 가장 많은 공고를 차지하는 직군
-    const topRole = currentData.sort((a, b) => b.value - a.value)[0]
-    if (topRole && currentTotal > 0) {
-      const topRolePercent = (topRole.value / currentTotal) * 100
-      insights.push(`${topRole.name} 직군이 전체의 ${topRolePercent.toFixed(1)}%를 차지하며 가장 많은 공고를 보유하고 있습니다.`)
-    }
-    
-    return insights.length > 0 ? insights : ['변화가 미미합니다.']
+    // insights 날짜 정보가 없으면 기존 레이블 사용
+    return `${previousPeriodLabel} vs ${currentPeriodLabel} 비교 인사이트`
   }
   
-  const insights = generateInsights()
+  // 전체 인사이트 가져오기 (API의 summary만 사용)
+  const getSummaryInsight = () => {
+    // API에서 받은 summary가 있으면 사용
+    if (insights) {
+      if (insights.summary !== undefined && insights.summary !== null) {
+        const summary = typeof insights.summary === 'string' ? insights.summary : String(insights.summary)
+        
+        if (summary.trim().length > 0) {
+          return summary
+        }
+      }
+    }
+    
+    // summary가 없으면 null 반환 (로딩 중 표시)
+    return null
+  }
+  
+  const summaryInsight = getSummaryInsight()
+  const hasSummary = summaryInsight !== null
+  
+  // 선택된 직군의 인사이트 가져오기
+  const getSelectedRoleInsight = () => {
+    if (!selectedRole) {
+      return null
+    }
+    
+    if (!insights?.job_role_insights) {
+      return null
+    }
+    
+    // 정확히 일치하는 경우 찾기
+    let roleInsight = insights.job_role_insights.find(
+      (item) => item.job_role_name === selectedRole
+    )
+    
+    // 정확히 일치하지 않으면 대소문자 무시하고 공백 제거 후 비교
+    if (!roleInsight) {
+      roleInsight = insights.job_role_insights.find(
+        (item) => item.job_role_name.trim().toLowerCase() === selectedRole.trim().toLowerCase()
+      )
+    }
+    
+    return roleInsight || null
+  }
+  
+  const selectedRoleInsight = getSelectedRoleInsight()
 
   // 타이틀 생성
   const getTitle = () => {
@@ -259,7 +345,7 @@ export default function JobRoleStatisticsChart({
   }
 
   return (
-    <div>
+    <div className="relative z-10" style={{ overflow: 'visible' }}>
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h4 className="text-sm font-semibold text-gray-700">
           {getTitle()}
@@ -284,13 +370,13 @@ export default function JobRoleStatisticsChart({
       </div>
       
       {/* 두 개의 도넛 차트 나란히 표시 - 반응형, 중앙 정렬 */}
-      <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 mb-4 w-full">
+      <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 mb-4 w-full overflow-visible">
         {/* 첫 번째 차트 (이전 기간) */}
-        <div className="w-full lg:w-auto flex flex-col items-center max-w-[400px] lg:max-w-none">
+        <div className="w-full lg:w-auto flex flex-col items-center flex-1 lg:flex-none relative z-10">
           <div className="text-center mb-2">
             <p className="text-xs font-medium text-gray-500">{previousPeriodLabel}</p>
           </div>
-          <div className="w-full max-w-[350px] lg:max-w-[380px]" style={{ height: 'min(350px, 50vw)', maxHeight: '380px' }}>
+          <div className="w-full max-w-[300px] lg:max-w-[320px] aspect-square relative overflow-visible">
             {previousChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -304,11 +390,16 @@ export default function JobRoleStatisticsChart({
                     innerRadius="35%"
                     fill="#6b7280"
                     dataKey="value"
-                    onClick={(data: any) => {
-                      if (selectedRole === data.name) {
-                        onRoleClick(null)
-                      } else {
-                        onRoleClick(data.name)
+                    onClick={(data: any, index: number, e: any) => {
+                      console.log('[도넛 차트 클릭] 이전 기간 차트 클릭:', data)
+                      const roleName = data.name || data.payload?.name
+                      console.log('[도넛 차트 클릭] roleName:', roleName)
+                      if (roleName) {
+                        if (selectedRole === roleName) {
+                          onRoleClick(null)
+                        } else {
+                          onRoleClick(roleName)
+                        }
                       }
                     }}
                     style={{ cursor: 'pointer' }}
@@ -330,7 +421,11 @@ export default function JobRoleStatisticsChart({
                   <Tooltip 
                     content={<CustomTooltip data={data} chartTotal={previousChartTotal} isCurrentPeriod={false} />}
                     allowEscapeViewBox={{ x: true, y: true }}
-                    wrapperStyle={{ pointerEvents: 'none', zIndex: 1000 }}
+                    wrapperStyle={{ 
+                      pointerEvents: 'none', 
+                      zIndex: 10000,
+                      outline: 'none'
+                    }}
                     cursor={false}
                   />
                 </PieChart>
@@ -344,7 +439,7 @@ export default function JobRoleStatisticsChart({
         </div>
         
         {/* 화살표 (이전 기간 -> 현재 기간) - 모바일에서는 세로로, 데스크톱에서는 가로로 */}
-        <div className="flex lg:flex-col items-center justify-center px-2 py-4 lg:py-0">
+        <div className="flex lg:flex-col items-center justify-center px-2 py-4 lg:py-0 flex-shrink-0">
           <div className="flex lg:flex-col items-center gap-2">
             <svg 
               width="40" 
@@ -361,12 +456,12 @@ export default function JobRoleStatisticsChart({
         </div>
         
         {/* 두 번째 차트 (현재 기간) - 더 크게 강조 */}
-        <div className="w-full lg:w-auto flex flex-col items-center max-w-[400px] lg:max-w-none">
+        <div className="w-full lg:w-auto flex flex-col items-center flex-1 lg:flex-none relative z-10">
           <div className="text-center mb-3">
             <p className="text-base lg:text-lg font-bold text-gray-900">{currentPeriodLabel}</p>
             <p className="text-xs text-blue-600 font-semibold mt-1">현재 기간</p>
           </div>
-          <div className="w-full max-w-[400px] lg:max-w-[450px] relative" style={{ height: 'min(400px, 55vw)', maxHeight: '450px' }}>
+          <div className="w-full max-w-[350px] lg:max-w-[380px] aspect-square relative overflow-visible">
               {currentChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -375,19 +470,21 @@ export default function JobRoleStatisticsChart({
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, value }) => {
-                        const percent = currentChartTotal > 0 ? (value / currentChartTotal) * 100 : 0
-                        return percent >= 3 ? `${(percent).toFixed(0)}%` : ''
-                      }}
+                      label={false}
                       outerRadius="85%"
                       innerRadius="45%"
                       fill="#6b7280"
                       dataKey="value"
-                      onClick={(data: any) => {
-                        if (selectedRole === data.name) {
-                          onRoleClick(null)
-                        } else {
-                          onRoleClick(data.name)
+                      onClick={(data: any, index: number, e: any) => {
+                        console.log('[도넛 차트 클릭] 현재 기간 차트 클릭:', data)
+                        const roleName = data.name || data.payload?.name
+                        console.log('[도넛 차트 클릭] roleName:', roleName)
+                        if (roleName) {
+                          if (selectedRole === roleName) {
+                            onRoleClick(null)
+                          } else {
+                            onRoleClick(roleName)
+                          }
                         }
                       }}
                       style={{ cursor: 'pointer' }}
@@ -409,7 +506,11 @@ export default function JobRoleStatisticsChart({
                     <Tooltip 
                       content={<CustomTooltip data={data} chartTotal={currentChartTotal} isCurrentPeriod={true} />}
                       allowEscapeViewBox={{ x: true, y: true }}
-                      wrapperStyle={{ pointerEvents: 'none', zIndex: 1000 }}
+                      wrapperStyle={{ 
+                        pointerEvents: 'none', 
+                        zIndex: 10000,
+                        outline: 'none'
+                      }}
                       cursor={false}
                     />
                   </PieChart>
@@ -430,8 +531,21 @@ export default function JobRoleStatisticsChart({
           const hasPrevious = previousChartData.some(d => d.name === roleName)
           if (!hasCurrent && !hasPrevious) return null
           
+          const isSelected = selectedRole === roleName
           return (
-            <div key={roleName} className="flex items-center gap-1.5 sm:gap-2">
+            <div 
+              key={roleName} 
+              className={`flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-opacity ${
+                isSelected ? 'opacity-100 font-semibold' : 'opacity-70 hover:opacity-100'
+              }`}
+              onClick={() => {
+                if (isSelected) {
+                  onRoleClick(null)
+                } else {
+                  onRoleClick(roleName)
+                }
+              }}
+            >
               <div 
                 className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
                 style={{ backgroundColor: pieColors[index % pieColors.length] }}
@@ -444,20 +558,72 @@ export default function JobRoleStatisticsChart({
       
       {/* 인사이트 섹션 */}
       <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
-          <span className="text-base sm:text-lg">💡</span>
-          <span className="break-words">
-            {previousPeriodLabel} vs {currentPeriodLabel} 비교 인사이트
-          </span>
-        </h4>
-        <ul className="space-y-1.5 sm:space-y-2">
-          {insights.map((insight, index) => (
-            <li key={index} className="text-xs sm:text-sm text-blue-800 flex items-start gap-2">
-              <span className="text-blue-500 mt-0.5 sm:mt-1 flex-shrink-0">•</span>
-              <span className="break-words">{insight}</span>
-            </li>
-          ))}
-        </ul>
+        {selectedRole && selectedRoleInsight ? (
+          // 선택된 직군의 인사이트 표시
+          <>
+            <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+              <span className="text-base sm:text-lg">💡</span>
+              <span className="break-words">
+                {selectedRole} 인사이트
+              </span>
+            </h4>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="text-xs sm:text-sm text-blue-800">
+                <div className="font-medium mb-1">인사이트:</div>
+                <div className="text-blue-700">{selectedRoleInsight.insight}</div>
+              </div>
+              <div className="text-xs sm:text-sm text-blue-800">
+                <div className="font-medium mb-1">변화 설명:</div>
+                <div className="text-blue-700">{selectedRoleInsight.change_description}</div>
+              </div>
+              {selectedRoleInsight.external_factors && (
+                <div className="text-xs sm:text-sm text-blue-800">
+                  <div className="font-medium mb-1">외부 요인:</div>
+                  <div className="text-blue-700">{selectedRoleInsight.external_factors}</div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => onRoleClick(null)}
+              className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              전체 인사이트 보기
+            </button>
+          </>
+        ) : (
+          // 전체 인사이트 표시 (summary)
+          <>
+            <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+              <span className="text-base sm:text-lg">💡</span>
+              <span className="break-words">
+                {getDetailedPeriodLabel()}
+              </span>
+            </h4>
+            {hasSummary && summaryInsight ? (
+              <>
+                <div className="text-xs sm:text-sm text-blue-800">
+                  <div className="break-words">{summaryInsight}</div>
+                </div>
+                {insights?.job_role_insights && insights.job_role_insights.length > 0 && (
+                  <div className="mt-3 text-xs text-blue-600">
+                    💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
+                <span className="animate-pulse">⏳</span>
+                <span>
+                  {insights === null 
+                    ? '인사이트 생성 중...' 
+                    : insights && !insights.summary
+                    ? '인사이트를 불러오는 중입니다...'
+                    : '인사이트 생성 중...'}
+                </span>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

@@ -273,6 +273,28 @@ export default function Dashboard() {
   const [isLoadingJobRoleStatistics, setIsLoadingJobRoleStatistics] = useState(false)
   const [jobRoleStatisticsError, setJobRoleStatisticsError] = useState<string | null>(null)
 
+  // 직무 인재 수급 난이도 지수 API 상태
+  const [jobDifficultyApiData, setJobDifficultyApiData] = useState<{
+    total_insight: any
+    position_insight: any
+    industry_insight: any
+  } | null>(null)
+  const [isLoadingJobDifficulty, setIsLoadingJobDifficulty] = useState(false)
+  const [jobDifficultyError, setJobDifficultyError] = useState<string | null>(null)
+  const [selectedDifficultyPosition, setSelectedDifficultyPosition] = useState<string>('')
+  const [selectedDifficultyIndustry, setSelectedDifficultyIndustry] = useState<string>('')
+
+  // HHI 집중도 분석 API 상태
+  const [hhiAnalysisApiData, setHhiAnalysisApiData] = useState<{
+    analysis_type: string
+    period: { start: string; end: string }
+    total_insight: any
+    position_insight: any
+    industry_insight: any
+  } | null>(null)
+  const [isLoadingHhiAnalysis, setIsLoadingHhiAnalysis] = useState(false)
+  const [hhiAnalysisError, setHhiAnalysisError] = useState<string | null>(null)
+
   // 직군별 채용 공고 데이터 계산 (직군별 통계의 직군 종류 사용)
   const jobRoleData = useMemo(() => {
     const now = new Date()
@@ -498,9 +520,186 @@ export default function Dashboard() {
     return schedules
   }, [])
 
-  // 직무 인재 수급 난이도 지수 데이터
+  // API 데이터를 JobDifficultyItem[] 형식으로 변환하는 함수
+  const convertApiDataToJobDifficultyItems = useMemo(() => {
+    if (!jobDifficultyApiData) return null
+
+    const { total_insight, position_insight, industry_insight } = jobDifficultyApiData
+
+    // YoY 점수를 난이도 지수로 변환
+    // YoY 점수 해석: 0(극심한 냉각) ~ 100(극심한 과열)
+    // 난이도 지수: 0(쉬움) ~ 100(어려움)
+    // YoY가 낮으면(냉각) 난이도 높음, YoY가 높으면(과열) 난이도 높음
+    const convertYoYToDifficulty = (yoyScore: number): number => {
+      // YoY 점수가 50(기준선)에서 멀어질수록 난이도가 높아짐
+      // 0 또는 100일 때 최대 난이도(100), 50일 때 최소 난이도(0)
+      const distanceFromBaseline = Math.abs(yoyScore - 50)
+      return Math.min(100, Math.max(0, distanceFromBaseline * 2))
+    }
+
+    const result: Array<{
+      name: string
+      category?: 'Tech' | 'Biz' | 'BizSupporting'
+      industries: string[]
+      difficulty: number
+      similarPostings: number
+      competitorRatio: number
+      recentGrowthRate: number
+      avgHiringDuration: number
+      yearOverYearChange: number
+      insights: string[]
+      yoyScore?: number
+      trend?: string
+    }> = []
+
+    // 전체 시장 데이터 변환
+    if (total_insight) {
+      const totalYoY = total_insight.overall_yoy_score || 0
+      const totalDifficulty = convertYoYToDifficulty(totalYoY)
+      
+      // 작년 대비 변화 계산 (현재 YoY - 50)
+      const yearOverYearChange = totalYoY - 50
+      
+      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
+      const insights: string[] = total_insight.insights || []
+
+      result.push({
+        name: '전체 시장',
+        category: undefined,
+        industries: [],
+        difficulty: Math.round(totalDifficulty),
+        similarPostings: total_insight.overall_current_count || 0,
+        competitorRatio: 0, // API에서 제공하지 않음
+        recentGrowthRate: yearOverYearChange,
+        avgHiringDuration: 0, // API에서 제공하지 않음
+        yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
+        insights, // API에서 제공하는 인사이트만 사용
+        yoyScore: totalYoY, // YoY 점수 추가
+        trend: total_insight.overall_trend || undefined, // 트렌드 추가
+      })
+    }
+
+    // 직군별 데이터 변환
+    if (position_insight) {
+      const positionYoY = position_insight.position_yoy_score || 0
+      const positionDifficulty = convertYoYToDifficulty(positionYoY)
+      const yearOverYearChange = positionYoY - 50
+      
+      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
+      const insights: string[] = position_insight.insights || []
+      const trend = position_insight.position_trend || ''
+      
+      // 디버깅: 직군별 인사이트 확인
+      console.log('[직무 인재 수급 난이도 지수] 직군별 인사이트 변환:', {
+        positionName: position_insight.position_name,
+        rawInsights: position_insight.insights,
+        insightsType: typeof position_insight.insights,
+        isArray: Array.isArray(position_insight.insights),
+        insightsLength: insights?.length,
+        insights: insights
+      })
+
+      // 카테고리 분류
+      const positionName = position_insight.position_name || ''
+      let category: 'Tech' | 'Biz' | 'BizSupporting' | undefined = undefined
+      if (['Software Development', 'Factory AX Engineering', 'Solution Development', 'Cloud/Infra Engineering', 'Architect', 'Project Management', 'Quality Management', 'AI', '정보보호'].includes(positionName)) {
+        category = 'Tech'
+      } else if (['Sales', 'Consulting', 'Domain Expert'].includes(positionName)) {
+        category = 'Biz'
+      } else if (positionName === 'Biz. Supporting') {
+        category = 'BizSupporting'
+      }
+
+      // 직군별 직무(Skill set) 매핑
+      const positionIndustries: Record<string, string[]> = {
+        'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
+        'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
+        'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
+        'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
+        'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
+        'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+        'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
+        'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
+        '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
+        'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
+        'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
+        'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
+        'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
+      }
+
+      result.push({
+        name: positionName,
+        category,
+        industries: positionIndustries[positionName] || [],
+        difficulty: Math.round(positionDifficulty),
+        similarPostings: position_insight.position_current_count || 0,
+        competitorRatio: 0,
+        recentGrowthRate: yearOverYearChange,
+        avgHiringDuration: 0,
+        yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
+        insights,
+        yoyScore: positionYoY, // YoY 점수 추가
+        trend: position_insight.position_trend || undefined, // 트렌드 추가
+      })
+    }
+
+    // 산업별 데이터 변환 (직군 데이터에 추가 정보로 포함)
+    if (industry_insight && position_insight) {
+      const industryYoY = industry_insight.industry_yoy_score || 0
+      // industry_current_count를 난이도 지수로 직접 사용 (0-100 스케일로 정규화)
+      // industry_current_count가 난이도 지수 값이므로 그대로 사용하되, 범위를 0-100으로 제한
+      const industryDifficulty = industry_insight.industry_current_count !== undefined 
+        ? Math.min(100, Math.max(0, industry_insight.industry_current_count))
+        : convertYoYToDifficulty(industryYoY)
+      const yearOverYearChange = industryYoY - 50
+      
+      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
+      const insights: string[] = industry_insight.insights || []
+      const trend = industry_insight.industry_trend || ''
+
+      const positionName = position_insight.position_name || ''
+      let category: 'Tech' | 'Biz' | 'BizSupporting' | undefined = undefined
+      if (['Software Development', 'Factory AX Engineering', 'Solution Development', 'Cloud/Infra Engineering', 'Architect', 'Project Management', 'Quality Management', 'AI', '정보보호'].includes(positionName)) {
+        category = 'Tech'
+      } else if (['Sales', 'Consulting', 'Domain Expert'].includes(positionName)) {
+        category = 'Biz'
+      } else if (positionName === 'Biz. Supporting') {
+        category = 'BizSupporting'
+      }
+
+      result.push({
+        name: `${positionName} - ${industry_insight.industry_name || ''}`,
+        category,
+        industries: [industry_insight.industry_name || ''],
+        difficulty: Math.round(industryDifficulty),
+        similarPostings: industry_insight.industry_current_count || 0,
+        competitorRatio: 0,
+        recentGrowthRate: yearOverYearChange,
+        avgHiringDuration: 0,
+        yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
+        insights,
+        yoyScore: industryYoY, // YoY 점수 추가
+        trend: industry_insight.industry_trend || undefined, // 트렌드 추가
+      })
+    }
+
+    // 디버깅: 변환된 데이터 확인
+    console.log('[직무 인재 수급 난이도 지수] 변환된 데이터:', result)
+    console.log('[직무 인재 수급 난이도 지수] 변환된 데이터 인사이트 확인:', result.map(item => ({
+      name: item.name,
+      hasInsights: !!item.insights,
+      insightsLength: item.insights?.length,
+      insights: item.insights
+    })))
+    
+    return result.length > 0 ? result : null
+  }, [jobDifficultyApiData])
+
+  // 직무 인재 수급 난이도 지수 데이터 (API 우선, 없으면 fallback)
   const jobDifficultyData = useMemo(() => {
-    const now = new Date()
+    // Fallback 데이터 생성 함수
+    const generateFallbackData = () => {
+      const now = new Date()
     const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const lastYear = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
     
@@ -646,7 +845,40 @@ export default function Dashboard() {
         insights,
       }
     }).sort((a, b) => b.difficulty - a.difficulty)
-  }, [])
+    }
+
+    // API 데이터가 있고 직군 데이터가 있으면 사용
+    if (convertApiDataToJobDifficultyItems && convertApiDataToJobDifficultyItems.length > 0) {
+      // API 데이터에 직군이 있는지 확인 (전체 시장만 있는지 체크)
+      const hasJobRoles = convertApiDataToJobDifficultyItems.some(item => 
+        item.name !== '전체 시장' && !item.name.includes(' - ')
+      )
+      
+      if (hasJobRoles) {
+        console.log('[직무 인재 수급 난이도 지수] API 데이터 사용 (직군 포함):', convertApiDataToJobDifficultyItems)
+        console.log('[직무 인재 수급 난이도 지수] API 데이터 인사이트 확인:', convertApiDataToJobDifficultyItems.map(item => ({
+          name: item.name,
+          hasInsights: !!item.insights,
+          insightsLength: item.insights?.length,
+          insights: item.insights
+        })))
+        return convertApiDataToJobDifficultyItems
+      } else {
+        // API 데이터에 전체 시장만 있으면 fallback 데이터와 병합
+        console.log('[직무 인재 수급 난이도 지수] API 데이터와 Fallback 데이터 병합')
+        const fallbackData = generateFallbackData()
+        // API의 전체 시장 데이터를 유지하고 fallback 직군 데이터 추가
+        const apiOverall = convertApiDataToJobDifficultyItems.find(item => item.name === '전체 시장')
+        if (apiOverall) {
+          return [apiOverall, ...fallbackData]
+        }
+        return fallbackData
+      }
+    }
+
+    console.log('[직무 인재 수급 난이도 지수] Fallback 데이터 사용')
+    return generateFallbackData()
+  }, [convertApiDataToJobDifficultyItems])
 
   // 회사별 공고 데이터 (회사별 공고 컴포넌트용)
   const companyJobPostingsData = useMemo(() => {
@@ -2335,6 +2567,178 @@ export default function Dashboard() {
     fetchJobRoleStatistics()
   }, [jobRoleStatisticsViewMode, selectedExpertCategory, selectedJobRoleCompanyFilter])
 
+  // 직무 인재 수급 난이도 지수 API 호출
+  useEffect(() => {
+    const fetchJobDifficulty = async () => {
+      try {
+        setIsLoadingJobDifficulty(true)
+        setJobDifficultyError(null)
+        
+        // 종료일 설정 (오늘 날짜)
+        const endDate = new Date()
+        const startDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
+        
+        // API 파라미터 구성
+        const params = new URLSearchParams()
+        params.append('start_date', startDateStr)
+        
+        // position_name이 있으면 추가
+        if (selectedDifficultyPosition && selectedDifficultyPosition !== '') {
+          params.append('position_name', selectedDifficultyPosition)
+        }
+        
+        // industry_name이 있으면 추가 (position_name이 필수)
+        if (selectedDifficultyIndustry && selectedDifficultyIndustry !== '' && selectedDifficultyPosition && selectedDifficultyPosition !== '') {
+          params.append('industry_name', selectedDifficultyIndustry)
+        }
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/yoy-overheat?${params.toString()}`
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        
+        console.log('[직무 인재 수급 난이도 지수] API 응답:', result)
+        console.log('[직무 인재 수급 난이도 지수] result.data:', result.data)
+        console.log('[직무 인재 수급 난이도 지수] position_insight:', result.data?.position_insight)
+        console.log('[직무 인재 수급 난이도 지수] position_insight.insights:', result.data?.position_insight?.insights)
+        console.log('[직무 인재 수급 난이도 지수] position_insight.insights 타입:', typeof result.data?.position_insight?.insights)
+        console.log('[직무 인재 수급 난이도 지수] position_insight.insights 배열 여부:', Array.isArray(result.data?.position_insight?.insights))
+        console.log('[직무 인재 수급 난이도 지수] total_insight.insights:', result.data?.total_insight?.insights)
+        console.log('[직무 인재 수급 난이도 지수] industry_insight.insights:', result.data?.industry_insight?.insights)
+        
+        if (result.status === 200 && result.data) {
+          setJobDifficultyApiData(result.data)
+          // 디버깅: 저장된 데이터 확인
+          console.log('[직무 인재 수급 난이도 지수] 저장된 데이터:', result.data)
+          console.log('[직무 인재 수급 난이도 지수] 저장된 position_insight.insights:', result.data.position_insight?.insights)
+        } else {
+          throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+        }
+      } catch (error: any) {
+        console.error('[직무 인재 수급 난이도 지수] API 호출 오류:', error)
+        setJobDifficultyError(error.message || '직무 인재 수급 난이도 지수 데이터를 불러오는데 실패했습니다.')
+        setJobDifficultyApiData(null)
+      } finally {
+        setIsLoadingJobDifficulty(false)
+      }
+    }
+    
+    fetchJobDifficulty()
+  }, [selectedDifficultyPosition, selectedDifficultyIndustry])
+
+  // HHI 집중도 분석 API 호출
+  useEffect(() => {
+    const fetchHhiAnalysis = async () => {
+      try {
+        setIsLoadingHhiAnalysis(true)
+        setHhiAnalysisError(null)
+        
+        // 종료일 설정 (오늘 날짜)
+        const endDate = new Date()
+        const startDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
+        
+        // API 파라미터 구성
+        const params = new URLSearchParams()
+        params.append('start_date', startDateStr)
+        
+        // position_name이 있으면 추가 (직무 인재 수급 난이도 지수와 동일한 선택값 사용)
+        // position_name이 없으면 전체 시장 분석 (total_insight만 반환)
+        if (selectedDifficultyPosition && selectedDifficultyPosition !== '') {
+          params.append('position_name', selectedDifficultyPosition)
+        }
+        
+        // industry_name이 있으면 추가 (position_name이 필수)
+        if (selectedDifficultyIndustry && selectedDifficultyIndustry !== '' && selectedDifficultyPosition && selectedDifficultyPosition !== '') {
+          params.append('industry_name', selectedDifficultyIndustry)
+        }
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/hhi-analysis?${params.toString()}`
+        
+        // 디버깅: API 호출 파라미터 확인
+        console.log('[HHI 집중도 분석] API 호출 파라미터:', {
+          start_date: startDateStr,
+          position_name: selectedDifficultyPosition || '(없음 - 전체 시장 분석)',
+          industry_name: selectedDifficultyIndustry || '(없음)',
+          apiUrl
+        })
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        
+        console.log('[HHI 집중도 분석] API 응답:', result)
+        console.log('[HHI 집중도 분석] analysis_type:', result.data?.analysis_type)
+        console.log('[HHI 집중도 분석] total_insight:', result.data?.total_insight)
+        console.log('[HHI 집중도 분석] total_insight.insights:', result.data?.total_insight?.insights)
+        console.log('[HHI 집중도 분석] total_insight.insights 타입:', typeof result.data?.total_insight?.insights)
+        console.log('[HHI 집중도 분석] total_insight.insights 배열 여부:', Array.isArray(result.data?.total_insight?.insights))
+        console.log('[HHI 집중도 분석] total_insight.insights 길이:', result.data?.total_insight?.insights?.length)
+        console.log('[HHI 집중도 분석] position_insight:', result.data?.position_insight)
+        console.log('[HHI 집중도 분석] industry_insight:', result.data?.industry_insight)
+        
+        if (result.status === 200 && result.data) {
+          // 인사이트 데이터 확인 및 검증
+          if (result.data.total_insight && result.data.total_insight.insights) {
+            console.log('[HHI 집중도 분석] 인사이트 데이터 검증:', {
+              hasInsights: !!result.data.total_insight.insights,
+              isArray: Array.isArray(result.data.total_insight.insights),
+              length: result.data.total_insight.insights.length,
+              insights: result.data.total_insight.insights
+            })
+          }
+          
+          setHhiAnalysisApiData(result.data)
+          // 디버깅: 저장된 데이터 확인
+          console.log('[HHI 집중도 분석] 저장된 데이터:', result.data)
+          console.log('[HHI 집중도 분석] 저장된 total_insight:', result.data.total_insight)
+          console.log('[HHI 집중도 분석] 저장된 total_insight.insights:', result.data.total_insight?.insights)
+          console.log('[HHI 집중도 분석] 저장된 total_insight 전체 구조:', JSON.stringify(result.data.total_insight, null, 2))
+          
+          // 인사이트가 없는 경우 경고
+          if (!result.data.total_insight?.insights || !Array.isArray(result.data.total_insight.insights) || result.data.total_insight.insights.length === 0) {
+            console.warn('[HHI 집중도 분석] ⚠️ 인사이트 데이터가 없습니다!', {
+              hasTotalInsight: !!result.data.total_insight,
+              totalInsightKeys: result.data.total_insight ? Object.keys(result.data.total_insight) : [],
+              insights: result.data.total_insight?.insights,
+              fullTotalInsight: result.data.total_insight
+            })
+          }
+        } else {
+          throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+        }
+      } catch (error: any) {
+        console.error('[HHI 집중도 분석] API 호출 오류:', error)
+        setHhiAnalysisError(error.message || 'HHI 집중도 분석 데이터를 불러오는데 실패했습니다.')
+        setHhiAnalysisApiData(null)
+      } finally {
+        setIsLoadingHhiAnalysis(false)
+      }
+    }
+    
+    fetchHhiAnalysis()
+  }, [selectedDifficultyPosition, selectedDifficultyIndustry])
+
   // 기존 로컬 계산 로직 (fallback용)
   const jobRoleStatisticsDataFallback = useMemo(() => {
     const now = new Date()
@@ -3255,7 +3659,240 @@ export default function Dashboard() {
           <DarkDashboardCard title="직무 인재 수급 난이도 지수">
             <JobDifficultyGauges 
               data={jobDifficultyData}
+              onPositionChange={(position) => setSelectedDifficultyPosition(position)}
+              onIndustryChange={(industry) => setSelectedDifficultyIndustry(industry)}
             />
+            
+            {/* HHI 집중도 분석 인사이트 */}
+            <div className="mt-8 pt-8 border-t border-gray-700">
+              <div className="text-xl font-bold text-gray-900 mb-6">시장 집중도 분석 인사이트</div>
+              
+              {isLoadingHhiAnalysis && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-gray-500">인사이트 생성 중...</div>
+                </div>
+              )}
+              
+              {hhiAnalysisError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="text-red-800 text-sm">{hhiAnalysisError}</div>
+                </div>
+              )}
+              
+              {!isLoadingHhiAnalysis && !hhiAnalysisError && hhiAnalysisApiData && (
+                <div className="space-y-6">
+                  {/* 분석 기간 */}
+                  {hhiAnalysisApiData.period && (
+                    <div className="text-sm text-gray-600 mb-4">
+                      분석 기간: {hhiAnalysisApiData.period.start} ~ {hhiAnalysisApiData.period.end}
+                    </div>
+                  )}
+
+                  {/* 분석 카드들을 한 행에 배치 */}
+                  {(() => {
+                    // 선택된 필터에 따라 그리드 열 수 결정 (반응형)
+                    const hasPosition = selectedDifficultyPosition && selectedDifficultyPosition !== ''
+                    const hasIndustry = selectedDifficultyIndustry && selectedDifficultyIndustry !== '' && hasPosition
+                    
+                    let gridCols = 'grid-cols-1' // 모바일: 항상 1열
+                    if (hasIndustry) {
+                      // 전체 시장 + 직군 + 산업: 모바일 1열, 태블릿 2열, 데스크톱 3열
+                      gridCols = 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                    } else if (hasPosition) {
+                      // 전체 시장 + 직군: 모바일 1열, 태블릿 2열, 데스크톱 2열
+                      gridCols = 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2'
+                    } else {
+                      // 전체 시장만: 모든 화면에서 1열
+                      gridCols = 'grid-cols-1'
+                    }
+                    
+                    return (
+                      <div className={`grid ${gridCols} gap-4 md:gap-6 items-stretch`}>
+                        {/* 전체 시장 인사이트 */}
+                        {hhiAnalysisApiData.total_insight && (
+                          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 md:p-6 min-w-0 flex flex-col h-full overflow-hidden">
+                            <div className="mb-3">
+                              <div className="text-base md:text-lg font-bold text-gray-900">전체 시장 분석</div>
+                            </div>
+                          
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
+                            {hhiAnalysisApiData.total_insight.total_posts !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                전체 공고 수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.total_posts.toLocaleString()}개</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.total_insight.hhi !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.hhi.toFixed(4)}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* 주요 인사이트 */}
+                          {(() => {
+                        // 디버깅: 렌더링 시점 데이터 확인
+                        const insights = hhiAnalysisApiData.total_insight?.insights
+                        console.log('[HHI 집중도 분석] 렌더링 시점 인사이트 확인:', {
+                          hasTotalInsight: !!hhiAnalysisApiData.total_insight,
+                          totalInsight: hhiAnalysisApiData.total_insight,
+                          insights,
+                          insightsType: typeof insights,
+                          isArray: Array.isArray(insights),
+                          insightsLength: insights?.length,
+                          insightsValue: insights
+                        })
+                        
+                        if (hhiAnalysisApiData.total_insight && 
+                            insights && 
+                            Array.isArray(insights) && 
+                            insights.length > 0) {
+                          return (
+                            <div className="space-y-2 mb-4">
+                              <div className="text-xs md:text-sm font-semibold text-gray-900 mb-2">주요 인사이트:</div>
+                              <ul className="space-y-1.5 md:space-y-2">
+                                {insights.map((insight: string, index: number) => (
+                                  <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
+                                    <span className="text-blue-600 mr-2">•</span>
+                                    <span>{insight}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )
+                        } else {
+                          return (
+                            <div className="text-sm text-gray-500 italic mb-4">인사이트 생성 중...</div>
+                          )
+                        }
+                          })()}
+
+                          {/* 상위 직군 정보 */}
+                          {hhiAnalysisApiData.total_insight.top_positions && hhiAnalysisApiData.total_insight.top_positions.length > 0 && (
+                            <div className="mt-auto pt-4 md:pt-6 border-t border-blue-200">
+                              <div className="text-sm md:text-base font-bold text-gray-900 mb-2 md:mb-3">상위 직군</div>
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                {hhiAnalysisApiData.total_insight.top_positions.slice(0, 5).map((position: any, index: number) => (
+                                  <div 
+                                    key={position.position_id} 
+                                    className="flex items-center gap-2"
+                                  >
+                                    <span className="text-xs md:text-sm font-medium text-gray-900">
+                                      {position.position_name}
+                                    </span>
+                                    {index < hhiAnalysisApiData.total_insight.top_positions.slice(0, 5).length - 1 && (
+                                      <span className="text-gray-400">•</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                    )}
+
+                      {/* 직군별 인사이트 */}
+                      {hhiAnalysisApiData.position_insight && (
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 md:p-6 min-w-0 flex flex-col h-full overflow-hidden">
+                          <div className="mb-3">
+                            <div className="text-base md:text-lg font-bold text-gray-900">
+                              {hhiAnalysisApiData.position_insight.position_name} 직군 분석
+                            </div>
+                          </div>
+                      
+                          {hhiAnalysisApiData.position_insight.hhi !== undefined && (
+                            <div className="text-xs md:text-sm text-gray-700 mb-4">
+                              HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.position_insight.hhi.toFixed(4)}</span>
+                            </div>
+                          )}
+                          
+                          {hhiAnalysisApiData.position_insight.insights && hhiAnalysisApiData.position_insight.insights.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs md:text-sm font-semibold text-gray-900 mb-2">주요 인사이트:</div>
+                              <ul className="space-y-1.5 md:space-y-2">
+                                {hhiAnalysisApiData.position_insight.insights.map((insight: string, index: number) => (
+                                  <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
+                                <span className="text-green-600 mr-2">•</span>
+                                <span>{insight}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                            <div className="text-xs md:text-sm text-gray-500 italic">인사이트 생성 중...</div>
+                          )}
+
+                          {/* 상위 산업 정보 */}
+                          {hhiAnalysisApiData.position_insight.top_industries && hhiAnalysisApiData.position_insight.top_industries.length > 0 && (
+                            <div className="mt-auto pt-4 border-t border-green-200">
+                              <div className="text-xs md:text-sm font-semibold text-gray-900 mb-2">상위 산업:</div>
+                              <div className="grid grid-cols-1 gap-2">
+                                {hhiAnalysisApiData.position_insight.top_industries.map((industry: any) => (
+                                  <div key={industry.industry_id} className="bg-white rounded-lg p-2 md:p-3 border border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="text-xs md:text-sm font-medium text-gray-900 truncate">{industry.industry_name}</div>
+                                      <div className="text-xs text-gray-600 ml-2">{industry.share_percentage.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">{industry.count}개 공고</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                    )}
+
+                      {/* 산업별 인사이트 */}
+                      {hhiAnalysisApiData.industry_insight && (
+                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 md:p-6 min-w-0 flex flex-col h-full overflow-hidden">
+                          <div className="mb-3">
+                            <div className="text-base md:text-lg font-bold text-gray-900">
+                              {hhiAnalysisApiData.industry_insight.industry_name} 산업 분석
+                            </div>
+                          </div>
+                          
+                          {hhiAnalysisApiData.industry_insight.insights && hhiAnalysisApiData.industry_insight.insights.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs md:text-sm font-semibold text-gray-900 mb-2">주요 인사이트:</div>
+                              <ul className="space-y-1.5 md:space-y-2">
+                                {hhiAnalysisApiData.industry_insight.insights.map((insight: string, index: number) => (
+                                  <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
+                                    <span className="text-purple-600 mr-2">•</span>
+                                    <span>{insight}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : (
+                            <div className="text-xs md:text-sm text-gray-500 italic">인사이트 생성 중...</div>
+                          )}
+
+                          {/* 대안 산업 정보 */}
+                          {hhiAnalysisApiData.industry_insight.alternative_industries && hhiAnalysisApiData.industry_insight.alternative_industries.length > 0 && (
+                            <div className="mt-auto pt-4 border-t border-purple-200">
+                              <div className="text-xs md:text-sm font-semibold text-gray-900 mb-2">대안 산업:</div>
+                              <div className="grid grid-cols-1 gap-2">
+                                {hhiAnalysisApiData.industry_insight.alternative_industries.map((alt: any) => (
+                                  <div key={alt.industry_id} className="bg-white rounded-lg p-2 md:p-3 border border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="text-xs md:text-sm font-medium text-gray-900 truncate">{alt.industry_name}</div>
+                                      <div className="text-xs text-gray-600 ml-2">{alt.share_percentage.toFixed(1)}%</div>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      유사도: {(alt.skill_similarity * 100).toFixed(1)}%
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
           </DarkDashboardCard>
         </div>
 

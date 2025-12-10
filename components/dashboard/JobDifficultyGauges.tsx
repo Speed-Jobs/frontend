@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 
 // 반원형 게이지 차트 컴포넌트 (속도계 형태)
 function GaugeChart({ 
   value, 
   label, 
-  onClick 
+  onClick,
+  yoyScore,
+  trend
 }: { 
   value: number
   label: string
   onClick?: () => void
+  yoyScore?: number // YoY 점수 (0-100, 과열도 표시용)
+  trend?: string // 트렌드 ('냉각', '기준', '과열')
 }) {
   const size = 200
   const strokeWidth = 20
@@ -19,12 +23,16 @@ function GaugeChart({
   const centerY = size / 2
   
   // 반원형 호 (180도)
-  const startAngle = -180 // 왼쪽 끝
-  const endAngle = 0 // 오른쪽 끝
-  const percentage = Math.min(Math.max(value, 0), 100)
+  const startAngle = -180 // 왼쪽 끝 (냉각)
+  const endAngle = 0 // 오른쪽 끝 (과열)
   
-  // 바늘 각도 계산 (0% = -180도, 100% = 0도)
-  const needleAngle = startAngle + (percentage / 100) * (endAngle - startAngle)
+  // YoY 점수가 있으면 과열도로 사용, 없으면 기존 난이도 지수 사용
+  const overheatPercentage = yoyScore !== undefined 
+    ? Math.min(Math.max(yoyScore, 0), 100) // YoY 점수 그대로 사용 (0=냉각, 100=과열)
+    : Math.min(Math.max(value, 0), 100)
+  
+  // 바늘 각도 계산 (0% = -180도(냉각), 100% = 0도(과열))
+  const needleAngle = startAngle + (overheatPercentage / 100) * (endAngle - startAngle)
   
   // 호 경로 생성
   const createArcPath = (start: number, end: number, radius: number) => {
@@ -38,8 +46,8 @@ function GaugeChart({
     return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`
   }
   
-  // 그라데이션 색상 (빨강 -> 주황 -> 노랑 -> 연두 -> 초록)
-  const gradientId = `gauge-gradient-${label.replace(/\s+/g, '-')}-${value}`
+  // 그라데이션 색상 (과열도 기준: 초록(냉각) -> 노랑(기준) -> 빨강(과열))
+  const gradientId = `gauge-gradient-${label.replace(/\s+/g, '-')}-${overheatPercentage}`
   
   // 바늘 끝점 계산
   const needleLength = radius - 10
@@ -53,14 +61,18 @@ function GaugeChart({
     >
       <div className="text-sm font-semibold text-gray-700 mb-2 text-center px-2">{label}</div>
       <div className="relative w-full max-w-[200px] mx-auto" style={{ aspectRatio: '2/1', maxHeight: '120px' }}>
+        {/* 왼쪽 라벨 (냉각) */}
+        <div className="absolute left-0 top-0 text-xs font-semibold text-green-600">냉각</div>
+        {/* 오른쪽 라벨 (과열) */}
+        <div className="absolute right-0 top-0 text-xs font-semibold text-red-600">과열</div>
         <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="overflow-visible" preserveAspectRatio="xMidYMid meet">
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#dc2626" /> {/* 빨강 */}
-              <stop offset="25%" stopColor="#f97316" /> {/* 주황 */}
-              <stop offset="50%" stopColor="#eab308" /> {/* 노랑 */}
-              <stop offset="75%" stopColor="#84cc16" /> {/* 연두 */}
-              <stop offset="100%" stopColor="#22c55e" /> {/* 초록 */}
+              <stop offset="0%" stopColor="#22c55e" /> {/* 초록 (냉각) */}
+              <stop offset="25%" stopColor="#84cc16" /> {/* 연두 */}
+              <stop offset="50%" stopColor="#eab308" /> {/* 노랑 (기준) */}
+              <stop offset="75%" stopColor="#f97316" /> {/* 주황 */}
+              <stop offset="100%" stopColor="#dc2626" /> {/* 빨강 (과열) */}
             </linearGradient>
           </defs>
           
@@ -104,8 +116,21 @@ function GaugeChart({
           />
         </svg>
       </div>
-      {/* 난이도 지수 표시 (차트 아래 별도 행) */}
-      <div className="mt-4 mb-0 text-2xl font-bold text-gray-900">{percentage.toFixed(0)}</div>
+      {/* YoY 점수 또는 난이도 지수 표시 (차트 아래 별도 행) */}
+      <div className="mt-4 mb-0">
+        {yoyScore !== undefined ? (
+          <div className="text-2xl font-bold text-gray-900">{yoyScore.toFixed(1)}</div>
+        ) : (
+          <div className="text-2xl font-bold text-gray-900">{overheatPercentage.toFixed(0)}</div>
+        )}
+        {trend && (
+          <div className="text-xs text-gray-600 mt-1">
+            {trend === '냉각' && <span className="text-green-600">냉각 상태</span>}
+            {trend === '과열' && <span className="text-red-600">과열 상태</span>}
+            {trend === '기준' && <span className="text-yellow-600">기준 상태</span>}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -121,29 +146,61 @@ interface JobDifficultyItem {
   avgHiringDuration: number
   yearOverYearChange: number
   insights: string[]
+  yoyScore?: number // YoY 점수 (0-100, 과열도 표시용)
+  trend?: string // 트렌드 ('냉각', '기준', '과열')
 }
 
 interface JobDifficultyGaugesProps {
   data: JobDifficultyItem[]
+  onPositionChange?: (position: string) => void
+  onIndustryChange?: (industry: string) => void
 }
 
 export default function JobDifficultyGauges({ 
-  data
+  data,
+  onPositionChange,
+  onIndustryChange
 }: JobDifficultyGaugesProps) {
+  // 디버깅: 전달받은 data 확인
+  useEffect(() => {
+    console.log('[JobDifficultyGauges] 전달받은 data:', data)
+    console.log('[JobDifficultyGauges] data 인사이트 확인:', data?.map(item => ({
+      name: item.name,
+      hasInsights: !!item.insights,
+      insightsLength: item.insights?.length,
+      insights: item.insights
+    })))
+  }, [data])
+  
   const [selectedGauge, setSelectedGauge] = useState<string | null>('overall')
   const [selectedJobRoleFilter, setSelectedJobRoleFilter] = useState<string>('전체') // 직군 필터 (Software Development 등)
   const [selectedSkillSetFilter, setSelectedSkillSetFilter] = useState<string>('전체') // 직무 필터 (Front-end Development 등)
 
-  // 전체 평균 난이도 지수
+  // 전체 평균 난이도 지수 및 YoY 점수 (항상 전체 시장 데이터만 사용)
   const overallDifficulty = useMemo(() => {
-    if (data.length === 0) return 0
-    const sum = data.reduce((acc, item) => acc + item.difficulty, 0)
-    return Math.round(sum / data.length)
+    if (!data || data.length === 0) return { difficulty: 0, yoyScore: undefined, trend: undefined }
+    
+    // 전체 시장 데이터만 찾기 (name이 정확히 '전체 시장'인 항목)
+    const overallItem = data.find(item => item.name === '전체 시장')
+    
+    if (overallItem) {
+      return {
+        difficulty: overallItem.difficulty,
+        yoyScore: overallItem.yoyScore,
+        trend: overallItem.trend
+      }
+    }
+    
+    // 전체 시장 데이터가 없으면 기본값 반환
+    return { difficulty: 0, yoyScore: undefined, trend: undefined }
   }, [data])
 
-  // 전체 상세 정보
+  // 전체 상세 정보 (API 인사이트만 사용)
   const overallDetails = useMemo(() => {
     if (data.length === 0) return null
+    
+    // 전체 시장 데이터 찾기 (API에서 제공하는 인사이트 사용)
+    const overallItem = data.find(item => item.name === '전체 시장')
     
     const avgPostings = data.reduce((acc, item) => acc + item.similarPostings, 0) / data.length
     const avgCompetitorRatio = data.reduce((acc, item) => acc + item.competitorRatio, 0) / data.length
@@ -151,97 +208,75 @@ export default function JobDifficultyGauges({
     const avgHiringDuration = data.reduce((acc, item) => acc + item.avgHiringDuration, 0) / data.length
     const avgYearOverYearChange = data.reduce((acc, item) => acc + item.yearOverYearChange, 0) / data.length
     
-    // 과열도 지수 기반 인사이트 생성
-    const insights: string[] = []
-    const recommendations: string[] = []
+    // API에서 제공하는 인사이트만 사용 (하드코딩 제거)
+    const insights: string[] = overallItem?.insights || []
+    const recommendations: string[] = [] // recommendations는 제거하거나 API에서 제공하는 경우에만 사용
     
-    // 유사 공고량 분석
-    if (avgPostings < 15) {
-      insights.push(`시장에서 유사 공고가 평균 ${avgPostings.toFixed(0)}개로 매우 부족합니다. 이는 해당 인재의 공급이 제한적임을 의미합니다.`)
-      recommendations.push(`• 보상 수준을 시장 상위 20% 수준으로 상향 조정 검토`)
-      recommendations.push(`• 채용 채널 다각화 및 헤드헌팅 활용 검토`)
-    } else if (avgPostings < 30) {
-      insights.push(`유사 공고 수가 평균 ${avgPostings.toFixed(0)}개로 적은 편입니다. 인재 확보에 어려움이 예상됩니다.`)
-      recommendations.push(`• 경쟁력 있는 보상 패키지 제공 필요`)
-    }
-    
-    // 경쟁사 공고 비중 분석
-    if (avgCompetitorRatio > 70) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 매우 높습니다. 동일한 인재를 놓고 경쟁이 치열합니다.`)
-      recommendations.push(`• 차별화된 복지 및 성장 기회 강조 필요`)
-      recommendations.push(`• 채용 프로세스 단축으로 우수 인재 선점 전략`)
-    } else if (avgCompetitorRatio > 50) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 높습니다. 경쟁이 심화되고 있습니다.`)
-      recommendations.push(`• 보상 및 복지 경쟁력 강화 필요`)
-    }
-    
-    // 최근 증가율 분석
-    if (avgGrowthRate > 40) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 급증하여 수요가 폭발적으로 증가하고 있습니다. 시장이 과열 상태입니다.`)
-      recommendations.push(`• 채용 예산 및 리소스 사전 확보 필요`)
-      recommendations.push(`• 장기 채용 계획 수립 및 파이프라인 구축`)
-    } else if (avgGrowthRate > 25) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 증가하여 수요가 빠르게 증가하고 있습니다.`)
-      recommendations.push(`• 채용 계획 선제적 수립 필요`)
-    }
-    
-    // 채용 소요기간 분석
-    if (avgHiringDuration > 30) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 매우 깁니다. 채용 프로세스 최적화가 필요합니다.`)
-      recommendations.push(`• 채용 프로세스 단축 (목표: 20일 이내)`)
-      recommendations.push(`• 면접 일정 조율 효율화 및 의사결정 속도 개선`)
-    } else if (avgHiringDuration > 25) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 다소 깁니다.`)
-      recommendations.push(`• 채용 프로세스 효율화 검토`)
-    }
-    
-    // 작년 대비 변화 분석
-    if (avgYearOverYearChange > 10) {
-      insights.push(`작년 대비 난이도가 ${avgYearOverYearChange.toFixed(1)}점 상승했습니다. 채용 환경이 악화되고 있습니다.`)
-      recommendations.push(`• 채용 예산 및 보상 수준 재검토 필요`)
-    } else if (avgYearOverYearChange < -5) {
-      insights.push(`작년 대비 난이도가 ${Math.abs(avgYearOverYearChange).toFixed(1)}점 하락했습니다. 채용 환경이 개선되고 있습니다.`)
-    }
-    
-    if (insights.length === 0) {
-      insights.push('현재 시장 상황이 비교적 안정적입니다.')
-      recommendations.push('• 기존 채용 전략 유지')
-    }
+    // 디버깅: 전체 시장 인사이트 확인
+    console.log('[전체 시장 상세 정보] 인사이트 확인:', {
+      overallItemName: overallItem?.name,
+      overallItem: overallItem,
+      overallItemInsights: overallItem?.insights,
+      overallItemInsightsType: typeof overallItem?.insights,
+      overallItemInsightsIsArray: Array.isArray(overallItem?.insights),
+      insights,
+      insightsLength: insights?.length,
+      hasInsights: insights && insights.length > 0
+    })
     
     return {
-      difficulty: overallDifficulty,
+      difficulty: overallDifficulty.difficulty, // 숫자 값만 사용
       similarPostings: Math.round(avgPostings),
       competitorRatio: Math.round(avgCompetitorRatio * 10) / 10,
       recentGrowthRate: Math.round(avgGrowthRate * 10) / 10,
       avgHiringDuration: Math.round(avgHiringDuration),
       yearOverYearChange: Math.round(avgYearOverYearChange * 10) / 10,
-      insights,
+      insights, // API에서 제공하는 인사이트만 사용
       recommendations
     }
   }, [data, overallDifficulty])
 
-  // 선택된 직군의 난이도 지수
+  // 선택된 직군의 난이도 지수 및 YoY 점수
   const selectedJobRoleDifficulty = useMemo(() => {
     if (selectedJobRoleFilter === '전체') {
-      // 전체 선택 시 모든 직군의 평균
-      if (data.length === 0) return 0
-      const sum = data.reduce((acc, item) => acc + item.difficulty, 0)
-      return Math.round(sum / data.length)
+      // 전체 선택 시 전체 시장 데이터 사용 (직군별 평균이 아닌 전체 시장)
+      const overallItem = data.find(item => item.name === '전체 시장')
+      if (overallItem) {
+        return {
+          difficulty: overallItem.difficulty,
+          yoyScore: overallItem.yoyScore,
+          trend: overallItem.trend
+        }
+      }
+      return { difficulty: 0, yoyScore: undefined, trend: undefined }
     } else {
-      // 선택된 직군의 난이도
-      const selectedRole = data.find(item => item.name === selectedJobRoleFilter)
-      return selectedRole?.difficulty || 0
+      // 선택된 직군의 난이도 (산업별 데이터 제외)
+      const selectedRole = data.find(item => 
+        item.name === selectedJobRoleFilter && !item.name.includes(' - ')
+      )
+      return {
+        difficulty: selectedRole?.difficulty || 0,
+        yoyScore: selectedRole?.yoyScore,
+        trend: selectedRole?.trend
+      }
     }
   }, [data, selectedJobRoleFilter])
 
   // 선택된 직군의 상세 정보
   const selectedJobRoleDetails = useMemo(() => {
     let filteredItems: JobDifficultyItem[] = []
+    let selectedRole: JobDifficultyItem | null = null
     
     if (selectedJobRoleFilter === '전체') {
       filteredItems = data
+      // 전체 선택 시 전체 시장 데이터 사용
+      selectedRole = data.find(item => item.name === '전체 시장') || null
     } else {
-      const selectedRole = data.find(item => item.name === selectedJobRoleFilter)
+      // 직군 선택 시: 산업별 데이터가 아닌 직군 데이터만 찾기 (예: "Software Development", "Software Development - Front-end Development" 제외)
+      selectedRole = data.find(item => 
+        item.name === selectedJobRoleFilter && !item.name.includes(' - ')
+      ) || null
+      
       if (!selectedRole) return null
       filteredItems = [selectedRole]
     }
@@ -254,86 +289,84 @@ export default function JobDifficultyGauges({
     const avgHiringDuration = filteredItems.reduce((acc, item) => acc + item.avgHiringDuration, 0) / filteredItems.length
     const avgYearOverYearChange = filteredItems.reduce((acc, item) => acc + item.yearOverYearChange, 0) / filteredItems.length
 
-    // 과열도 지수 기반 인사이트 생성
-    const insights: string[] = []
+    // 선택된 직군 데이터에서 API 인사이트 가져오기
+    // API에서 제공하는 인사이트만 사용 (하드코딩 제거)
+    const insights: string[] = selectedRole?.insights || []
     const recommendations: string[] = []
     
-    if (avgPostings < 15) {
-      insights.push(`유사 공고가 평균 ${avgPostings.toFixed(0)}개로 매우 부족합니다. 인재 공급이 제한적입니다.`)
-      recommendations.push(`• 차별화된 보상 전략 수립`)
-      recommendations.push(`• 채용 채널 다각화 및 파이프라인 구축`)
-    } else if (avgPostings < 30) {
-      insights.push(`유사 공고 수가 평균 ${avgPostings.toFixed(0)}개로 적은 편입니다.`)
-      recommendations.push(`• 경쟁력 있는 보상 패키지 제공`)
-    }
-    
-    if (avgCompetitorRatio > 70) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 매우 높습니다. 동일 인재 풀을 놓고 경쟁이 치열합니다.`)
-      recommendations.push(`• 차별화된 복지 및 성장 기회 강조`)
-      recommendations.push(`• 채용 프로세스 단축으로 우수 인재 선점`)
-    } else if (avgCompetitorRatio > 50) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 높습니다.`)
-      recommendations.push(`• 보상 및 복지 경쟁력 강화`)
-    }
-    
-    if (avgGrowthRate > 40) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 급증하여 수요가 폭발적으로 증가하고 있습니다.`)
-      recommendations.push(`• 채용 예산 및 리소스 사전 확보`)
-      recommendations.push(`• 장기 채용 계획 수립`)
-    } else if (avgGrowthRate > 25) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 증가하여 수요가 빠르게 증가하고 있습니다.`)
-      recommendations.push(`• 채용 계획 선제적 수립`)
-    }
-    
-    if (avgHiringDuration > 30) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 매우 깁니다.`)
-      recommendations.push(`• 채용 프로세스 단축 (목표: 20일 이내)`)
-      recommendations.push(`• 면접 일정 조율 효율화`)
-    } else if (avgHiringDuration > 25) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 다소 깁니다.`)
-      recommendations.push(`• 채용 프로세스 효율화 검토`)
-    }
-    
-    if (avgYearOverYearChange > 10) {
-      insights.push(`작년 대비 난이도가 ${avgYearOverYearChange.toFixed(1)}점 상승했습니다.`)
-      recommendations.push(`• 채용 예산 및 보상 수준 재검토`)
-    }
-    
-    if (insights.length === 0) {
-      insights.push('시장 상황이 비교적 안정적입니다.')
-      recommendations.push('• 기존 채용 전략 유지')
-    }
+    // 디버깅: 인사이트 확인
+    console.log('[직군 상세 정보] 인사이트 확인:', {
+      selectedJobRoleFilter,
+      selectedRoleName: selectedRole?.name,
+      selectedRole: selectedRole,
+      selectedRoleInsights: selectedRole?.insights,
+      selectedRoleInsightsType: typeof selectedRole?.insights,
+      selectedRoleInsightsIsArray: Array.isArray(selectedRole?.insights),
+      insights,
+      insightsLength: insights?.length,
+      hasInsights: insights && insights.length > 0,
+      allDataItems: data.map(item => ({
+        name: item.name,
+        hasInsights: !!item.insights,
+        insightsLength: item.insights?.length,
+        insights: item.insights
+      }))
+    })
     
     return {
-      difficulty: selectedJobRoleDifficulty,
+      difficulty: selectedJobRoleDifficulty.difficulty, // 숫자 값만 사용
       similarPostings: Math.round(avgPostings),
       competitorRatio: Math.round(avgCompetitorRatio * 10) / 10,
       recentGrowthRate: Math.round(avgGrowthRate * 10) / 10,
       avgHiringDuration: Math.round(avgHiringDuration),
       yearOverYearChange: Math.round(avgYearOverYearChange * 10) / 10,
-      insights,
+      insights, // API에서 제공하는 인사이트만 사용
       recommendations
     }
   }, [data, selectedJobRoleDifficulty, selectedJobRoleFilter])
 
-  // 선택된 직무(Skill set)의 난이도 지수 (해당 직무를 포함하는 직군들의 평균)
+  // 선택된 직무(Skill set)의 난이도 지수 및 YoY 점수
   const selectedSkillSetDifficulty = useMemo(() => {
     if (selectedSkillSetFilter === '전체') {
-      // 전체 선택 시 모든 직군의 평균
-      if (data.length === 0) return 0
-      const sum = data.reduce((acc, item) => acc + item.difficulty, 0)
-      return Math.round(sum / data.length)
+      // 전체 선택 시: 직군이 선택되어 있으면 해당 직군 데이터, 없으면 전체 시장 데이터
+      if (selectedJobRoleFilter === '전체') {
+        const overallItem = data.find(item => item.name === '전체 시장')
+        if (overallItem) {
+          return {
+            difficulty: overallItem.difficulty,
+            yoyScore: overallItem.yoyScore,
+            trend: overallItem.trend
+          }
+        }
+        return { difficulty: 0, yoyScore: undefined, trend: undefined }
+      } else {
+        // 직군이 선택되어 있으면 해당 직군 데이터 사용
+        const selectedRole = data.find(item => 
+          item.name === selectedJobRoleFilter && !item.name.includes(' - ')
+        )
+        return {
+          difficulty: selectedRole?.difficulty || 0,
+          yoyScore: selectedRole?.yoyScore,
+          trend: selectedRole?.trend
+        }
+      }
     } else {
-      // 선택된 직무를 포함하는 직군들 찾기
-      const matchingJobRoles = data.filter(item => 
-        item.industries && item.industries.includes(selectedSkillSetFilter)
+      // 선택된 직무의 데이터 찾기 (예: "Software Development - Front-end Development")
+      const industryItem = data.find(item => 
+        item.name.includes(' - ') && item.name.endsWith(selectedSkillSetFilter)
       )
       
-      if (matchingJobRoles.length === 0) return 0
-      const sum = matchingJobRoles.reduce((acc, item) => acc + item.difficulty, 0)
-      return Math.round(sum / matchingJobRoles.length)
+      if (industryItem) {
+        return {
+          difficulty: industryItem.difficulty,
+          yoyScore: industryItem.yoyScore,
+          trend: industryItem.trend
+        }
+      }
+      
+      return { difficulty: 0, yoyScore: undefined, trend: undefined }
     }
-  }, [data, selectedSkillSetFilter])
+  }, [data, selectedSkillSetFilter, selectedJobRoleFilter])
 
   // 선택된 직무(Skill set)의 상세 정보
   const selectedSkillSetDetails = useMemo(() => {
@@ -356,64 +389,25 @@ export default function JobDifficultyGauges({
     const avgHiringDuration = filteredItems.reduce((acc, item) => acc + item.avgHiringDuration, 0) / filteredItems.length
     const avgYearOverYearChange = filteredItems.reduce((acc, item) => acc + item.yearOverYearChange, 0) / filteredItems.length
 
-    // 과열도 지수 기반 인사이트 생성
-    const insights: string[] = []
+    // 선택된 직무 데이터에서 API 인사이트 가져오기
+    const selectedIndustryItem = selectedSkillSetFilter !== '전체'
+      ? filteredItems.find(item => 
+          item.name.includes(' - ') && item.name.endsWith(selectedSkillSetFilter)
+        )
+      : null
+    
+    // API에서 제공하는 인사이트만 사용 (하드코딩 제거)
+    const insights: string[] = selectedIndustryItem?.insights || []
     const recommendations: string[] = []
     
-    if (avgPostings < 15) {
-      insights.push(`유사 공고가 평균 ${avgPostings.toFixed(0)}개로 매우 부족합니다. 인재 공급이 제한적입니다.`)
-      recommendations.push(`• 차별화된 보상 전략 수립`)
-      recommendations.push(`• 채용 채널 다각화 및 파이프라인 구축`)
-    } else if (avgPostings < 30) {
-      insights.push(`유사 공고 수가 평균 ${avgPostings.toFixed(0)}개로 적은 편입니다.`)
-      recommendations.push(`• 경쟁력 있는 보상 패키지 제공`)
-    }
-    
-    if (avgCompetitorRatio > 70) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 매우 높습니다. 동일 인재 풀을 놓고 경쟁이 치열합니다.`)
-      recommendations.push(`• 차별화된 복지 및 성장 기회 강조`)
-      recommendations.push(`• 채용 프로세스 단축으로 우수 인재 선점`)
-    } else if (avgCompetitorRatio > 50) {
-      insights.push(`경쟁사 공고 비중이 평균 ${avgCompetitorRatio.toFixed(1)}%로 높습니다.`)
-      recommendations.push(`• 보상 및 복지 경쟁력 강화`)
-    }
-    
-    if (avgGrowthRate > 40) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 급증하여 수요가 폭발적으로 증가하고 있습니다.`)
-      recommendations.push(`• 채용 예산 및 리소스 사전 확보`)
-      recommendations.push(`• 장기 채용 계획 수립`)
-    } else if (avgGrowthRate > 25) {
-      insights.push(`최근 ${avgGrowthRate.toFixed(1)}% 증가하여 수요가 빠르게 증가하고 있습니다.`)
-      recommendations.push(`• 채용 계획 선제적 수립`)
-    }
-    
-    if (avgHiringDuration > 30) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 매우 깁니다.`)
-      recommendations.push(`• 채용 프로세스 단축 (목표: 20일 이내)`)
-      recommendations.push(`• 면접 일정 조율 효율화`)
-    } else if (avgHiringDuration > 25) {
-      insights.push(`평균 채용 소요기간이 ${Math.round(avgHiringDuration)}일로 다소 깁니다.`)
-      recommendations.push(`• 채용 프로세스 효율화 검토`)
-    }
-    
-    if (avgYearOverYearChange > 10) {
-      insights.push(`작년 대비 난이도가 ${avgYearOverYearChange.toFixed(1)}점 상승했습니다.`)
-      recommendations.push(`• 채용 예산 및 보상 수준 재검토`)
-    }
-    
-    if (insights.length === 0) {
-      insights.push('시장 상황이 비교적 안정적입니다.')
-      recommendations.push('• 기존 채용 전략 유지')
-    }
-    
     return {
-      difficulty: selectedSkillSetDifficulty,
+      difficulty: selectedSkillSetDifficulty.difficulty, // 숫자 값만 사용
       similarPostings: Math.round(avgPostings),
       competitorRatio: Math.round(avgCompetitorRatio * 10) / 10,
       recentGrowthRate: Math.round(avgGrowthRate * 10) / 10,
       avgHiringDuration: Math.round(avgHiringDuration),
       yearOverYearChange: Math.round(avgYearOverYearChange * 10) / 10,
-      insights,
+      insights, // API에서 제공하는 인사이트만 사용
       recommendations
     }
   }, [data, selectedSkillSetDifficulty, selectedSkillSetFilter])
@@ -449,99 +443,43 @@ export default function JobDifficultyGauges({
   const renderInsights = (gaugeType: string, details: typeof overallDetails) => {
     if (selectedGauge !== gaugeType || !details) return null
 
-    // 모든 지표를 텍스트 인사이트로 변환
-    const allInsights: string[] = []
+    // API에서 제공하는 인사이트만 사용 (하드코딩 제거)
+    const apiInsights = details.insights || []
     
-    // 난이도 지수 인사이트
-    if (details.difficulty >= 80) {
-      allInsights.push(`난이도 지수가 ${details.difficulty}점으로 매우 높아 인재 확보가 매우 어려운 상황입니다.`)
-    } else if (details.difficulty >= 60) {
-      allInsights.push(`난이도 지수가 ${details.difficulty}점으로 높아 인재 확보에 어려움이 예상됩니다.`)
-    } else if (details.difficulty >= 40) {
-      allInsights.push(`난이도 지수가 ${details.difficulty}점으로 보통 수준입니다.`)
-    } else {
-      allInsights.push(`난이도 지수가 ${details.difficulty}점으로 낮아 상대적으로 인재 확보가 용이한 상황입니다.`)
-    }
-    
-    // 유사 공고 수 인사이트
-    if (details.similarPostings < 10) {
-      allInsights.push(`시장에서 유사 공고가 ${details.similarPostings}개로 매우 부족하여 인재 공급이 극히 제한적입니다.`)
-    } else if (details.similarPostings < 20) {
-      allInsights.push(`유사 공고 수가 ${details.similarPostings}개로 적어 인재 확보가 어렵습니다.`)
-    } else if (details.similarPostings < 40) {
-      allInsights.push(`유사 공고 수가 ${details.similarPostings}개로 보통 수준입니다.`)
-    } else {
-      allInsights.push(`유사 공고 수가 ${details.similarPostings}개로 충분하여 인재 확보가 상대적으로 용이합니다.`)
-    }
-    
-    // 경쟁사 비중 인사이트
-    if (details.competitorRatio >= 70) {
-      allInsights.push(`경쟁사 공고 비중이 ${details.competitorRatio}%로 매우 높아 동일한 인재 풀을 놓고 경쟁이 매우 치열합니다.`)
-    } else if (details.competitorRatio >= 50) {
-      allInsights.push(`경쟁사 공고 비중이 ${details.competitorRatio}%로 높아 경쟁이 심화되고 있습니다.`)
-    } else if (details.competitorRatio >= 30) {
-      allInsights.push(`경쟁사 공고 비중이 ${details.competitorRatio}%로 보통 수준입니다.`)
-    } else {
-      allInsights.push(`경쟁사 공고 비중이 ${details.competitorRatio}%로 낮아 경쟁이 상대적으로 완화된 상태입니다.`)
-    }
-    
-    // 최근 성장률 인사이트
-    if (details.recentGrowthRate >= 50) {
-      allInsights.push(`최근 ${details.recentGrowthRate}% 급증하여 수요가 폭발적으로 증가하고 있어 시장이 과열 상태입니다.`)
-    } else if (details.recentGrowthRate >= 30) {
-      allInsights.push(`최근 ${details.recentGrowthRate}% 증가하여 수요가 빠르게 증가하고 있습니다.`)
-    } else if (details.recentGrowthRate >= 10) {
-      allInsights.push(`최근 ${details.recentGrowthRate}% 증가하여 수요가 점진적으로 증가하고 있습니다.`)
-    } else if (details.recentGrowthRate > 0) {
-      allInsights.push(`최근 ${details.recentGrowthRate}% 소폭 증가하여 수요가 안정적으로 증가하고 있습니다.`)
-    } else if (details.recentGrowthRate === 0) {
-      allInsights.push(`최근 성장률이 0%로 수요가 안정적인 상태입니다.`)
-    } else {
-      allInsights.push(`최근 ${Math.abs(details.recentGrowthRate)}% 감소하여 수요가 하락하고 있습니다.`)
-    }
-    
-    // 평균 채용 기간 인사이트
-    if (details.avgHiringDuration >= 35) {
-      allInsights.push(`평균 채용 소요기간이 ${details.avgHiringDuration}일로 매우 길어 채용 프로세스 최적화가 시급합니다.`)
-    } else if (details.avgHiringDuration >= 25) {
-      allInsights.push(`평균 채용 소요기간이 ${details.avgHiringDuration}일로 다소 길어 채용이 지연되고 있습니다.`)
-    } else if (details.avgHiringDuration >= 20) {
-      allInsights.push(`평균 채용 소요기간이 ${details.avgHiringDuration}일로 보통 수준입니다.`)
-    } else {
-      allInsights.push(`평균 채용 소요기간이 ${details.avgHiringDuration}일로 짧아 채용 프로세스가 효율적으로 운영되고 있습니다.`)
-    }
-    
-    // 작년 대비 변화 인사이트
-    if (details.yearOverYearChange >= 15) {
-      allInsights.push(`작년 대비 난이도가 ${details.yearOverYearChange}점 크게 상승하여 채용 환경이 크게 악화되었습니다.`)
-    } else if (details.yearOverYearChange >= 5) {
-      allInsights.push(`작년 대비 난이도가 ${details.yearOverYearChange}점 상승하여 채용 환경이 악화되고 있습니다.`)
-    } else if (details.yearOverYearChange > 0) {
-      allInsights.push(`작년 대비 난이도가 ${details.yearOverYearChange}점 소폭 상승하여 채용 난이도가 약간 증가했습니다.`)
-    } else if (details.yearOverYearChange === 0) {
-      allInsights.push(`작년 대비 난이도 변화가 없어 채용 환경이 안정적인 상태입니다.`)
-    } else if (details.yearOverYearChange >= -5) {
-      allInsights.push(`작년 대비 난이도가 ${Math.abs(details.yearOverYearChange)}점 소폭 하락하여 채용 환경이 약간 개선되었습니다.`)
-    } else {
-      allInsights.push(`작년 대비 난이도가 ${Math.abs(details.yearOverYearChange)}점 하락하여 채용 환경이 크게 개선되었습니다.`)
-    }
+    // 디버깅: 인사이트 표시 확인
+    console.log('[상세 인사이트 렌더링]', {
+      gaugeType,
+      hasDetails: !!details,
+      details,
+      apiInsights,
+      apiInsightsType: typeof apiInsights,
+      isArray: Array.isArray(apiInsights),
+      apiInsightsLength: apiInsights?.length,
+      firstInsight: apiInsights?.[0]
+    })
 
     return (
       <div className="mt-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm">
         <div className="text-lg font-bold text-gray-900 mb-4">상세 인사이트</div>
         
-        {/* 모든 지표를 텍스트 인사이트로 표시 */}
-        <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
-          <div className="text-sm font-semibold text-gray-900 mb-3">현재 시장 상황 분석</div>
-          <ul className="space-y-2">
-            {allInsights.map((insight, index) => (
-              <li key={index} className="text-sm text-gray-700 flex items-start">
-                <span className="text-blue-600 mr-2">•</span>
-                <span>{insight}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {/* API에서 제공하는 인사이트만 표시 */}
+        {apiInsights && Array.isArray(apiInsights) && apiInsights.length > 0 ? (
+          <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+            <div className="text-sm font-semibold text-gray-900 mb-3">현재 시장 상황 분석</div>
+            <ul className="space-y-2">
+              {apiInsights.map((insight, index) => (
+                <li key={index} className="text-sm text-gray-700 flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+            <div className="text-sm text-gray-500 italic">인사이트 생성 중...</div>
+          </div>
+        )}
 
         {/* 전략 제안 */}
         {details.recommendations && details.recommendations.length > 0 && (
@@ -574,7 +512,15 @@ export default function JobDifficultyGauges({
 
   // 사용 가능한 직군 목록 (데이터에 있는 직군만)
   const availableJobRoles = useMemo(() => {
-    // 이미지 순서대로 정렬
+    // 데이터에서 실제 직군 이름 추출 (산업별 데이터 제외)
+    const jobRolesFromData = data
+      .filter(item => {
+        // '전체 시장' 제외, 산업별 데이터(이름에 '-' 포함) 제외
+        return item.name !== '전체 시장' && !item.name.includes(' - ')
+      })
+      .map(item => item.name)
+    
+    // 이미지 순서대로 정렬 (데이터에 있는 것만)
     const orderedRoles = [
       'Software Development',
       'Factory AX Engineering',
@@ -590,7 +536,24 @@ export default function JobDifficultyGauges({
       'Consulting',
       'Biz. Supporting',
     ]
-    return orderedRoles.filter(role => data.some(item => item.name === role))
+    
+    // 정렬된 순서대로 필터링하되, 데이터에 있는 것만
+    const filteredRoles = orderedRoles.filter(role => jobRolesFromData.includes(role))
+    
+    // 정렬된 목록에 없는 직군도 추가 (데이터에만 있는 경우)
+    const additionalRoles = jobRolesFromData.filter(role => !orderedRoles.includes(role))
+    
+    const result = [...filteredRoles, ...additionalRoles]
+    
+    // 디버깅: 직군 목록 확인
+    console.log('[JobDifficultyGauges] availableJobRoles:', {
+      dataLength: data.length,
+      dataNames: data.map(item => item.name),
+      jobRolesFromData,
+      result
+    })
+    
+    return result
   }, [data])
 
   // 선택된 직군에 해당하는 직무(Skill set) 목록 (직군을 선택했을 때만 표시)
@@ -604,11 +567,41 @@ export default function JobDifficultyGauges({
     }
   }, [data, selectedJobRoleFilter, jobRoleToSkillSets])
 
-  // 직군 변경 시 직무 필터 리셋
+  // 직군 변경 시 직무 필터 리셋 및 부모 컴포넌트에 알림
   const handleJobRoleChange = (jobRole: string) => {
+    console.log('[JobDifficultyGauges] handleJobRoleChange:', jobRole)
+    const normalizedJobRole = jobRole === '전체' ? '' : jobRole
     setSelectedJobRoleFilter(jobRole)
     setSelectedSkillSetFilter('전체')
+    // 부모 컴포넌트에 직군 변경 알림
+    if (onPositionChange) {
+      onPositionChange(normalizedJobRole)
+    }
+    // 직군이 전체로 변경되면 직무도 초기화
+    if (onIndustryChange) {
+      onIndustryChange('')
+    }
   }
+
+  // 직무 변경 시 부모 컴포넌트에 알림
+  const handleSkillSetChange = (skillSet: string) => {
+    const normalizedSkillSet = skillSet === '전체' ? '' : skillSet
+    setSelectedSkillSetFilter(skillSet)
+    // 부모 컴포넌트에 직무 변경 알림
+    if (onIndustryChange) {
+      onIndustryChange(normalizedSkillSet)
+    }
+  }
+
+  // 컴포넌트 마운트 시 초기값 전달
+  useEffect(() => {
+    if (onPositionChange) {
+      onPositionChange('') // 초기값은 전체 시장
+    }
+    if (onIndustryChange) {
+      onIndustryChange('') // 초기값은 전체
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">
@@ -619,50 +612,100 @@ export default function JobDifficultyGauges({
           <div className="mb-3 h-[28px] flex-shrink-0"></div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
-              value={overallDifficulty}
+              value={overallDifficulty.difficulty}
               label="전체 난이도 지수"
               onClick={() => handleGaugeClick('overall')}
+              yoyScore={overallDifficulty.yoyScore}
+              trend={overallDifficulty.trend}
             />
           </div>
         </div>
 
         {/* 직군 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0">
+          <div 
+            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0" 
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ pointerEvents: 'auto' }}
+          >
             <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직군 선택</div>
             <select
               value={selectedJobRoleFilter}
-              onChange={(e) => handleJobRoleChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0"
-              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation()
+                const value = e.target.value
+                console.log('[JobDifficultyGauges] 드롭다운 onChange:', value, '현재 값:', selectedJobRoleFilter)
+                handleJobRoleChange(value)
+              }}
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 z-10 relative"
+              onClick={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 드롭다운 onClick')
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 드롭다운 onMouseDown')
+              }}
+              onFocus={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 드롭다운 onFocus')
+              }}
             >
               <option value="전체">전체</option>
-              {availableJobRoles.map(jobRole => (
-                <option key={jobRole} value={jobRole}>{jobRole}</option>
-              ))}
+              {availableJobRoles.length > 0 ? (
+                availableJobRoles.map(jobRole => (
+                  <option key={jobRole} value={jobRole}>{jobRole}</option>
+                ))
+              ) : (
+                <option value="" disabled>직군 데이터 없음</option>
+              )}
             </select>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
-              value={selectedJobRoleDifficulty}
+              value={selectedJobRoleDifficulty.difficulty}
               label={selectedJobRoleFilter === '전체' ? '전체 직군 난이도 지수' : `${selectedJobRoleFilter} 난이도 지수`}
               onClick={() => handleGaugeClick('job-role')}
+              yoyScore={selectedJobRoleDifficulty.yoyScore}
+              trend={selectedJobRoleDifficulty.trend}
             />
           </div>
         </div>
 
         {/* 직무(Skill set) 난이도 지수 */}
         <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
-          <div className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0">
+          <div 
+            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ pointerEvents: 'auto' }}
+          >
             <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직무 선택</div>
             <select
               value={selectedSkillSetFilter}
-              onChange={(e) => setSelectedSkillSetFilter(e.target.value)}
+              onChange={(e) => {
+                e.stopPropagation()
+                const value = e.target.value
+                console.log('[JobDifficultyGauges] 직무 드롭다운 onChange:', value, '현재 값:', selectedSkillSetFilter)
+                handleSkillSetChange(value)
+              }}
               disabled={selectedJobRoleFilter === '전체'}
-              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 ${
+              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 z-10 relative ${
                 selectedJobRoleFilter === '전체' ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
               }`}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 직무 드롭다운 onClick')
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 직무 드롭다운 onMouseDown')
+              }}
+              onFocus={(e) => {
+                e.stopPropagation()
+                console.log('[JobDifficultyGauges] 직무 드롭다운 onFocus')
+              }}
             >
               <option value="전체">
                 {selectedJobRoleFilter === '전체' ? '직군을 먼저 선택하세요' : '전체'}
@@ -674,7 +717,7 @@ export default function JobDifficultyGauges({
           </div>
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
-              value={selectedSkillSetDifficulty}
+              value={selectedSkillSetDifficulty.difficulty}
               label={
                 selectedJobRoleFilter === '전체' 
                   ? '직군을 선택하세요' 
@@ -683,19 +726,12 @@ export default function JobDifficultyGauges({
                     : `${selectedSkillSetFilter} 난이도 지수`
               }
               onClick={() => selectedJobRoleFilter !== '전체' && handleGaugeClick('skill-set')}
+              yoyScore={selectedSkillSetDifficulty.yoyScore}
+              trend={selectedSkillSetDifficulty.trend}
             />
           </div>
         </div>
       </div>
-
-      {/* 선택한 게이지 차트의 인사이트 표시 */}
-      {selectedGauge && (
-        <>
-          {selectedGauge === 'overall' && renderInsights('overall', overallDetails)}
-          {selectedGauge === 'job-role' && renderInsights('job-role', selectedJobRoleDetails)}
-          {selectedGauge === 'skill-set' && renderInsights('skill-set', selectedSkillSetDetails)}
-        </>
-      )}
     </div>
   )
 }

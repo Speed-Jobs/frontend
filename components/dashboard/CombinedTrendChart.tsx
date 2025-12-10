@@ -44,11 +44,13 @@ export default function CombinedTrendChart({
   isLoading,
   error,
 }: CombinedTrendChartProps) {
-  // period 형식 정규화 함수 (예: "2025-01-15" -> "1/15", "11/1" -> "11/1")
+  // period 형식 정규화 함수 (예: "2025-01-15" -> "1/15 (2025)", "11/1" -> "11/1 (2025)")
   const normalizePeriod = (period: string): string => {
-    // 이미 "M/D" 형식인 경우 그대로 반환
+    const currentYear = new Date().getFullYear()
+    
+    // 이미 "M/D" 형식인 경우 연도 추가
     if (/^\d{1,2}\/\d{1,2}$/.test(period)) {
-      return period
+      return `${period} (${currentYear})`
     }
     // ISO 형식이나 다른 날짜 형식인 경우 변환 시도
     try {
@@ -56,7 +58,8 @@ export default function CombinedTrendChart({
       if (!isNaN(date.getTime())) {
         const month = date.getMonth() + 1
         const day = date.getDate()
-        return `${month}/${day}`
+        const year = date.getFullYear()
+        return `${month}/${day} (${year})`
       }
     } catch (e) {
       // 변환 실패 시 원본 반환
@@ -120,13 +123,23 @@ export default function CombinedTrendChart({
 
     // period 순서대로 정렬 (날짜 파싱 시도)
     const sorted = Array.from(dataMap.values()).sort((a, b) => {
-      // "M/D" 형식 파싱
+      // "M/D (YYYY)" 또는 "M/D" 형식 파싱
       const parseMD = (period: string): number => {
+        // "M/D (YYYY)" 형식 파싱
+        const matchWithYear = period.match(/^(\d{1,2})\/(\d{1,2})\s*\((\d{4})\)$/)
+        if (matchWithYear) {
+          const year = parseInt(matchWithYear[3])
+          const month = parseInt(matchWithYear[1])
+          const day = parseInt(matchWithYear[2])
+          return year * 10000 + month * 100 + day
+        }
+        // "M/D" 형식 파싱
         const match = period.match(/^(\d{1,2})\/(\d{1,2})$/)
         if (match) {
+          const currentYear = new Date().getFullYear()
           const month = parseInt(match[1])
           const day = parseInt(match[2])
-          return month * 100 + day // 간단한 정렬을 위한 값
+          return currentYear * 10000 + month * 100 + day
         }
         // 다른 형식인 경우 Date 파싱 시도
         const date = new Date(period)
@@ -255,16 +268,9 @@ export default function CombinedTrendChart({
       <ComposedChart data={mergedData}>
         <defs>
           <linearGradient id="colorTotalCount" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3}/>
-            <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
+            <stop offset="5%" stopColor="#6b7280" stopOpacity={0.3}/>
+            <stop offset="95%" stopColor="#6b7280" stopOpacity={0}/>
           </linearGradient>
-          {/* 단일 회사 선택 시 사용할 gradient */}
-          {selectedCompany && (
-            <linearGradient id={`colorSelectedCompany-${selectedCompany.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={selectedCompany.color} stopOpacity={0.3}/>
-              <stop offset="95%" stopColor={selectedCompany.color} stopOpacity={0}/>
-            </linearGradient>
-          )}
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis 
@@ -273,6 +279,7 @@ export default function CombinedTrendChart({
           angle={-45}
           textAnchor="end"
           height={80}
+          interval={0}
         />
         <YAxis 
           tick={{ fill: '#6b7280', fontSize: 12 }}
@@ -329,10 +336,10 @@ export default function CombinedTrendChart({
           <Area
             type="monotone"
             dataKey="totalCount"
-            stroke="#93c5fd"
+            stroke="#6b7280"
             strokeWidth={1.5}
-            fillOpacity={1}
-            fill="url(#colorTotalCount)"
+            fillOpacity={0}
+            fill="none"
             name="전체 공고 수"
           />
         )}
@@ -344,7 +351,7 @@ export default function CombinedTrendChart({
             stroke={selectedCompany.color}
             strokeWidth={2}
             fillOpacity={0.3}
-            fill={`url(#colorSelectedCompany-${selectedCompany.key})`}
+            fill={selectedCompany.color}
             name={selectedCompanies[0]}
           />
         )}

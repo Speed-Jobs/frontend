@@ -1282,7 +1282,22 @@ export default function Dashboard() {
 
   // 회사 목록 구성 (recruitmentCompanies)
   const recruitmentCompanies = useMemo(() => {
-    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb7185', '#818cf8', '#f472b6']
+    const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#eab308', '#6366f1', '#14b8a6']
+    
+    // 회사별 고정 색상 정의
+    const getCompanyColor = (koreanName: string, englishName: string, defaultColor: string): string => {
+      const normalizedKorean = koreanName.toLowerCase().replace(/\s+/g, '').trim()
+      const normalizedEnglish = englishName.toLowerCase().replace(/\s+/g, '').trim()
+      
+      // LG CNS는 하늘색으로 고정
+      if (normalizedKorean === 'lgcns' || normalizedKorean === 'lgcns' || 
+          normalizedEnglish === 'lgcns' || normalizedEnglish === 'lg cns' ||
+          koreanName === 'LG CNS' || englishName === 'LG CNS') {
+        return '#0ea5e9' // 하늘색 (Sky-500)
+      }
+      
+      return defaultColor
+    }
     
     // 회사 이름 정규화 함수 (중복 체크용)
     const normalizeCompanyName = (name: string): string => {
@@ -1304,12 +1319,13 @@ export default function Dashboard() {
         const englishCompanyName = getEnglishCompanyName(koreanCompanyName) // API 호출용
         const normalizedName = normalizeCompanyName(englishCompanyName)
         if (!companyMap.has(normalizedName)) {
+          const defaultColor = colors[companyMap.size % colors.length]
           companyMap.set(normalizedName, {
             id: company.key || index + 1,
             key: company.key || normalizedName,
             name: koreanCompanyName, // 한글 이름 저장
             englishName: englishCompanyName, // API 호출용 영어 이름
-            color: colors[companyMap.size % colors.length]
+            color: getCompanyColor(koreanCompanyName, englishCompanyName, defaultColor)
           })
         }
       })
@@ -1326,12 +1342,13 @@ export default function Dashboard() {
         const normalizedName = normalizeCompanyName(englishCompanyName)
         if (!companyMap.has(normalizedName)) {
           const selectedKey = generateCompanyKey(englishCompanyName)
+          const defaultColor = colors[companyMap.size % colors.length]
           companyMap.set(normalizedName, {
             id: selectedComp.company_id || 0,
             key: selectedKey,
             name: koreanCompanyName, // 한글 이름 저장
             englishName: englishCompanyName, // API 호출용 영어 이름
-            color: colors[companyMap.size % colors.length]
+            color: getCompanyColor(koreanCompanyName, englishCompanyName, defaultColor)
           })
         }
       }
@@ -1346,12 +1363,13 @@ export default function Dashboard() {
           const normalizedName = normalizeCompanyName(englishCompanyName)
           if (!companyMap.has(normalizedName)) {
             const key = generateCompanyKey(englishCompanyName)
+            const defaultColor = colors[companyMap.size % colors.length]
             companyMap.set(normalizedName, {
               id: comp.company_id || comp.id || index + 1,
               key: key,
               name: koreanCompanyName, // 한글 이름 저장
               englishName: englishCompanyName, // API 호출용 영어 이름
-              color: colors[companyMap.size % colors.length]
+              color: getCompanyColor(koreanCompanyName, englishCompanyName, defaultColor)
             })
           }
         })
@@ -1366,12 +1384,13 @@ export default function Dashboard() {
           const normalizedName = normalizeCompanyName(englishCompanyName)
           if (!companyMap.has(normalizedName)) {
             const key = generateCompanyKey(englishCompanyName)
+            const defaultColor = colors[companyMap.size % colors.length]
             companyMap.set(normalizedName, {
               id: comp.company_id || comp.rank || index + 1,
               key: key,
               name: koreanCompanyName, // 한글 이름 저장
               englishName: englishCompanyName, // API 호출용 영어 이름
-              color: colors[companyMap.size % colors.length]
+              color: getCompanyColor(koreanCompanyName, englishCompanyName, defaultColor)
             })
           }
         })

@@ -618,7 +618,7 @@ export default function JobRoleStatisticsChart({
                   <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
                 </div>
                 <div className="mt-3 text-xs text-blue-600">
-                  💡 {insights.job_role_insights.length}개의 직군에 대한 인사이트가 준비되어 있습니다.
+                  💡 {(insights?.job_role_insights?.length ?? 0)}개의 직군에 대한 인사이트가 준비되어 있습니다.
                 </div>
               </>
             ) : (

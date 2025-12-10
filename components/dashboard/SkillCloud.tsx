@@ -69,7 +69,7 @@ const generateSkillInsight = (skillData: {
   count: number
   percentage?: number
   change?: number
-  relatedSkills?: string[]
+  relatedSkills?: string[] | Array<{ name: string }>
 }, selectedCompany: string): string => {
   const companyText = selectedCompany !== '전체' ? `${selectedCompany}의 ` : ''
   const skillName = skillData.name.charAt(0).toUpperCase() + skillData.name.slice(1)
@@ -94,7 +94,9 @@ const generateSkillInsight = (skillData: {
   const relatedSkillsStrings = skillData.relatedSkills 
     ? (Array.isArray(skillData.relatedSkills) && skillData.relatedSkills.length > 0 && typeof skillData.relatedSkills[0] === 'string'
         ? skillData.relatedSkills as string[]
-        : (skillData.relatedSkills as Array<{ name: string }>).map(rs => rs.name))
+        : Array.isArray(skillData.relatedSkills) && skillData.relatedSkills.length > 0 && typeof skillData.relatedSkills[0] === 'object' && 'name' in skillData.relatedSkills[0]
+        ? (skillData.relatedSkills as Array<{ name: string }>).map(rs => rs.name)
+        : [])
     : []
   
   if (relatedSkillsStrings.length > 0) {

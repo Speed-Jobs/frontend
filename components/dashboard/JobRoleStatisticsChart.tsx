@@ -14,7 +14,11 @@ interface JobRoleStatisticsChartProps {
     name: string
     value: number
     previousValue: number
-    industries: string[]
+    industries: Array<{
+      name: string
+      current_count: number
+      previous_count: number
+    }>
     skillSets?: Array<{
       name: string
       count: number
@@ -73,7 +77,11 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
     name: string
     value: number
     previousValue: number
-    industries: string[]
+    industries: Array<{
+      name: string
+      current_count: number
+      previous_count: number
+    }>
     skillSets?: Array<{
       name: string
       count: number
@@ -164,14 +172,6 @@ export default function JobRoleStatisticsChart({
   availableCompanies = [],
   insights = null
 }: JobRoleStatisticsChartProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-500">데이터를 불러오는 중...</div>
-      </div>
-    )
-  }
-
   if (error) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -180,6 +180,16 @@ export default function JobRoleStatisticsChart({
     )
   }
 
+  // 데이터가 없고 로딩 중일 때만 전체 로딩 표시
+  if ((!data || data.length === 0) && isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <div className="text-gray-500">데이터를 불러오는 중...</div>
+      </div>
+    )
+  }
+
+  // 데이터가 없으면 표시할 내용 없음
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -270,17 +280,52 @@ export default function JobRoleStatisticsChart({
   const getDetailedPeriodLabel = () => {
     // insights에서 날짜 정보가 있으면 사용
     if (insights?.current_period && insights?.previous_period) {
-      const previousRange = formatDetailedDateRange(
-        insights.previous_period.start_date,
-        insights.previous_period.end_date
-      )
-      const currentRange = formatDetailedDateRange(
-        insights.current_period.start_date,
-        insights.current_period.end_date
-      )
-      
-      if (previousRange && currentRange) {
-        return `${previousRange} vs ${currentRange} 비교 인사이트`
+      try {
+        const previousStart = new Date(insights.previous_period.start_date)
+        const currentStart = new Date(insights.current_period.start_date)
+        
+        // QoQ (Weekly) 모드인 경우 분기 형식으로 표시
+        if (viewMode === 'Weekly') {
+          const getQuarterLabel = (date: Date): string => {
+            const quarter = Math.floor(date.getMonth() / 3) + 1
+            return `${date.getFullYear()}년 ${quarter}분기`
+          }
+          
+          const previousQuarter = getQuarterLabel(previousStart)
+          const currentQuarter = getQuarterLabel(currentStart)
+          
+          if (previousQuarter && currentQuarter) {
+            return `${previousQuarter} vs ${currentQuarter} 비교 인사이트`
+          }
+        } else {
+          // MoM (Monthly) 모드인 경우 월 형식으로 표시
+          const getMonthLabel = (date: Date): string => {
+            return `${date.getFullYear()}년 ${date.getMonth() + 1}월`
+          }
+          
+          const previousMonth = getMonthLabel(previousStart)
+          const currentMonth = getMonthLabel(currentStart)
+          
+          if (previousMonth && currentMonth) {
+            return `${previousMonth} vs ${currentMonth} 비교 인사이트`
+          }
+        }
+        
+        // 분기/월 형식이 안 되면 상세 날짜 범위 사용
+        const previousRange = formatDetailedDateRange(
+          insights.previous_period.start_date,
+          insights.previous_period.end_date
+        )
+        const currentRange = formatDetailedDateRange(
+          insights.current_period.start_date,
+          insights.current_period.end_date
+        )
+        
+        if (previousRange && currentRange) {
+          return `${previousRange} vs ${currentRange} 비교 인사이트`
+        }
+      } catch (error) {
+        // 날짜 파싱 실패 시 fallback
       }
     }
     
@@ -292,10 +337,12 @@ export default function JobRoleStatisticsChart({
   const getSummaryInsight = () => {
     // API에서 받은 summary가 있으면 사용
     if (insights) {
+      // summary가 존재하는지 확인 (undefined, null이 아니고)
       if (insights.summary !== undefined && insights.summary !== null) {
         const summary = typeof insights.summary === 'string' ? insights.summary : String(insights.summary)
         
-        if (summary.trim().length > 0) {
+        // 빈 문자열이 아닌 경우 반환
+        if (summary && summary.trim().length > 0) {
           return summary
         }
       }
@@ -373,11 +420,11 @@ export default function JobRoleStatisticsChart({
       {/* 두 개의 도넛 차트 나란히 표시 - 반응형, 중앙 정렬 */}
       <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 mb-4 w-full overflow-visible">
         {/* 첫 번째 차트 (이전 기간) */}
-        <div className="w-full lg:w-auto flex flex-col items-center flex-1 lg:flex-none relative z-10">
+        <div className="w-full lg:w-1/2 flex flex-col items-center justify-center relative z-10 min-w-0">
           <div className="text-center mb-2">
             <p className="text-xs font-medium text-gray-500">{previousPeriodLabel}</p>
           </div>
-          <div className="w-full max-w-[300px] lg:max-w-[320px] aspect-square relative overflow-visible">
+          <div className="w-full max-w-[320px] lg:max-w-[280px] aspect-square relative overflow-visible mx-auto">
             {previousChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -440,7 +487,7 @@ export default function JobRoleStatisticsChart({
         </div>
         
         {/* 화살표 (이전 기간 -> 현재 기간) - 모바일에서는 세로로, 데스크톱에서는 가로로 */}
-        <div className="flex lg:flex-col items-center justify-center px-2 py-4 lg:py-0 flex-shrink-0">
+        <div className="flex lg:flex-col items-center justify-center px-2 py-4 lg:py-0 flex-shrink-0 self-center">
           <div className="flex lg:flex-col items-center gap-2">
             <svg 
               width="40" 
@@ -457,12 +504,12 @@ export default function JobRoleStatisticsChart({
         </div>
         
         {/* 두 번째 차트 (현재 기간) - 더 크게 강조 */}
-        <div className="w-full lg:w-auto flex flex-col items-center flex-1 lg:flex-none relative z-10">
+        <div className="w-full lg:w-1/2 flex flex-col items-center justify-center relative z-10 min-w-0">
           <div className="text-center mb-3">
             <p className="text-base lg:text-lg font-bold text-gray-900">{currentPeriodLabel}</p>
             <p className="text-xs text-blue-600 font-semibold mt-1">현재 기간</p>
           </div>
-          <div className="w-full max-w-[350px] lg:max-w-[380px] aspect-square relative overflow-visible">
+          <div className="w-full max-w-[360px] lg:max-w-[320px] aspect-square relative overflow-visible mx-auto">
               {currentChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -557,42 +604,128 @@ export default function JobRoleStatisticsChart({
         })}
       </div>
       
+      {/* 선택된 직군의 직무 상세 정보 */}
+      {selectedRole && (() => {
+        const selectedRoleData = data.find(item => item.name === selectedRole)
+        const industries = selectedRoleData?.industries || []
+        
+        if (industries.length > 0) {
+          return (
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <span className="text-base sm:text-lg">📊</span>
+                <span className="break-words">
+                  {selectedRole} 직무별 상세 정보
+                </span>
+              </h4>
+              <div className="space-y-2">
+                {industries.map((industry, index) => {
+                  const changeRate = industry.previous_count > 0 
+                    ? (((industry.current_count - industry.previous_count) / industry.previous_count) * 100).toFixed(1)
+                    : industry.current_count > 0 ? '100.0' : '0.0'
+                  const isIncrease = parseFloat(changeRate) > 0
+                  const isDecrease = parseFloat(changeRate) < 0
+                  
+                  return (
+                    <div 
+                      key={index}
+                      className="p-2 sm:p-3 bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs sm:text-sm font-semibold text-gray-900 mb-1 break-words">
+                            {industry.name}
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                            <div>
+                              <span className="text-gray-500">현재 기간: </span>
+                              <span className="font-medium text-gray-900">{industry.current_count.toLocaleString()}건</span>
+                            </div>
+                            {industry.previous_count > 0 && (
+                              <div>
+                                <span className="text-gray-500">이전 기간: </span>
+                                <span className="font-medium text-gray-700">{industry.previous_count.toLocaleString()}건</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {industry.previous_count > 0 && (
+                          <div className="flex-shrink-0">
+                            <span className={`text-xs font-medium ${
+                              isIncrease ? 'text-green-600' : isDecrease ? 'text-red-600' : 'text-gray-600'
+                            }`}>
+                              {isIncrease ? '↑' : isDecrease ? '↓' : ''} {Math.abs(parseFloat(changeRate))}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        }
+        return null
+      })()}
+      
       {/* 인사이트 섹션 */}
       <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
-        {selectedRole && selectedRoleInsight ? (
+        {selectedRole ? (
           // 선택된 직군의 인사이트 표시
-          <>
-            <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
-              <span className="text-base sm:text-lg">💡</span>
-              <span className="break-words">
-                {selectedRole} 인사이트
-              </span>
-            </h4>
-            <div className="space-y-2 sm:space-y-3">
-              <div className="text-xs sm:text-sm text-blue-800">
-                <div className="font-medium mb-1">인사이트:</div>
-                <div className="text-blue-700">{selectedRoleInsight.insight}</div>
-              </div>
-              <div className="text-xs sm:text-sm text-blue-800">
-                <div className="font-medium mb-1">변화 설명:</div>
-                <div className="text-blue-700">{selectedRoleInsight.change_description}</div>
-              </div>
-              {selectedRoleInsight.external_factors && (
+          selectedRoleInsight ? (
+            <>
+              <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="text-base sm:text-lg">💡</span>
+                <span className="break-words">
+                  {selectedRole} 인사이트
+                </span>
+              </h4>
+              <div className="space-y-2 sm:space-y-3">
                 <div className="text-xs sm:text-sm text-blue-800">
-                  <div className="font-medium mb-1">외부 요인:</div>
-                  <div className="text-blue-700">{selectedRoleInsight.external_factors}</div>
+                  <div className="font-medium mb-1">인사이트:</div>
+                  <div className="text-blue-700">{selectedRoleInsight.insight}</div>
                 </div>
-              )}
-            </div>
-            <button
-              onClick={() => onRoleClick(null)}
-              className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              전체 인사이트 보기
-            </button>
-          </>
+                <div className="text-xs sm:text-sm text-blue-800">
+                  <div className="font-medium mb-1">변화 설명:</div>
+                  <div className="text-blue-700">{selectedRoleInsight.change_description}</div>
+                </div>
+                {selectedRoleInsight.external_factors && (
+                  <div className="text-xs sm:text-sm text-blue-800">
+                    <div className="font-medium mb-1">외부 요인:</div>
+                    <div className="text-blue-700">{selectedRoleInsight.external_factors}</div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => onRoleClick(null)}
+                className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                전체 인사이트 보기
+              </button>
+            </>
+          ) : (
+            // 선택된 직군이 있지만 해당 직군의 인사이트가 없는 경우
+            <>
+              <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="text-base sm:text-lg">💡</span>
+                <span className="break-words">
+                  {selectedRole} 인사이트
+                </span>
+              </h4>
+              <div className="text-xs sm:text-sm text-blue-600">
+                해당 직군에 대한 인사이트 정보가 없습니다.
+              </div>
+              <button
+                onClick={() => onRoleClick(null)}
+                className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                전체 인사이트 보기
+              </button>
+            </>
+          )
         ) : (
-          // 전체 인사이트 표시 (summary)
+          // 전체 인사이트 표시 (summary) - selectedRole이 null일 때
           <>
             <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
               <span className="text-base sm:text-lg">💡</span>
@@ -600,39 +733,63 @@ export default function JobRoleStatisticsChart({
                 {getDetailedPeriodLabel()}
               </span>
             </h4>
-            {hasSummary && summaryInsight ? (
-              <>
-                <div className="text-xs sm:text-sm text-blue-800">
-                  <div className="break-words">{summaryInsight}</div>
-                </div>
-                {hasJobRoleInsights && (
-                  <div className="mt-3 text-xs text-blue-600">
-                    💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
+            {(() => {
+              // insights가 없거나 로딩 중이면 "인사이트 생성 중" 표시 (가장 먼저 체크)
+              if (isLoading || insights === null || insights === undefined) {
+                return (
+                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
+                    <span className="animate-pulse">⏳</span>
+                    <span>인사이트 생성 중...</span>
                   </div>
-                )}
-              </>
-            ) : hasJobRoleInsights ? (
-              // summary가 없지만 job_role_insights가 있는 경우
-              <>
-                <div className="text-xs sm:text-sm text-blue-800">
-                  <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
-                </div>
-                <div className="mt-3 text-xs text-blue-600">
-                  💡 {(insights?.job_role_insights?.length ?? 0)}개의 직군에 대한 인사이트가 준비되어 있습니다.
-                </div>
-              </>
-            ) : (
-              <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
-                <span className="animate-pulse">⏳</span>
-                <span>
-                  {insights === null 
-                    ? '인사이트 생성 중...' 
-                    : insights && !insights.summary && !hasJobRoleInsights
-                    ? '인사이트를 불러오는 중입니다...'
-                    : '인사이트 생성 중...'}
-                </span>
-              </div>
-            )}
+                )
+              }
+              
+              // insights가 빈 객체인 경우
+              if (insights && typeof insights === 'object' && Object.keys(insights).length === 0) {
+                return (
+                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
+                    <span className="animate-pulse">⏳</span>
+                    <span>인사이트 생성 중...</span>
+                  </div>
+                )
+              }
+              
+              // summary가 있으면 표시
+              if (hasSummary && summaryInsight) {
+                return (
+                  <>
+                    <div className="text-xs sm:text-sm text-blue-800">
+                      <div className="break-words">{summaryInsight}</div>
+                    </div>
+                    {hasJobRoleInsights && (
+                      <div className="mt-3 text-xs text-blue-600">
+                        💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
+                      </div>
+                    )}
+                  </>
+                )
+              } else if (hasJobRoleInsights) {
+                // summary가 없지만 job_role_insights가 있는 경우
+                return (
+                  <>
+                    <div className="text-xs sm:text-sm text-blue-800">
+                      <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
+                    </div>
+                    <div className="mt-3 text-xs text-blue-600">
+                      💡 {(insights?.job_role_insights?.length ?? 0)}개의 직군에 대한 인사이트가 준비되어 있습니다.
+                    </div>
+                  </>
+                )
+              } else {
+                // summary도 없고 job_role_insights도 없는 경우
+                return (
+                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
+                    <span className="animate-pulse">⏳</span>
+                    <span>인사이트 생성 중...</span>
+                  </div>
+                )
+              }
+            })()}
           </>
         )}
       </div>

@@ -99,8 +99,8 @@ export default function SkillTrendAndCloud({
 
   // 연도별로 데이터 집계 (스택 바 차트용)
   const yearlyData = useMemo(() => {
-    // API 데이터가 없으면 더미 데이터 사용
-    const dataToUse = (!skillTrendData || skillTrendData.length === 0) ? dummyTrendData : skillTrendData
+    // API 데이터가 없으면 빈 배열 반환
+    const dataToUse = skillTrendData || []
     
     if (!dataToUse || dataToUse.length === 0) {
       return []
@@ -184,7 +184,7 @@ export default function SkillTrendAndCloud({
     })
 
     return result
-  }, [skillTrendData, dummyTrendData])
+  }, [skillTrendData])
 
   // 스택 바 차트에 사용할 상위 스킬 목록 (전체 연도에서 가장 많이 언급된 스킬, 상위 10개)
   const topSkills = useMemo(() => {
@@ -333,8 +333,8 @@ export default function SkillTrendAndCloud({
       end: `${previousYear}-${String(previousEndDate.getMonth() + 1).padStart(2, '0')}-${String(previousEndDate.getDate()).padStart(2, '0')}`
     }
 
-    // API 데이터가 없으면 더미 데이터 사용
-    const dataToUse = (!skillTrendData || skillTrendData.length === 0) ? dummyTrendData : skillTrendData
+    // API 데이터 사용 (더미 데이터 사용 안 함)
+    const dataToUse = skillTrendData || []
     
     // 현재 분기 데이터
     const currentQuarterMap = new Map<string, number>()
@@ -403,29 +403,22 @@ export default function SkillTrendAndCloud({
       })
     }
 
-    // 더미 데이터가 없거나 데이터가 비어있으면 더미 데이터 생성
-    const skills = ['python', 'java', 'react', 'typescript', 'spring', 'sql', 'docker', 'kubernetes', 'aws', 'nodejs']
-    
+    // 데이터가 없으면 null 반환
     if (currentQuarterMap.size === 0 && previousQuarterMap.size === 0) {
-      // 분기별 더미 데이터 생성
-      skills.forEach(skill => {
-        // 현재 분기 더미 데이터 (랜덤 값)
-        const currentValue = Math.floor(Math.random() * 100) + 50
-        currentQuarterMap.set(skill, currentValue)
-        
-        // 이전 분기 더미 데이터 (현재보다 약간 낮은 값)
-        const previousValue = Math.floor(currentValue * (0.7 + Math.random() * 0.3))
-        previousQuarterMap.set(skill, previousValue)
-      })
+      return {
+        current: null,
+        previous: null,
+        currentLabel: `${year} ${currentQuarter}`,
+        previousLabel: `${previousYear} ${previousQuarter}`,
+        currentPeriod: currentQuarterDates,
+        previousPeriod: adjustedPreviousQuarterDates
+      }
     }
 
-    // 모든 스킬 수집
+    // 모든 스킬 수집 (실제 데이터에서만)
     const allSkills = new Set<string>()
     currentQuarterMap.forEach((_, skill) => allSkills.add(skill))
     previousQuarterMap.forEach((_, skill) => allSkills.add(skill))
-    
-    // skills 배열도 추가 (더미 데이터용)
-    skills.forEach(skill => allSkills.add(skill))
 
     // 단일 데이터 포인트로 변환
     const currentData: any = { quarter: `${year} ${currentQuarter}` }
@@ -444,7 +437,7 @@ export default function SkillTrendAndCloud({
       currentPeriod: currentQuarterDates,
       previousPeriod: adjustedPreviousQuarterDates
     }
-  }, [selectedYearForModal, selectedQuarter, skillTrendData, dummyTrendData])
+  }, [selectedYearForModal, selectedQuarter, skillTrendData])
 
   // 분기별 차트에 사용할 상위 스킬 목록
   const quarterlyTopSkills = useMemo(() => {

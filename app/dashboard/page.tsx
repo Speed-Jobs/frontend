@@ -477,13 +477,13 @@ export default function Dashboard() {
       .slice(0, 5)
   }, [])
 
-  // 신입 공채 일정 데이터
+  // 채용 공채 일정 시뮬레이션 데이터
   const recruitmentScheduleData = useMemo(() => {
     const now = new Date()
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth()
     
-    // 샘플 신입 공채 일정 데이터
+    // 샘플 채용 공채 일정 시뮬레이션 데이터
     const schedules = [
       { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-15`, company: '네이버', type: '신입공채' as const, title: '2025년 상반기 신입 공채' },
       { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20`, company: '카카오', type: '신입공채' as const, title: '신입 개발자 공채' },
@@ -2175,6 +2175,7 @@ export default function Dashboard() {
         const params = new URLSearchParams()
         params.append('timeframe', timeframe)
         params.append('category', category)
+        params.append('include_insights', 'true') // 인사이트 포함 요청
         
         // 경쟁사 필터가 있으면 추가
         if (selectedJobRoleCompanyFilter && selectedJobRoleCompanyFilter !== '전체') {
@@ -2196,25 +2197,100 @@ export default function Dashboard() {
         
         const result = await response.json()
         
+        // 디버깅: 전체 API 응답 구조 확인
+        console.log('[직군 비중 변화 분석] 전체 API 응답:', {
+          result,
+          hasData: !!result.data,
+          dataKeys: result.data ? Object.keys(result.data) : [],
+          hasStatistics: !!result.data?.statistics,
+          hasInsights: !!result.data?.insights,
+          statisticsKeys: result.data?.statistics ? Object.keys(result.data.statistics) : [],
+          insightsKeys: result.data?.insights ? Object.keys(result.data.insights) : []
+        })
+        
         if (result.status === 200 && result.data) {
           // API 응답 구조: result.data.statistics.statistics (배열)
           // result.data.statistics.current_period, previous_period (기간 정보)
-          // result.data.insights (인사이트 정보)
+          // result.data.insights (인사이트 정보) - 이 부분에 summary와 job_role_insights가 있음
           
           // insights는 statistics와 독립적으로 존재할 수 있으므로 별도로 확인
-          const insightsData = result.data.insights || null
+          // 여러 경로에서 insights 찾기 (우선순위: result.data.insights > result.data.statistics.insights > result.insights)
+          let insightsData = result.data.insights || 
+                            result.data.statistics?.insights || 
+                            result.insights || 
+                            null
+          
+          console.log('[직군 비중 변화 분석] insightsData 추출:', {
+            'result.data.insights': result.data.insights,
+            'result.data.statistics?.insights': result.data.statistics?.insights,
+            'result.insights': result.insights,
+            'insightsData': insightsData,
+            'insightsData type': typeof insightsData,
+            'insightsData is null': insightsData === null,
+            'insightsData is undefined': insightsData === undefined
+          })
+          
+          // insightsData가 객체인 경우, summary나 job_role_insights가 있는지 확인
+          if (insightsData && typeof insightsData === 'object' && insightsData !== null) {
+            // summary가 있거나 job_role_insights가 있으면 유지
+            const hasSummary = insightsData.summary !== undefined && 
+                              insightsData.summary !== null && 
+                              String(insightsData.summary).trim().length > 0
+            const hasJobRoleInsights = Array.isArray(insightsData.job_role_insights) && 
+                                      insightsData.job_role_insights.length > 0
+            
+            console.log('[직군 비중 변화 분석] insightsData 체크:', {
+              hasSummary,
+              hasJobRoleInsights,
+              summary: insightsData.summary,
+              summaryType: typeof insightsData.summary,
+              jobRoleInsights: insightsData.job_role_insights,
+              jobRoleInsightsType: Array.isArray(insightsData.job_role_insights),
+              jobRoleInsightsLength: insightsData.job_role_insights?.length
+            })
+            
+            // summary나 job_role_insights가 없으면 null로 처리
+            if (!hasSummary && !hasJobRoleInsights) {
+              console.log('[직군 비중 변화 분석] insightsData에 내용이 없어 null로 처리:', insightsData)
+              insightsData = null
+            } else {
+              console.log('[직군 비중 변화 분석] insightsData 유지:', {
+                hasSummary,
+                hasJobRoleInsights,
+                summary: insightsData.summary,
+                jobRoleInsightsCount: insightsData.job_role_insights?.length,
+                fullInsightsData: insightsData
+              })
+            }
+          } else {
+            console.log('[직군 비중 변화 분석] insightsData를 찾을 수 없음:', {
+              insightsData,
+              type: typeof insightsData,
+              isNull: insightsData === null,
+              isUndefined: insightsData === undefined
+            })
+          }
           
           // 디버깅: 인사이트 데이터 확인
-          if (insightsData) {
-            console.log('[직군 비중 변화 분석] 인사이트 데이터:', {
+          console.log('[직군 비중 변화 분석] API 응답 구조:', {
+            hasData: !!result.data,
+            hasStatistics: !!result.data.statistics,
+            insightsPath: result.data.insights ? 'result.data.insights' : 
+                         result.data.statistics?.insights ? 'result.data.statistics.insights' :
+                         result.insights ? 'result.insights' : '없음',
+            rawInsights: result.data.insights,
+            rawResultData: result.data,
+            insightsData: insightsData ? {
               hasSummary: !!insightsData.summary,
+              summaryValue: insightsData.summary,
               summaryLength: insightsData.summary?.length || 0,
+              summaryPreview: insightsData.summary?.substring(0, 50) || '',
               hasJobRoleInsights: !!insightsData.job_role_insights,
-              jobRoleInsightsCount: insightsData.job_role_insights?.length || 0
-            })
-          } else {
-            console.log('[직군 비중 변화 분석] 인사이트 데이터 없음')
-          }
+              jobRoleInsightsCount: insightsData.job_role_insights?.length || 0,
+              jobRoleInsights: insightsData.job_role_insights,
+              insightsKeys: Object.keys(insightsData || {})
+            } : null
+          })
           
           if (result.data.statistics) {
             // statistics 배열이 비어있어도 기간 정보는 있으므로 데이터로 저장
@@ -2222,8 +2298,15 @@ export default function Dashboard() {
               statistics: result.data.statistics.statistics || [],
               current_period: result.data.statistics.current_period,
               previous_period: result.data.statistics.previous_period,
-              insights: insightsData,
+              insights: insightsData, // insightsData가 null이어도 저장 (나중에 확인 가능하도록)
             }
+            console.log('[직군 비중 변화 분석] 저장되는 apiData:', {
+              hasInsights: !!apiData.insights,
+              insightsData: apiData.insights,
+              insightsSummary: apiData.insights?.summary,
+              insightsJobRoleInsights: apiData.insights?.job_role_insights,
+              fullApiData: apiData
+            })
             setJobRoleStatisticsApiData(apiData)
           } else if (insightsData) {
             // statistics가 없어도 insights가 있으면 저장
@@ -2437,14 +2520,42 @@ export default function Dashboard() {
       })
     })
     
+    // 총합 계산 (퍼센테이지 계산용)
+    const currentTotal = Object.values(roleCounts).reduce((sum, counts) => sum + counts.current, 0)
+    const previousTotal = Object.values(roleCounts).reduce((sum, counts) => sum + counts.previous, 0)
+    
     // 데이터 변환 (모든 직군 포함, 0인 값도 포함)
     const result = rolesForCategory.map(role => {
       const counts = roleCounts[role] || { current: 0, previous: 0 }
+      
+      // 퍼센테이지 계산
+      const currentPercentage = currentTotal > 0 ? (counts.current / currentTotal) * 100 : null
+      const previousPercentage = previousTotal > 0 ? (counts.previous / previousTotal) * 100 : null
+      
+      // 변화율 계산 (이전 값 대비)
+      let changeRate: number | null = null
+      if (previousTotal > 0 && currentTotal > 0) {
+        // 비율의 변화율 계산: ((현재 비율 - 이전 비율) / 이전 비율) * 100
+        if (previousPercentage !== null && previousPercentage > 0) {
+          changeRate = ((currentPercentage || 0) - previousPercentage) / previousPercentage * 100
+        } else if (currentPercentage !== null && currentPercentage > 0) {
+          changeRate = 100 // 이전에 없었는데 현재 생긴 경우
+        }
+      }
+      
+      const defaultIndustries = (roleIndustries[role] || []).map((name: string) => ({
+        name: name,
+        current_count: 0,
+        previous_count: 0
+      }))
       return {
         name: role,
         value: counts.current,
         previousValue: counts.previous,
-        industries: roleIndustries[role] || [],
+        currentPercentage: currentPercentage,
+        previousPercentage: previousPercentage,
+        changeRate: changeRate,
+        industries: defaultIndustries,
       }
     })
     
@@ -2454,11 +2565,19 @@ export default function Dashboard() {
       const defaultRole = selectedExpertCategory === 'Tech' ? 'Software Development' 
         : selectedExpertCategory === 'Biz' ? 'Sales' 
         : 'Biz. Supporting'
+      const defaultIndustries = (roleIndustries[defaultRole] || []).map((name: string) => ({
+        name: name,
+        current_count: 0,
+        previous_count: 0
+      }))
       return [{
         name: defaultRole,
         value: 0,
         previousValue: 0,
-        industries: roleIndustries[defaultRole] || [],
+        currentPercentage: null,
+        previousPercentage: null,
+        changeRate: null,
+        industries: defaultIndustries,
       }]
     }
     
@@ -2516,6 +2635,7 @@ export default function Dashboard() {
       // API 응답에서 받은 데이터를 맵으로 변환 (빠른 조회를 위해)
       const apiDataMap = new Map<string, any>()
       statisticsArray.forEach((stat: any) => {
+        // API 응답 구조: stat.name이 직군 이름
         const roleName = stat.name || stat.job_role || ''
         if (roleName) {
           apiDataMap.set(roleName, stat)
@@ -2526,43 +2646,70 @@ export default function Dashboard() {
       const transformedData = rolesForCategory.map((roleName) => {
         const apiStat = apiDataMap.get(roleName)
         if (apiStat) {
-          // API 응답 형식에 따라 필드명 처리
-          const currentCount = apiStat.current_count !== undefined ? apiStat.current_count : (apiStat.value !== undefined ? apiStat.value : 0)
-          const previousCount = apiStat.previous_count !== undefined ? apiStat.previous_count : (apiStat.previous_value !== undefined ? apiStat.previous_value : (apiStat.previousValue !== undefined ? apiStat.previousValue : 0))
+          // API 응답 구조에 맞게 필드명 처리
+          // API 응답: current_count, previous_count, current_percentage, previous_percentage, change_rate
+          const currentCount = apiStat.current_count !== undefined ? apiStat.current_count : 0
+          const previousCount = apiStat.previous_count !== undefined ? apiStat.previous_count : 0
+          const currentPercentage = apiStat.current_percentage !== undefined ? apiStat.current_percentage : null
+          const previousPercentage = apiStat.previous_percentage !== undefined ? apiStat.previous_percentage : null
+          const changeRate = apiStat.change_rate !== undefined ? apiStat.change_rate : null
           
-          // industries 처리: API 응답이 객체 배열이면 name 필드 추출, 아니면 그대로 사용
-          let industries: string[] = []
+          // industries 처리: API 응답 구조는 객체 배열 [{name: string, current_count: number, previous_count: number}]
+          let industries: Array<{name: string, current_count: number, previous_count: number}> = []
           if (apiStat.industries && Array.isArray(apiStat.industries)) {
             if (apiStat.industries.length > 0) {
               // 객체 배열인지 확인 (첫 번째 요소가 객체인지)
               if (typeof apiStat.industries[0] === 'object' && apiStat.industries[0] !== null && 'name' in apiStat.industries[0]) {
-                // 객체 배열이면 name 필드 추출
-                industries = apiStat.industries.map((ind: any) => ind.name || ind).filter((name: string) => name)
+                // 객체 배열이면 그대로 사용 (current_count, previous_count 포함)
+                industries = apiStat.industries.map((ind: any) => ({
+                  name: ind.name || '',
+                  current_count: ind.current_count !== undefined ? ind.current_count : 0,
+                  previous_count: ind.previous_count !== undefined ? ind.previous_count : 0
+                })).filter((ind: any) => ind.name)
               } else if (typeof apiStat.industries[0] === 'string') {
-                // 문자열 배열이면 그대로 사용
-                industries = apiStat.industries
+                // 문자열 배열이면 객체 배열로 변환 (count는 0으로 설정)
+                industries = apiStat.industries.map((name: string) => ({
+                  name: name,
+                  current_count: 0,
+                  previous_count: 0
+                })).filter((ind: any) => ind.name)
               }
             }
           }
           
-          // industries가 비어있으면 기본 매핑 사용
+          // industries가 비어있으면 기본 매핑 사용 (count는 0으로 설정)
           if (industries.length === 0) {
-            industries = roleIndustries[roleName] || []
+            industries = (roleIndustries[roleName] || []).map((name: string) => ({
+              name: name,
+              current_count: 0,
+              previous_count: 0
+            }))
           }
           
           return {
             name: roleName,
-            value: currentCount || 0,
-            previousValue: previousCount || 0,
+            value: currentCount,
+            previousValue: previousCount,
+            currentPercentage: currentPercentage,
+            previousPercentage: previousPercentage,
+            changeRate: changeRate,
             industries: industries,
           }
         } else {
           // API에 없는 직군은 0으로 채움
+          const defaultIndustries = (roleIndustries[roleName] || []).map((name: string) => ({
+            name: name,
+            current_count: 0,
+            previous_count: 0
+          }))
           return {
             name: roleName,
             value: 0,
             previousValue: 0,
-            industries: roleIndustries[roleName] || [],
+            currentPercentage: null,
+            previousPercentage: null,
+            changeRate: null,
+            industries: defaultIndustries,
           }
         }
       })
@@ -2571,24 +2718,9 @@ export default function Dashboard() {
       return transformedData
     }
     
-    // API 데이터가 없거나 빈 배열이면 로컬 fallback 데이터 사용
-    const fallbackData = jobRoleStatisticsDataFallback
-    
-    // fallback 데이터도 비어있으면 최소한의 기본 데이터 반환
-    if (!fallbackData || fallbackData.length === 0) {
-      const defaultRole = selectedExpertCategory === 'Tech' ? 'Software Development' 
-        : selectedExpertCategory === 'Biz' ? 'Sales' 
-        : 'Biz. Supporting'
-      return [{
-        name: defaultRole,
-        value: 0,
-        previousValue: 0,
-        industries: [],
-      }]
-    }
-    
-    return fallbackData
-  }, [jobRoleStatisticsApiData, jobRoleStatisticsDataFallback, selectedExpertCategory])
+    // API 데이터가 없으면 빈 배열 반환 (fallback 데이터 사용 안 함)
+    return []
+  }, [jobRoleStatisticsApiData, selectedExpertCategory])
 
   // 직군별 통계 기간 정보 (API 응답에서 가져오기, 없으면 로컬 계산)
   const jobRoleStatisticsPeriods = useMemo(() => {
@@ -2732,8 +2864,8 @@ export default function Dashboard() {
         // 404 에러는 조용히 처리 (API가 존재하지 않을 수 있음)
         if (!response.ok) {
           if (response.status === 404) {
-            // 404 에러는 fallback 데이터 사용 (콘솔 에러 방지)
-            setSkillsApiData(defaultSkillsData)
+            // 404 에러는 빈 배열 반환 (데이터 없음 표시)
+            setSkillsApiData([])
             setIsLoadingSkills(false)
             return
           }
@@ -2768,14 +2900,14 @@ export default function Dashboard() {
               })
             setSkillsApiData(processedSkills)
           } else {
-            setSkillsApiData(defaultSkillsData)
+            setSkillsApiData([])
           }
         } else {
-          setSkillsApiData(defaultSkillsData)
+          setSkillsApiData([])
         }
       } catch (err) {
         setSkillsError(err instanceof Error ? err.message : '스킬 통계를 불러오는 중 오류가 발생했습니다.')
-        setSkillsApiData(defaultSkillsData)
+        setSkillsApiData([])
       } finally {
         setIsLoadingSkills(false)
       }
@@ -2791,7 +2923,7 @@ export default function Dashboard() {
 
   // 스킬 클라우드에 사용할 데이터 (선택된 회사에 따라 필터링)
   const skillCloudData = useMemo(() => {
-    return skillsApiData.length > 0 ? skillsApiData : defaultSkillsData
+    return skillsApiData
   }, [skillsApiData])
 
   // 현재 시간 표시 (클라이언트에서만 업데이트)
@@ -2836,7 +2968,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
           {/* 중앙 컬럼 (9열) - 확장 */}
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch">
-            <DarkDashboardCard title="신입 공채 일정" className="lg:w-[42%] flex flex-col">
+            <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
                 <NewRecruitmentCalendar events={recruitmentScheduleData} />
               </div>

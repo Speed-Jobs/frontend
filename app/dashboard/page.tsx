@@ -237,6 +237,7 @@ export default function Dashboard() {
   const [companyRecruitmentError, setCompanyRecruitmentError] = useState<string | null>(null)
   const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
   const [isManualSelection, setIsManualSelection] = useState(false) // 사용자가 수동으로 선택했는지 추적
+  const [isLoadingInsight, setIsLoadingInsight] = useState(false) // 인사이트 로딩 상태
   
   // 새로운 API 응답 형식에 대한 상태
   const [combinedTrendData, setCombinedTrendData] = useState<{
@@ -1203,12 +1204,14 @@ export default function Dashboard() {
           // 이전 차트 데이터 초기화하여 로딩 중에 이전 차트가 표시되지 않도록 함
           setJobPostingsTrendApiData([])
           setCombinedTrendData(null)
+          setIsLoadingInsight(false) // 인사이트 로딩 상태 초기화
         }
       } else {
         // 전체 선택으로 변경되면 차트 데이터와 인사이트 데이터 초기화
         if (combinedTrendData?.insight || jobPostingsTrendApiData.length > 0) {
           setJobPostingsTrendApiData([])
           setCombinedTrendData(null)
+          setIsLoadingInsight(false) // 인사이트 로딩 상태 초기화
         }
       }
       
@@ -1319,6 +1322,8 @@ export default function Dashboard() {
           
           // 회사가 선택되었을 때만 인사이트를 별도로 가져오기
           if (companyKeyword && selected_company) {
+            // 인사이트 로딩 시작
+            setIsLoadingInsight(true)
             // 인사이트는 백그라운드에서 별도로 가져오기 (차트 표시를 방해하지 않음)
             fetch(`https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-postings-trend?timeframe=${timeframeParam}&include_insight=true&company_keyword=${encodeURIComponent(companyKeyword)}`, {
               method: 'GET',
@@ -1357,11 +1362,17 @@ export default function Dashboard() {
                     top_companies: convertedTopCompanies.length > 0 ? convertedTopCompanies : (prev?.top_companies || [])
                   }))
                 }
+                // 인사이트 로딩 완료
+                setIsLoadingInsight(false)
               })
               .catch(error => {
                 // 인사이트 로딩 실패는 무시 (차트는 이미 표시됨)
                 console.error('인사이트 로딩 실패:', error)
+                setIsLoadingInsight(false)
               })
+          } else {
+            // 회사가 선택되지 않았으면 인사이트 로딩 상태 해제
+            setIsLoadingInsight(false)
           }
           
         } else {
@@ -3396,7 +3407,7 @@ export default function Dashboard() {
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
           {/* 중앙 컬럼 (9열) - 확장 */}
-          <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch">
+          <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
             <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
                 <NewRecruitmentCalendar events={recruitmentScheduleData} />
@@ -3524,7 +3535,25 @@ export default function Dashboard() {
                   // 선택된 회사와 현재 인사이트 데이터의 회사가 일치하지 않거나 인사이트가 없으면 로딩 중
                   const currentInsightCompany = combinedTrendData?.selectedCompany?.company_name
                   const isCompanyChanged = selectedCompany.name !== currentInsightCompany
-                  const isInsightLoading = (isCompanyChanged || !combinedTrendData?.insight) && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment) && jobPostingsTrendApiData.length > 0
+                  // 인사이트가 없거나 회사가 변경되었거나, 인사이트 로딩 중일 때 로딩 표시
+                  const isInsightLoading = isLoadingInsight || ((isCompanyChanged || !combinedTrendData?.insight) && jobPostingsTrendApiData.length > 0)
+
+                  // 인사이트가 로딩 중일 때 로딩 메시지 표시
+                  if (isInsightLoading) {
+                    return (
+                      <div className="mt-3 pt-3 border-t border-gray-200 pb-0 flex-shrink-0">
+                        <div className="bg-white rounded-lg border border-gray-200 px-5 py-6">
+                          <div className="flex items-center justify-center gap-3">
+                            <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span className="text-gray-600 text-sm font-medium">인사이트 데이터를 불러오는 중입니다...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
 
                   // 선택된 회사의 채용 활동 데이터 필터링
                   let singleCompanyRecruitmentData: Array<{ period: string; count: number }> = []
@@ -3571,7 +3600,7 @@ export default function Dashboard() {
                         recruitmentData={singleCompanyRecruitmentData}
                         totalTrendData={jobPostingsTrendApiData}
                         insightData={combinedTrendData?.insight}
-                        isLoading={isInsightLoading}
+                        isLoading={false}
                         error={jobPostingsTrendError || companyRecruitmentError}
                       />
                     </div>
@@ -3584,22 +3613,34 @@ export default function Dashboard() {
           </div>
 
           {/* 오른쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3 flex flex-col space-y-6">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col min-h-[450px]">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
-                <Link 
-                  href="/jobs"
-                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
-                >
-                  전체 보기
-                  <span className="text-xs">→</span>
-                </Link>
-              </div>
-              <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
-                <HotJobsList jobs={hotJobsData} />
-              </div>
-            </div>
+          <div className="lg:col-span-3 flex flex-col space-y-6 h-full">
+            {(() => {
+              // 인사이트가 표시되는지 확인
+              const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
+                (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
+              const hasInsight = !isAllSelected && selectedRecruitmentCompanies.length === 1 && combinedTrendData?.insight
+              
+              return (
+                <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col ${hasInsight ? 'h-full' : 'min-h-[450px]'}`}>
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                    <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
+                    <Link 
+                      href="/jobs"
+                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
+                    >
+                      전체 보기
+                      <span className="text-xs">→</span>
+                    </Link>
+                  </div>
+                  <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
+                    <HotJobsList 
+                      jobs={hotJobsData} 
+                      itemsPerPage={hasInsight ? 10 : 5} 
+                    />
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
 

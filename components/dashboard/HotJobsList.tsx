@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
 
@@ -20,16 +20,22 @@ interface HotJobsListProps {
     description?: string
     employmentType?: string
   }>
+  itemsPerPage?: number // 동적으로 한 페이지에 표시할 공고 수 조정
 }
 
-const ITEMS_PER_PAGE = 5 // 한 페이지에 표시할 공고 수 (회사별 금주 채용 현황 높이에 맞춤)
+const DEFAULT_ITEMS_PER_PAGE = 5 // 기본 한 페이지에 표시할 공고 수
 
-export default function HotJobsList({ jobs }: HotJobsListProps) {
+export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAGE }: HotJobsListProps) {
   const [currentPage, setCurrentPage] = useState(1)
 
-  const totalPages = Math.ceil(jobs.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
+  // itemsPerPage가 변경되면 첫 페이지로 리셋
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [itemsPerPage])
+
+  const totalPages = Math.ceil(jobs.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
   const paginatedJobs = jobs.slice(startIndex, endIndex)
   if (!jobs || jobs.length === 0) {
     return (
@@ -49,19 +55,6 @@ export default function HotJobsList({ jobs }: HotJobsListProps) {
       return `${year}.${month}.${day}`
     } catch {
       return dateString
-    }
-  }
-
-  const getDaysUntilExpiry = (expiredDate: string | null): boolean => {
-    if (!expiredDate) return false
-    try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const expiry = new Date(expiredDate)
-      expiry.setHours(0, 0, 0, 0)
-      return expiry < today
-    } catch {
-      return false
     }
   }
 
@@ -128,12 +121,9 @@ export default function HotJobsList({ jobs }: HotJobsListProps) {
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="space-y-2 h-full">
           {paginatedJobs.map((job) => {
-        const isExpired = getDaysUntilExpiry(job.expiredDate || null)
         const position = extractPosition(job)
-        const period = job.postedDate && job.expiredDate
-          ? `기간: ${formatDate(job.postedDate)} ~ ${formatDate(job.expiredDate)}`
-          : job.postedDate
-          ? `기간: ${formatDate(job.postedDate)} ~`
+        const period = job.postedDate
+          ? `등록일: ${formatDate(job.postedDate)}`
           : ''
         const employmentType = job.employmentType || '정규직'
         
@@ -161,19 +151,6 @@ export default function HotJobsList({ jobs }: HotJobsListProps) {
                       <p className="line-clamp-1">{period}</p>
                     )}
                     <p>고용형태: {employmentType}</p>
-                  </div>
-                </div>
-
-                {/* 마감 버튼 */}
-                <div className="flex-shrink-0 flex items-start">
-                  <div
-                    className={`px-2 py-1 rounded text-[10px] font-medium flex items-center ${
-                      isExpired
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-gray-50 text-gray-600 border border-gray-200'
-                    }`}
-                  >
-                    마감
                   </div>
                 </div>
               </div>

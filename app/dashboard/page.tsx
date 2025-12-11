@@ -2638,6 +2638,21 @@ export default function Dashboard() {
           },
         })
         
+        // 404 에러는 API가 아직 구현되지 않았을 수 있으므로 조용히 처리
+        if (response.status === 404) {
+          console.warn('[직무 인재 수급 난이도 지수] API 엔드포인트를 찾을 수 없습니다 (404). API가 아직 구현되지 않았을 수 있습니다.')
+          setJobDifficultyApiData(null)
+          setJobDifficultyError(null) // 404는 에러로 표시하지 않음
+          return
+        }
+        
+        // 400 에러는 데이터가 없어서 인사이트를 생성할 수 없는 경우
+        if (response.status === 400) {
+          setJobDifficultyApiData(null)
+          setJobDifficultyError('선택하신 직무의 난이도 지수가 낮아 인사이트를 생성할 수 없습니다. 다른 직무를 선택해주세요.')
+          return
+        }
+        
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
@@ -2662,9 +2677,21 @@ export default function Dashboard() {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
       } catch (error: any) {
-        console.error('[직무 인재 수급 난이도 지수] API 호출 오류:', error)
-        setJobDifficultyError(error.message || '직무 인재 수급 난이도 지수 데이터를 불러오는데 실패했습니다.')
-        setJobDifficultyApiData(null)
+        // 404 에러는 API가 아직 구현되지 않았을 수 있으므로 조용히 처리
+        if (error.message?.includes('404') || error.message?.includes('status: 404')) {
+          console.warn('[직무 인재 수급 난이도 지수] API 엔드포인트를 찾을 수 없습니다 (404). API가 아직 구현되지 않았을 수 있습니다.')
+          setJobDifficultyApiData(null)
+          setJobDifficultyError(null) // 404는 에러로 표시하지 않음
+        } else if (error.message?.includes('400')) {
+          // 400 에러는 데이터가 없어서 인사이트를 생성할 수 없는 경우
+          console.error('[직무 인재 수급 난이도 지수] API 호출 오류:', error)
+          setJobDifficultyApiData(null)
+          setJobDifficultyError('선택하신 직무의 난이도 지수가 낮아 인사이트를 생성할 수 없습니다. 다른 직무를 선택해주세요.')
+        } else {
+          console.error('[직무 인재 수급 난이도 지수] API 호출 오류:', error)
+          setJobDifficultyError(error.message || '직무 인재 수급 난이도 지수 데이터를 불러오는데 실패했습니다.')
+          setJobDifficultyApiData(null)
+        }
       } finally {
         setIsLoadingJobDifficulty(false)
       }
@@ -2682,11 +2709,12 @@ export default function Dashboard() {
         
         // 종료일 설정 (오늘 날짜)
         const endDate = new Date()
-        const startDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
+        const endDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
         
         // API 파라미터 구성
         const params = new URLSearchParams()
-        params.append('start_date', startDateStr)
+        params.append('end_date', endDateStr)
+        params.append('include_insights', 'true')
         
         // position_name이 있으면 추가 (직무 인재 수급 난이도 지수와 동일한 선택값 사용)
         // position_name이 없으면 전체 시장 분석 (total_insight만 반환)
@@ -2699,11 +2727,12 @@ export default function Dashboard() {
           params.append('industry_name', selectedDifficultyIndustry)
         }
         
-        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/hhi-analysis?${params.toString()}`
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/job-talent-difficulty-index?${params.toString()}`
         
         // 디버깅: API 호출 파라미터 확인
         console.log('[HHI 집중도 분석] API 호출 파라미터:', {
-          start_date: startDateStr,
+          end_date: endDateStr,
+          include_insights: 'true',
           position_name: selectedDifficultyPosition || '(없음 - 전체 시장 분석)',
           industry_name: selectedDifficultyIndustry || '(없음)',
           apiUrl
@@ -3721,11 +3750,25 @@ export default function Dashboard() {
           </DarkDashboardCard>
 
           <DarkDashboardCard title="직무 인재 수급 난이도 지수">
-            <JobDifficultyGauges 
-              data={jobDifficultyData}
-              onPositionChange={(position) => setSelectedDifficultyPosition(position)}
-              onIndustryChange={(industry) => setSelectedDifficultyIndustry(industry)}
-            />
+            {isLoadingJobDifficulty && (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">데이터를 불러오는 중...</div>
+              </div>
+            )}
+            
+            {jobDifficultyError && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                <div className="text-yellow-800 text-sm">{jobDifficultyError}</div>
+              </div>
+            )}
+            
+            {!isLoadingJobDifficulty && !jobDifficultyError && (
+              <JobDifficultyGauges 
+                data={jobDifficultyData}
+                onPositionChange={(position) => setSelectedDifficultyPosition(position)}
+                onIndustryChange={(industry) => setSelectedDifficultyIndustry(industry)}
+              />
+            )}
             
             {/* HHI 집중도 분석 인사이트 */}
             <div className="mt-8 pt-8 border-t border-gray-700">
@@ -3788,6 +3831,34 @@ export default function Dashboard() {
                             {hhiAnalysisApiData.total_insight.hhi !== undefined && (
                               <div className="text-xs md:text-sm text-gray-700">
                                 HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.hhi.toFixed(4)}</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.total_insight.interpretation && (
+                              <>
+                                {hhiAnalysisApiData.total_insight.interpretation.level && (
+                                  <div className="text-xs md:text-sm text-gray-700">
+                                    집중도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.interpretation.level}</span>
+                                  </div>
+                                )}
+                                {hhiAnalysisApiData.total_insight.interpretation.difficulty && (
+                                  <div className="text-xs md:text-sm text-gray-700">
+                                    난이도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.interpretation.difficulty}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {hhiAnalysisApiData.total_insight.yoy_overheat_score !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.yoy_overheat_score.toFixed(2)}</span>
+                                {hhiAnalysisApiData.total_insight.yoy_trend && (
+                                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                    hhiAnalysisApiData.total_insight.yoy_trend === '과열' 
+                                      ? 'bg-red-100 text-red-800' 
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {hhiAnalysisApiData.total_insight.yoy_trend}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -3863,11 +3934,41 @@ export default function Dashboard() {
                             </div>
                           </div>
                       
-                          {hhiAnalysisApiData.position_insight.hhi !== undefined && (
-                            <div className="text-xs md:text-sm text-gray-700 mb-4">
-                              HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.position_insight.hhi.toFixed(4)}</span>
-                            </div>
-                          )}
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
+                            {hhiAnalysisApiData.position_insight.hhi !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.position_insight.hhi.toFixed(4)}</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.position_insight.interpretation && (
+                              <>
+                                {hhiAnalysisApiData.position_insight.interpretation.level && (
+                                  <div className="text-xs md:text-sm text-gray-700">
+                                    집중도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.interpretation.level}</span>
+                                  </div>
+                                )}
+                                {hhiAnalysisApiData.position_insight.interpretation.difficulty && (
+                                  <div className="text-xs md:text-sm text-gray-700">
+                                    난이도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.interpretation.difficulty}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {hhiAnalysisApiData.position_insight.yoy_overheat_score !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.yoy_overheat_score.toFixed(2)}</span>
+                                {hhiAnalysisApiData.position_insight.yoy_trend && (
+                                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                    hhiAnalysisApiData.position_insight.yoy_trend === '과열' 
+                                      ? 'bg-red-100 text-red-800' 
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {hhiAnalysisApiData.position_insight.yoy_trend}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           
                           {hhiAnalysisApiData.position_insight.insights && hhiAnalysisApiData.position_insight.insights.length > 0 ? (
                             <div className="space-y-2">
@@ -3912,6 +4013,38 @@ export default function Dashboard() {
                             <div className="text-base md:text-lg font-bold text-gray-900">
                               {hhiAnalysisApiData.industry_insight.industry_name} 산업 분석
                             </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
+                            {hhiAnalysisApiData.industry_insight.posts_count !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                공고 수: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.posts_count.toLocaleString()}개</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.industry_insight.rank !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                순위: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.rank}위</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.industry_insight.share_percentage !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                점유율: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.share_percentage.toFixed(1)}%</span>
+                              </div>
+                            )}
+                            {hhiAnalysisApiData.industry_insight.yoy_overheat_score !== undefined && (
+                              <div className="text-xs md:text-sm text-gray-700">
+                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.yoy_overheat_score.toFixed(2)}</span>
+                                {hhiAnalysisApiData.industry_insight.yoy_trend && (
+                                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                    hhiAnalysisApiData.industry_insight.yoy_trend === '과열' 
+                                      ? 'bg-red-100 text-red-800' 
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {hhiAnalysisApiData.industry_insight.yoy_trend}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           
                           {hhiAnalysisApiData.industry_insight.insights && hhiAnalysisApiData.industry_insight.insights.length > 0 ? (

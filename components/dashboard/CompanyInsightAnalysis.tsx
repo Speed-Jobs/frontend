@@ -78,7 +78,6 @@ export default function CompanyInsightAnalysis({
   const hasAnyData = apiInsights.summary || 
     (apiInsights.keyFindings && apiInsights.keyFindings.length > 0) ||
     apiInsights.causeAnalysis ||
-    (apiInsights.strategicInsights && apiInsights.strategicInsights.length > 0) ||
     (apiInsights.competitorComparison && apiInsights.competitorComparison.length > 0) ||
     apiInsights.marketRank ||
     apiInsights.totalPostings ||
@@ -158,24 +157,6 @@ export default function CompanyInsightAnalysis({
               <p>{String(apiInsights.causeAnalysis)}</p>
             )}
           </div>
-        </div>
-      )}
-      
-      {/* 전략적 인사이트 */}
-      {apiInsights.strategicInsights && apiInsights.strategicInsights.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 px-5 pt-4 pb-3">
-          <h3 className="text-base font-semibold text-gray-900 mb-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-            전략적 인사이트
-          </h3>
-          <ul className="space-y-1.5">
-            {apiInsights.strategicInsights.map((insight: any, index: number) => (
-              <li key={index} className="text-gray-700 text-sm leading-relaxed flex items-start gap-2.5">
-                <span className="text-yellow-500 mt-1 font-bold flex-shrink-0">•</span>
-                <span>{typeof insight === 'string' ? insight : String(insight)}</span>
-              </li>
-            ))}
-          </ul>
         </div>
       )}
       

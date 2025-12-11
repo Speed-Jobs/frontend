@@ -3532,11 +3532,9 @@ export default function Dashboard() {
                   if (!selectedCompany) return null
 
                   // 인사이트 로딩 상태 확인
-                  // 선택된 회사와 현재 인사이트 데이터의 회사가 일치하지 않거나 인사이트가 없으면 로딩 중
-                  const currentInsightCompany = combinedTrendData?.selectedCompany?.company_name
-                  const isCompanyChanged = selectedCompany.name !== currentInsightCompany
-                  // 인사이트가 없거나 회사가 변경되었거나, 인사이트 로딩 중일 때 로딩 표시
-                  const isInsightLoading = isLoadingInsight || ((isCompanyChanged || !combinedTrendData?.insight) && jobPostingsTrendApiData.length > 0)
+                  // 인사이트가 로딩 중이고 차트 데이터가 있을 때만 로딩 메시지 표시
+                  // 로딩이 완료되면 인사이트가 있든 없든 CompanyInsightView 표시 (내부에서 처리)
+                  const isInsightLoading = isLoadingInsight && jobPostingsTrendApiData.length > 0
 
                   // 인사이트가 로딩 중일 때 로딩 메시지 표시
                   if (isInsightLoading) {

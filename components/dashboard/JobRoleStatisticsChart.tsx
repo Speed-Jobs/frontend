@@ -71,6 +71,12 @@ const pieColors = [
   '#f3f4f6', // 거의 흰색 (정보보호)
 ]
 
+// 직군 이름을 색상 인덱스로 매핑하는 함수 (일관된 색상 유지)
+const getRoleColorIndex = (roleName: string, allRoleNames: string[]): number => {
+  const index = allRoleNames.indexOf(roleName)
+  return index >= 0 ? index : 0
+}
+
 // 커스텀 Tooltip 컴포넌트
 interface CustomTooltipProps extends TooltipProps<number, string> {
   data: Array<{
@@ -454,14 +460,14 @@ export default function JobRoleStatisticsChart({
                   >
                     {previousChartData.map((entry, index) => {
                       const isSelected = selectedRole === entry.name
-                      const roleIndex = allRoleNames.indexOf(entry.name)
+                      const roleIndex = getRoleColorIndex(entry.name, allRoleNames)
                       return (
                         <Cell 
                           key={`cell-1-${index}`} 
                           fill={pieColors[roleIndex % pieColors.length]}
                           stroke={isSelected ? '#111827' : '#ffffff'}
                           strokeWidth={isSelected ? 3 : 2}
-                          opacity={isSelected ? 1 : 0.7}
+                          opacity={isSelected ? 1 : 1}
                         />
                       )
                     })}
@@ -539,7 +545,7 @@ export default function JobRoleStatisticsChart({
                     >
                       {currentChartData.map((entry, index) => {
                         const isSelected = selectedRole === entry.name
-                        const roleIndex = allRoleNames.indexOf(entry.name)
+                        const roleIndex = getRoleColorIndex(entry.name, allRoleNames)
                         return (
                           <Cell 
                             key={`cell-2-${index}`} 

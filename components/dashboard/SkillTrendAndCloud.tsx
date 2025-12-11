@@ -154,8 +154,20 @@ export default function SkillTrendAndCloud({
       })
     })
 
-    // 연도별 데이터 배열로 변환 (2021-2025 모든 연도 포함)
-    const allYears = ['2021', '2022', '2023', '2024', '2025']
+    // 최근 5년 범위 정의 (현재 연도 기준으로 5년 전부터 현재까지)
+    const currentYear = new Date().getFullYear()
+    const recent5Years: string[] = []
+    for (let i = 4; i >= 0; i--) {
+      recent5Years.push(String(currentYear - i))
+    }
+    
+    // 실제 데이터가 있는 연도 추출
+    const availableYears = Array.from(yearMap.keys()).sort()
+    
+    // 데이터가 없으면 빈 배열 반환
+    if (availableYears.length === 0) {
+      return []
+    }
     
     // 전체 연도에서 상위 10개 스킬 추출
     const allSkillTotals = new Map<string, number>()
@@ -171,11 +183,12 @@ export default function SkillTrendAndCloud({
       .slice(0, 10)
       .map(item => item.skill)
     
-    const result = allYears.map(year => {
+    // 최근 5년 범위의 모든 연도를 포함하되, 데이터가 없는 연도는 0으로 표시
+    const result = recent5Years.map(year => {
       const yearSkills = yearMap.get(year) || new Map()
       const data: any = { year }
       
-      // 상위 10개 스킬만 포함 (데이터가 없는 연도는 모두 0)
+      // 상위 10개 스킬만 포함 (데이터가 없으면 0)
       top10Skills.forEach(skill => {
         data[skill] = yearSkills.get(skill) || 0
       })
@@ -486,14 +499,20 @@ export default function SkillTrendAndCloud({
         ) : yearlyData.length === 0 || topSkills.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[400px]">
             <div className="text-gray-500 text-sm mb-2">
-              {!selectedCompany || selectedCompany === '' ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
+              {/* 빈 문자열("")은 "전체"로 처리 */}
+              {(!selectedCompany || selectedCompany === '') && !trendError ? '회사를 선택하면 해당 회사의 스킬 트렌드를 확인할 수 있습니다.' : '데이터가 없습니다.'}
             </div>
-            {skillTrendData.length === 0 && (
+            {trendError && (
+              <div className="text-xs text-red-500 mt-2">
+                {trendError}
+              </div>
+            )}
+            {!trendError && skillTrendData.length === 0 && (
               <div className="text-xs text-gray-400 mt-2">
                 API에서 데이터를 가져오지 못했습니다. 브라우저 콘솔을 확인해주세요.
               </div>
             )}
-            {skillTrendData.length > 0 && (
+            {skillTrendData.length > 0 && !trendError && (
               <div className="text-xs text-gray-400 mt-2">
                 데이터는 있지만 연도별 집계에 실패했습니다. (데이터 개수: {skillTrendData.length})
               </div>
@@ -517,7 +536,6 @@ export default function SkillTrendAndCloud({
               <XAxis 
                 dataKey="year" 
                 tick={{ fill: '#6b7280', fontSize: 12 }}
-                domain={['2021', '2025']}
                 type="category"
               />
               <YAxis 

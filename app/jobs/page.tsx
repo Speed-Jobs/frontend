@@ -15,12 +15,6 @@ export default function JobsPage() {
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
-  const [matchedJobsMap, setMatchedJobsMap] = useState<Record<number, Array<{
-    title: string
-    description: string
-    keywords: string[]
-    similarity: number
-  }>>>({})
 
   // 로고가 있는 회사 목록 (CompanyLogo의 companyNameMap 기반 + 실제 데이터의 회사명)
   const companiesWithLogo = [
@@ -141,7 +135,7 @@ export default function JobsPage() {
     setSelectedEmploymentType(e.target.value === '고용형태' ? 'all' : e.target.value)
   }
 
-  // 공고 클릭 핸들러 - 드롭다운 토글 및 매칭 실행
+  // 공고 클릭 핸들러 - 드롭다운 토글
   const handleJobClick = (job: any) => {
     const isExpanded = expandedJobId === job.id
     
@@ -151,76 +145,6 @@ export default function JobsPage() {
     } else {
       // 열기
       setExpandedJobId(job.id)
-      
-      // 이미 매칭 결과가 있으면 재사용, 없으면 새로 생성
-      if (!matchedJobsMap[job.id]) {
-        const techStack = job.meta_data?.tech_stack || []
-        const description = job.description?.toLowerCase() || ''
-        
-        // 기술 스택과 설명을 기반으로 매칭된 직무 생성
-        const matched: Array<{
-          title: string
-          description: string
-          keywords: string[]
-          similarity: number
-        }> = []
-        
-        // Kotlin/Spring Boot 관련 매칭
-        if (techStack.some((tech: string) => tech.toLowerCase().includes('kotlin') || tech.toLowerCase().includes('spring'))) {
-          matched.push({
-            title: '핀테크 백엔드 개발자',
-            description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
-            keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
-            similarity: 93,
-          })
-        }
-        
-        // Kubernetes/인프라 관련 매칭
-        if (techStack.some((tech: string) => tech.toLowerCase().includes('kubernetes') || tech.toLowerCase().includes('docker'))) {
-          matched.push({
-            title: '백엔드 플랫폼 엔지니어',
-            description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
-            keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
-            similarity: 87,
-          })
-        }
-        
-        // Redis/캐싱 관련 매칭
-        if (techStack.some((tech: string) => tech.toLowerCase().includes('redis') || tech.toLowerCase().includes('cache'))) {
-          matched.push({
-            title: '서버 개발자 (Kotlin/Spring)',
-            description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
-            keywords: ['Kotlin', 'Spring Boot', 'Redis'],
-            similarity: 84,
-          })
-        }
-        
-        // 기본 매칭 (매칭이 없을 경우)
-        if (matched.length === 0) {
-          matched.push(
-            {
-              title: '핀테크 백엔드 개발자',
-              description: '금융 시스템 개발 경험과 Kotlin/Spring Boot 기술 스택이 정확히 일치합니다.',
-              keywords: ['Kotlin', 'Spring Boot', '금융 시스템', '안정성'],
-              similarity: 93,
-            },
-            {
-              title: '백엔드 플랫폼 엔지니어',
-              description: 'Kubernetes 기반의 컨테이너 오케스트레이션 및 확장 가능한 시스템 개발 경험이 유사합니다.',
-              keywords: ['Kotlin', 'PostgreSQL', 'Kubernetes', '확장성'],
-              similarity: 87,
-            },
-            {
-              title: '서버 개발자 (Kotlin/Spring)',
-              description: 'Kotlin 기반의 Spring Boot 애플리케이션 개발 및 Redis 캐싱 경험이 일치합니다.',
-              keywords: ['Kotlin', 'Spring Boot', 'Redis'],
-              similarity: 84,
-            }
-          )
-        }
-
-        setMatchedJobsMap(prev => ({ ...prev, [job.id]: matched }))
-      }
     }
   }
 
@@ -413,22 +337,6 @@ export default function JobsPage() {
           {filteredJobPostings.length > 0 ? (
             filteredJobPostings.map((job) => {
               const isExpanded = expandedJobId === job.id
-              const matchedJobs = matchedJobsMap[job.id] || []
-              
-              // 마감일까지 남은 일수 계산
-              const getDaysUntilExpiry = (expiredDate: string | null): string => {
-                if (!expiredDate) return '상시채용'
-                const today = new Date()
-                const expiry = new Date(expiredDate)
-                const diffTime = expiry.getTime() - today.getTime()
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-                
-                if (diffDays < 0) return '마감'
-                if (diffDays === 0) return '오늘 마감'
-                return `${diffDays}일 남음`
-              }
-              
-              const deadline = getDaysUntilExpiry(job.expired_date)
               const companyName = job.company.replace('(주)', '').trim()
               
               // 날짜 포맷팅
@@ -581,17 +489,8 @@ export default function JobsPage() {
                       </div>
                     </div>
                     
-                    {/* 마감일까지 남은 일수와 드롭다운 화살표 */}
+                    {/* 드롭다운 화살표 */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`w-24 px-3 py-2 text-xs font-semibold rounded-lg border whitespace-nowrap text-center ${
-                        deadline === '마감' || deadline === '오늘 마감'
-                          ? 'bg-red-50 text-red-700 border-red-200'
-                          : deadline === '상시채용'
-                          ? 'bg-gray-50 text-gray-700 border-gray-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
-                      }`}>
-                        {deadline}
-                      </span>
                       <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
                         <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -633,60 +532,6 @@ export default function JobsPage() {
                           </div>
                         </div>
 
-                        {/* 매칭 결과 섹션 */}
-                        {matchedJobs.length > 0 && (
-                          <div className="pt-4 border-t border-gray-300">
-                            <div className="mb-3 flex items-center gap-2">
-                              <div className="px-4 py-1.5 bg-green-100 text-green-700 rounded-lg flex items-center gap-2 shadow-sm">
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                <span className="text-xs font-semibold">매칭 완료</span>
-                              </div>
-                            </div>
-
-                            <h3 className="text-base font-bold text-gray-900 mb-2 flex items-center gap-1.5">
-                              <svg
-                                className="w-5 h-5 text-pink-500"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                              매칭된 직무 <span className="text-gray-900">{matchedJobs.length}개</span>
-                            </h3>
-                            <div className="space-y-3">
-                              {matchedJobs.map((matched, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-white p-4 border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:shadow-md transition-all duration-300"
-                                >
-                                  <div className="flex justify-between items-start mb-2">
-                                    <h4 className="text-sm font-bold text-gray-900">{matched.title}</h4>
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-xs font-semibold border border-green-200 whitespace-nowrap">
-                                      {matched.similarity}% 일치
-                                    </span>
-                                  </div>
-                                  <p className="text-gray-700 mb-2 text-xs">{matched.description}</p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {matched.keywords.map((keyword, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-xs font-medium border border-gray-300"
-                                      >
-                                        {keyword}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
 
                         {/* 상세 페이지 링크 */}
                         <div className="pt-4 border-t border-gray-300">

@@ -1431,87 +1431,6 @@ export default function Dashboard() {
     fetchCompanyRecruitment()
   }, [companyRecruitmentTimeframe, selectedRecruitmentCompanies.length])
 
-  // 스킬 트렌드 API 호출 (회사 선택 시, 최근 5년 데이터)
-  useEffect(() => {
-    const fetchSkillTrend = async () => {
-      if (selectedRecruitmentCompanies.length !== 1) {
-        setSkillTrendData([])
-        return
-      }
-
-      try {
-        setIsLoadingSkillTrend(true)
-        setSkillTrendError(null)
-        
-        const selectedCompanyName = selectedRecruitmentCompanies[0]
-        // 한글 회사명을 영어 소문자 키워드로 변환 (먼저 영어로 변환한 후 키워드로 변환)
-        const companyKeyword = getCompanyKeyword(getEnglishCompanyName(selectedCompanyName)) || getCompanyKeyword(selectedCompanyName)
-        
-        if (!companyKeyword) {
-          setSkillTrendData([])
-          setIsLoadingSkillTrend(false)
-          return
-        }
-
-        const currentYear = new Date().getFullYear()
-        const allTrends: Array<{
-          month: string
-          [key: string]: string | number
-        }> = []
-
-        // 최근 5년 데이터 가져오기
-        for (let year = currentYear - 4; year <= currentYear; year++) {
-          try {
-            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trend?year=${year}&company_keyword=${encodeURIComponent(companyKeyword)}`
-            const response = await fetch(apiUrl, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-              mode: 'cors',
-              credentials: 'omit',
-            })
-            
-            if (!response.ok) {
-              continue
-            }
-            
-            const result = await response.json()
-            if (result.status === 200 && result.code === 'SUCCESS' && result.data && Array.isArray(result.data)) {
-              const formattedTrends = result.data.map((trend: any) => {
-                const data: { month: string; [key: string]: string | number } = {
-                  month: trend.month || `${year}-${String(trend.month_index || 1).padStart(2, '0')}`
-                }
-                
-                if (trend.skills && typeof trend.skills === 'object') {
-                  Object.keys(trend.skills).forEach(key => {
-                    data[key] = Number(trend.skills[key] || 0)
-                  })
-                }
-                
-                return data
-              })
-              
-              allTrends.push(...formattedTrends)
-            }
-          } catch (yearErr) {
-            // 개별 연도 실패는 무시하고 계속 진행
-          }
-        }
-
-        setSkillTrendData(allTrends)
-      } catch (err) {
-        setSkillTrendError(err instanceof Error ? err.message : '스킬 트렌드를 불러오는 중 오류가 발생했습니다.')
-        setSkillTrendData([])
-      } finally {
-        setIsLoadingSkillTrend(false)
-      }
-    }
-
-    fetchSkillTrend()
-  }, [selectedRecruitmentCompanies])
-
   // 회사 목록 구성 (recruitmentCompanies)
   const recruitmentCompanies = useMemo(() => {
     const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#eab308', '#6366f1', '#14b8a6']
@@ -2109,10 +2028,8 @@ export default function Dashboard() {
 
   // 스킬 트렌드 API 호출 (회사 선택 시, 최근 5년 데이터)
   useEffect(() => {
-    if (!selectedSkillCompany || selectedSkillCompany === '') {
-      setSkillTrendData([])
-      return
-    }
+    // 빈 문자열("")은 "전체"로 처리
+    const companyToFetch = selectedSkillCompany === '' ? '전체' : selectedSkillCompany
 
     const fetchSkillTrend = async () => {
       try {
@@ -2124,13 +2041,16 @@ export default function Dashboard() {
           [skill: string]: string | number
         }> = []
 
+        let firstApiSuccess = false
+        let firstApiError: Error | null = null
+
         // year 파라미터 없이 한 번에 전체 데이터 가져오기 시도 (전체 또는 회사별 모두 지원)
         try {
           let apiUrl: string
-          if (selectedSkillCompany === '전체') {
+          if (companyToFetch === '전체') {
             apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?top_n=13`
           } else {
-            apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?top_n=13`
+            apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(companyToFetch)}/skill-trends?top_n=13`
           }
           
           const response = await fetch(apiUrl, {
@@ -2179,28 +2099,37 @@ export default function Dashboard() {
                 })
                 
                 // yearly_trends로 데이터를 가져왔으면 종료
+                firstApiSuccess = true
                 setSkillTrendData(allTrends)
                 setIsLoadingSkillTrend(false)
                 return
               }
             }
+          } else {
+            // HTTP 에러 응답
+            firstApiError = new Error(`API 호출 실패: ${response.status} ${response.statusText}`)
           }
         } catch (err) {
           // 전체 데이터 가져오기 실패 시 연도별로 시도
+          firstApiError = err instanceof Error ? err : new Error('네트워크 오류가 발생했습니다.')
         }
 
-        // 연도별로 데이터 가져오기 (기존 방식)
-        const years = ['2021', '2022', '2023', '2024', '2025']
+        // 연도별로 데이터 가져오기 (현재 연도를 기준으로 최근 5년)
+        const currentYear = new Date().getFullYear()
+        const years: string[] = []
+        for (let i = 4; i >= 0; i--) {
+          years.push(String(currentYear - i))
+        }
         for (const year of years) {
           try {
             // API 엔드포인트: 전체 선택 시 다른 URL 사용
             let apiUrl: string
-            if (selectedSkillCompany === '전체') {
+            if (companyToFetch === '전체') {
               // 전체 데이터를 가져오는 API (회사 파라미터 없음)
               apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/skill-trends?year=${year}&top_n=13`
             } else {
               // 특정 회사 데이터를 가져오는 API
-              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(selectedSkillCompany)}/skill-trends?year=${year}&top_n=13`
+              apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/companies/${encodeURIComponent(companyToFetch)}/skill-trends?year=${year}&top_n=13`
             }
             
             // 404 에러를 조용히 처리하기 위해 try-catch로 감싸기
@@ -2376,6 +2305,18 @@ export default function Dashboard() {
           }
         }
 
+        // 모든 API 호출이 실패했고 데이터가 없는 경우 에러 설정
+        if (allTrends.length === 0 && !firstApiSuccess) {
+          if (firstApiError) {
+            setSkillTrendError(firstApiError.message)
+          } else {
+            setSkillTrendError('스킬 트렌드 데이터를 가져올 수 없습니다. API 서버를 확인해주세요.')
+          }
+        } else {
+          // 데이터가 있으면 에러 초기화
+          setSkillTrendError(null)
+        }
+
         setSkillTrendData(allTrends)
       } catch (err) {
         setSkillTrendError(err instanceof Error ? err.message : '스킬 트렌드를 불러오는 중 오류가 발생했습니다.')
@@ -2387,8 +2328,6 @@ export default function Dashboard() {
 
     fetchSkillTrend()
   }, [selectedSkillCompany])
-
-  // 스킬 트렌드 회사 기본값 설정 (전체가 기본값이므로 자동 설정 로직 제거)
 
   // 직군별 통계 API 호출
   useEffect(() => {

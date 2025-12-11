@@ -57,7 +57,16 @@ function GaugeChart({
   return (
     <div 
       className={`flex flex-col items-center py-4 pb-8 ${onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-      onClick={onClick}
+      onClick={(e) => {
+        // select 요소나 드롭다운 관련 요소를 클릭한 경우 이벤트 무시
+        const target = e.target as HTMLElement
+        if (target.tagName === 'SELECT' || target.closest('select') || target.closest('[class*="z-"]')) {
+          return
+        }
+        if (onClick) {
+          onClick()
+        }
+      }}
     >
       <div className="text-sm font-semibold text-gray-700 mb-2 text-center px-2">{label}</div>
       <div className="relative w-full max-w-[200px] mx-auto" style={{ aspectRatio: '2/1', maxHeight: '120px' }}>
@@ -649,12 +658,22 @@ export default function JobDifficultyGauges({
         </div>
 
         {/* 직군 난이도 지수 */}
-        <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
+        <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0 relative">
           <div 
-            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0" 
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
+            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0 relative z-[100]" 
             style={{ pointerEvents: 'auto' }}
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+            }}
           >
             <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직군 선택</div>
             <select
@@ -665,7 +684,8 @@ export default function JobDifficultyGauges({
                 console.log('[JobDifficultyGauges] 드롭다운 onChange:', value, '현재 값:', selectedJobRoleFilter)
                 handleJobRoleChange(value)
               }}
-              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 z-10 relative"
+              className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 relative z-[100]"
+              style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 e.stopPropagation()
                 console.log('[JobDifficultyGauges] 드롭다운 onClick')
@@ -673,6 +693,9 @@ export default function JobDifficultyGauges({
               onMouseDown={(e) => {
                 e.stopPropagation()
                 console.log('[JobDifficultyGauges] 드롭다운 onMouseDown')
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation()
               }}
               onFocus={(e) => {
                 e.stopPropagation()
@@ -702,12 +725,12 @@ export default function JobDifficultyGauges({
         </div>
 
         {/* 직무(Skill set) 난이도 지수 */}
-        <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0">
+        <div className="w-full md:flex-1 border border-gray-200 rounded-lg p-4 pb-8 bg-white flex flex-col min-w-0 relative">
           <div 
-            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0"
+            className="mb-3 flex items-center gap-2 flex-shrink-0 min-w-0 relative z-50"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            style={{ pointerEvents: 'auto' }}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <div className="text-xs font-semibold text-gray-700 whitespace-nowrap flex-shrink-0">직무 선택</div>
             <select
@@ -719,7 +742,7 @@ export default function JobDifficultyGauges({
                 handleSkillSetChange(value)
               }}
               disabled={selectedJobRoleFilter === '전체'}
-              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 z-10 relative ${
+              className={`px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 relative z-50 ${
                 selectedJobRoleFilter === '전체' ? 'bg-gray-100 cursor-not-allowed opacity-60' : ''
               }`}
               onClick={(e) => {
@@ -729,6 +752,9 @@ export default function JobDifficultyGauges({
               onMouseDown={(e) => {
                 e.stopPropagation()
                 console.log('[JobDifficultyGauges] 직무 드롭다운 onMouseDown')
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation()
               }}
               onFocus={(e) => {
                 e.stopPropagation()
@@ -743,7 +769,7 @@ export default function JobDifficultyGauges({
               ))}
             </select>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="flex-1 flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <GaugeChart
               value={selectedSkillSetDifficulty.difficulty}
               label={

@@ -613,15 +613,19 @@ export default function Dashboard() {
 
     const { total_insight, position_insight, industry_insight } = jobDifficultyApiData
 
-    // YoY 점수를 난이도 지수로 변환
-    // YoY 점수 해석: 0(극심한 냉각) ~ 100(극심한 과열)
-    // 난이도 지수: 0(쉬움) ~ 100(어려움)
-    // YoY가 낮으면(냉각) 난이도 높음, YoY가 높으면(과열) 난이도 높음
-    const convertYoYToDifficulty = (yoyScore: number): number => {
-      // YoY 점수가 50(기준선)에서 멀어질수록 난이도가 높아짐
-      // 0 또는 100일 때 최대 난이도(100), 50일 때 최소 난이도(0)
-      const distanceFromBaseline = Math.abs(yoyScore - 50)
-      return Math.min(100, Math.max(0, distanceFromBaseline * 2))
+    // interpretation.difficulty를 난이도 지수로 변환
+    // "낮음" = 0-33, "보통" = 34-66, "높음" = 67-100
+    const convertDifficultyToScore = (difficulty: string | undefined, yoyScore?: number): number => {
+      if (difficulty === '낮음') return 25
+      if (difficulty === '보통') return 50
+      if (difficulty === '높음') return 75
+      // difficulty가 없으면 yoyScore 기반으로 계산
+      if (yoyScore !== undefined) {
+        // yoyScore가 50에서 멀어질수록 난이도 높음
+        const distanceFromBaseline = Math.abs(yoyScore - 50)
+        return Math.min(100, Math.max(0, distanceFromBaseline * 2))
+      }
+      return 50 // 기본값
     }
 
     const result: Array<{
@@ -641,40 +645,39 @@ export default function Dashboard() {
 
     // 전체 시장 데이터 변환
     if (total_insight) {
-      const totalYoY = total_insight.overall_yoy_score || 0
-      const totalDifficulty = convertYoYToDifficulty(totalYoY)
+      const totalYoY = total_insight.yoy_overheat_score || 0
+      const totalDifficulty = convertDifficultyToScore(total_insight.interpretation?.difficulty, totalYoY)
       
       // 작년 대비 변화 계산 (현재 YoY - 50)
       const yearOverYearChange = totalYoY - 50
       
-      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
-      const insights: string[] = total_insight.insights || []
+      // API에서 제공하는 인사이트 사용
+      const insights: string[] = Array.isArray(total_insight.insights) ? total_insight.insights : []
 
       result.push({
         name: '전체 시장',
         category: undefined,
         industries: [],
         difficulty: Math.round(totalDifficulty),
-        similarPostings: total_insight.overall_current_count || 0,
-        competitorRatio: 0, // API에서 제공하지 않음
+        similarPostings: total_insight.total_posts || 0,
+        competitorRatio: 0,
         recentGrowthRate: yearOverYearChange,
-        avgHiringDuration: 0, // API에서 제공하지 않음
+        avgHiringDuration: 0,
         yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
-        insights, // API에서 제공하는 인사이트만 사용
-        yoyScore: totalYoY, // YoY 점수 추가
-        trend: total_insight.overall_trend || undefined, // 트렌드 추가
+        insights,
+        yoyScore: totalYoY,
+        trend: total_insight.yoy_trend || undefined,
       })
     }
 
     // 직군별 데이터 변환
     if (position_insight) {
-      const positionYoY = position_insight.position_yoy_score || 0
-      const positionDifficulty = convertYoYToDifficulty(positionYoY)
+      const positionYoY = position_insight.yoy_overheat_score || 0
+      const positionDifficulty = convertDifficultyToScore(position_insight.interpretation?.difficulty, positionYoY)
       const yearOverYearChange = positionYoY - 50
       
-      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
-      const insights: string[] = position_insight.insights || []
-      const trend = position_insight.position_trend || ''
+      // API에서 제공하는 인사이트 사용
+      const insights: string[] = Array.isArray(position_insight.insights) ? position_insight.insights : []
       
       // 디버깅: 직군별 인사이트 확인
       console.log('[직무 인재 수급 난이도 지수] 직군별 인사이트 변환:', {
@@ -697,52 +700,55 @@ export default function Dashboard() {
         category = 'BizSupporting'
       }
 
-      // 직군별 직무(Skill set) 매핑
-      const positionIndustries: Record<string, string[]> = {
-        'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
-        'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
-        'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
-        'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
-        'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
-        'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
-        'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
-        'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
-        '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
-        'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
-        'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
-        'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
-        'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
+      // 직군별 직무(Skill set) 매핑 - API의 top_industries 사용
+      const industries: string[] = []
+      if (position_insight.top_industries && Array.isArray(position_insight.top_industries)) {
+        industries.push(...position_insight.top_industries.map((ind: any) => ind.industry_name))
+      } else {
+        // fallback: 기존 매핑 사용
+        const positionIndustries: Record<string, string[]> = {
+          'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
+          'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
+          'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
+          'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
+          'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
+          'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
+          'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
+          'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
+          '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
+          'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
+          'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
+          'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
+          'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
+        }
+        industries.push(...(positionIndustries[positionName] || []))
       }
 
       result.push({
         name: positionName,
         category,
-        industries: positionIndustries[positionName] || [],
+        industries,
         difficulty: Math.round(positionDifficulty),
-        similarPostings: position_insight.position_current_count || 0,
+        similarPostings: position_insight.total_posts || 0,
         competitorRatio: 0,
         recentGrowthRate: yearOverYearChange,
         avgHiringDuration: 0,
         yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
         insights,
-        yoyScore: positionYoY, // YoY 점수 추가
-        trend: position_insight.position_trend || undefined, // 트렌드 추가
+        yoyScore: positionYoY,
+        trend: position_insight.yoy_trend || undefined,
       })
     }
 
     // 산업별 데이터 변환 (직군 데이터에 추가 정보로 포함)
     if (industry_insight && position_insight) {
-      const industryYoY = industry_insight.industry_yoy_score || 0
-      // industry_current_count를 난이도 지수로 직접 사용 (0-100 스케일로 정규화)
-      // industry_current_count가 난이도 지수 값이므로 그대로 사용하되, 범위를 0-100으로 제한
-      const industryDifficulty = industry_insight.industry_current_count !== undefined 
-        ? Math.min(100, Math.max(0, industry_insight.industry_current_count))
-        : convertYoYToDifficulty(industryYoY)
+      const industryYoY = industry_insight.yoy_overheat_score || 0
+      // interpretation.difficulty 기반으로 난이도 계산
+      const industryDifficulty = convertDifficultyToScore(undefined, industryYoY)
       const yearOverYearChange = industryYoY - 50
       
-      // API에서 제공하는 인사이트 사용 (하드코딩 제거)
-      const insights: string[] = industry_insight.insights || []
-      const trend = industry_insight.industry_trend || ''
+      // API에서 제공하는 인사이트 사용
+      const insights: string[] = Array.isArray(industry_insight.insights) ? industry_insight.insights : []
 
       const positionName = position_insight.position_name || ''
       let category: 'Tech' | 'Biz' | 'BizSupporting' | undefined = undefined
@@ -759,14 +765,14 @@ export default function Dashboard() {
         category,
         industries: [industry_insight.industry_name || ''],
         difficulty: Math.round(industryDifficulty),
-        similarPostings: industry_insight.industry_current_count || 0,
+        similarPostings: industry_insight.posts_count || 0,
         competitorRatio: 0,
         recentGrowthRate: yearOverYearChange,
         avgHiringDuration: 0,
         yearOverYearChange: Math.round(yearOverYearChange * 10) / 10,
         insights,
-        yoyScore: industryYoY, // YoY 점수 추가
-        trend: industry_insight.industry_trend || undefined, // 트렌드 추가
+        yoyScore: industryYoY,
+        trend: industry_insight.yoy_trend || undefined,
       })
     }
 
@@ -2606,17 +2612,22 @@ export default function Dashboard() {
   // 직무 인재 수급 난이도 지수 API 호출
   useEffect(() => {
     const fetchJobDifficulty = async () => {
+      // 같은 파라미터로 이미 데이터가 있으면 스킵 (초기 로드 제외)
+      const hasExistingData = jobDifficultyApiData !== null
+      const currentParams = `${selectedDifficultyPosition || ''}-${selectedDifficultyIndustry || ''}`
+      
       try {
         setIsLoadingJobDifficulty(true)
         setJobDifficultyError(null)
         
         // 종료일 설정 (오늘 날짜)
         const endDate = new Date()
-        const startDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
+        const endDateStr = endDate.toISOString().split('T')[0] // YYYY-MM-DD 형식
         
         // API 파라미터 구성
         const params = new URLSearchParams()
-        params.append('start_date', startDateStr)
+        params.append('end_date', endDateStr)
+        params.append('include_insights', 'true')
         
         // position_name이 있으면 추가
         if (selectedDifficultyPosition && selectedDifficultyPosition !== '') {
@@ -2628,7 +2639,7 @@ export default function Dashboard() {
           params.append('industry_name', selectedDifficultyIndustry)
         }
         
-        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/yoy-overheat?${params.toString()}`
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/position-competition/job-talent-difficulty-index?${params.toString()}`
         
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -3750,25 +3761,31 @@ export default function Dashboard() {
           </DarkDashboardCard>
 
           <DarkDashboardCard title="직무 인재 수급 난이도 지수">
-            {isLoadingJobDifficulty && (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-gray-500">데이터를 불러오는 중...</div>
-              </div>
-            )}
-            
             {jobDifficultyError && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                 <div className="text-yellow-800 text-sm">{jobDifficultyError}</div>
               </div>
             )}
             
-            {!isLoadingJobDifficulty && !jobDifficultyError && (
-              <JobDifficultyGauges 
-                data={jobDifficultyData}
-                onPositionChange={(position) => setSelectedDifficultyPosition(position)}
-                onIndustryChange={(industry) => setSelectedDifficultyIndustry(industry)}
-              />
-            )}
+            {/* 로딩 중에도 컴포넌트 표시 (기존 데이터 유지) */}
+            {jobDifficultyData && jobDifficultyData.length > 0 ? (
+              <div className="relative">
+                {isLoadingJobDifficulty && (
+                  <div className="absolute top-0 right-0 z-10 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 text-xs text-blue-700">
+                    업데이트 중...
+                  </div>
+                )}
+                <JobDifficultyGauges 
+                  data={jobDifficultyData}
+                  onPositionChange={(position) => setSelectedDifficultyPosition(position)}
+                  onIndustryChange={(industry) => setSelectedDifficultyIndustry(industry)}
+                />
+              </div>
+            ) : isLoadingJobDifficulty ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">데이터를 불러오는 중...</div>
+              </div>
+            ) : null}
             
             {/* HHI 집중도 분석 인사이트 */}
             <div className="mt-8 pt-8 border-t border-gray-700">

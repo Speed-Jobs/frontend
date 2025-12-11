@@ -499,25 +499,111 @@ export default function Dashboard() {
       .slice(0, 5)
   }, [])
 
-  // 채용 공채 일정 시뮬레이션 데이터
-  const recruitmentScheduleData = useMemo(() => {
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth()
+  // 채용 공채 일정 API 상태
+  const [recruitmentScheduleData, setRecruitmentScheduleData] = useState<Array<{
+    date: string
+    company: string
+    type: '신입공채' | '인턴십' | '공개채용'
+    title?: string
+  }>>([])
+  const [isLoadingRecruitmentSchedule, setIsLoadingRecruitmentSchedule] = useState(false)
+  const [recruitmentScheduleError, setRecruitmentScheduleError] = useState<string | null>(null)
+
+  // 채용 공채 일정 API 호출
+  useEffect(() => {
+    const fetchRecruitmentSchedule = async () => {
+      try {
+        setIsLoadingRecruitmentSchedule(true)
+        setRecruitmentScheduleError(null)
+        
+        const currentYear = new Date().getFullYear()
+        const startDate = `${currentYear}-01-01`
+        const endDate = `${currentYear}-12-31`
+        
+        // COMPANY_GROUPS의 모든 회사 키워드 수집
+        const companyKeys = Object.keys(COMPANY_GROUPS)
+        const companyKeywords = companyKeys.join(',')
+        
+        const allEvents: Array<{
+          date: string
+          company: string
+          type: '신입공채' | '인턴십' | '공개채용'
+          title?: string
+        }> = []
+        
+        // API 응답의 type을 UI 타입으로 변환하는 함수
+        const convertApiTypeToEventType = (apiType: string): '신입공채' | '공개채용' => {
+          return apiType === '신입' ? '신입공채' : '공개채용'
+        }
+        
+        // 각 타입(신입/경력)에 대해 API 호출 (전체 회사 한 번에 조회)
+        // API 스펙에 따르면 type은 한글("신입", "경력")을 받습니다.
+        // encodeURIComponent를 사용하여 URL 인코딩 문제를 방지합니다.
+        for (const type of ['신입', '경력']) {
+          try {
+            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(type)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
+            
+            const response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              },
+              mode: 'cors',
+              credentials: 'omit',
+            })
+            
+            if (!response.ok) {
+              continue // 해당 타입에 대한 데이터가 없으면 건너뛰기
+            }
+            
+            const result = await response.json()
+            
+            if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+              // 각 스케줄의 각 스테이지에 대해 이벤트 생성
+              result.data.schedules.forEach((schedule: any) => {
+                const scheduleCompanyName = schedule.company_name || ''
+                
+                schedule.stages?.forEach((stage: any) => {
+                  // type 변환: API 응답의 type을 UI 타입으로 변환
+                  const eventType: '신입공채' | '인턴십' | '공개채용' = 
+                    convertApiTypeToEventType(schedule.type || type)
+                  
+                  // start_date를 date로 사용
+                  if (stage.start_date) {
+                    allEvents.push({
+                      date: stage.start_date,
+                      company: scheduleCompanyName,
+                      type: eventType,
+                      title: `${scheduleCompanyName} ${stage.stage}`
+                    })
+                  }
+                })
+              })
+            }
+          } catch (error) {
+            // 개별 API 호출 실패는 무시하고 계속 진행
+            continue
+          }
+        }
+        
+        // 날짜순으로 정렬
+        allEvents.sort((a, b) => {
+          const dateA = new Date(a.date).getTime()
+          const dateB = new Date(b.date).getTime()
+          return dateA - dateB
+        })
+        
+        setRecruitmentScheduleData(allEvents)
+      } catch (error) {
+        setRecruitmentScheduleError(error instanceof Error ? error.message : '채용 일정 데이터를 불러오는 중 오류가 발생했습니다.')
+        setRecruitmentScheduleData([])
+      } finally {
+        setIsLoadingRecruitmentSchedule(false)
+      }
+    }
     
-    // 샘플 채용 공채 일정 시뮬레이션 데이터
-    const schedules = [
-      { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-15`, company: '네이버', type: '신입공채' as const, title: '2025년 상반기 신입 공채' },
-      { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-20`, company: '카카오', type: '신입공채' as const, title: '신입 개발자 공채' },
-      { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-25`, company: '토스', type: '신입공채' as const },
-      { date: `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}-05`, company: '라인', type: '신입공채' as const, title: '2025년 신입 공채' },
-      { date: `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}-10`, company: '우아한형제들', type: '신입공채' as const },
-      { date: `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}-15`, company: '삼성', type: '신입공채' as const, title: '삼성전자 신입 공채' },
-      { date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-18`, company: 'LG CNS', type: '인턴십' as const },
-      { date: `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}-20`, company: '한화시스템', type: '공개채용' as const },
-    ]
-    
-    return schedules
+    fetchRecruitmentSchedule()
   }, [])
 
   // API 데이터를 JobDifficultyItem[] 형식으로 변환하는 함수

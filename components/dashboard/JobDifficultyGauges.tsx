@@ -510,7 +510,7 @@ export default function JobDifficultyGauges({
     return mapping
   }, [data])
 
-  // 사용 가능한 직군 목록 (데이터에 있는 직군만)
+  // 사용 가능한 직군 목록 (데이터에 있는 직군만) - 항상 모든 직군 표시
   const availableJobRoles = useMemo(() => {
     // 데이터에서 실제 직군 이름 추출 (산업별 데이터 제외)
     const jobRolesFromData = data
@@ -553,6 +553,7 @@ export default function JobDifficultyGauges({
       result
     })
     
+    // 항상 모든 직군을 반환 (선택 상태와 무관하게)
     return result
   }, [data])
 
@@ -567,17 +568,32 @@ export default function JobDifficultyGauges({
     }
   }, [data, selectedJobRoleFilter, jobRoleToSkillSets])
 
+  // 초기화 함수
+  const handleReset = () => {
+    setSelectedJobRoleFilter('전체')
+    setSelectedSkillSetFilter('전체')
+    setSelectedGauge(null)
+    // 부모 컴포넌트에 초기화 알림
+    if (onPositionChange) {
+      onPositionChange('')
+    }
+    if (onIndustryChange) {
+      onIndustryChange('')
+    }
+  }
+
   // 직군 변경 시 직무 필터 리셋 및 부모 컴포넌트에 알림
   const handleJobRoleChange = (jobRole: string) => {
     console.log('[JobDifficultyGauges] handleJobRoleChange:', jobRole)
     const normalizedJobRole = jobRole === '전체' ? '' : jobRole
+    // 직군 변경 시 항상 직무 선택 초기화
     setSelectedJobRoleFilter(jobRole)
     setSelectedSkillSetFilter('전체')
     // 부모 컴포넌트에 직군 변경 알림
     if (onPositionChange) {
       onPositionChange(normalizedJobRole)
     }
-    // 직군이 전체로 변경되면 직무도 초기화
+    // 직군 변경 시 항상 직무도 초기화
     if (onIndustryChange) {
       onIndustryChange('')
     }
@@ -605,6 +621,17 @@ export default function JobDifficultyGauges({
 
   return (
     <div className="space-y-6">
+      {/* 초기화 버튼 */}
+      {(selectedJobRoleFilter !== '전체' || selectedSkillSetFilter !== '전체') && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          >
+            초기화
+          </button>
+        </div>
+      )}
       {/* 게이지 차트 반응형 배치 */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* 전체 난이도 지수 */}
@@ -653,6 +680,7 @@ export default function JobDifficultyGauges({
               }}
             >
               <option value="전체">전체</option>
+              {/* 항상 모든 직군을 드롭다운에 표시 (선택 상태와 무관하게) */}
               {availableJobRoles.length > 0 ? (
                 availableJobRoles.map(jobRole => (
                   <option key={jobRole} value={jobRole}>{jobRole}</option>

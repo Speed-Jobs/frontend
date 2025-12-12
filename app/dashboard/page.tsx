@@ -556,6 +556,8 @@ export default function Dashboard() {
           try {
             const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
             
+            console.log(`[채용 일정 API] 호출 시작: ${apiType}`, { apiUrl, companyKeywords })
+            
             const response = await fetch(apiUrl, {
               method: 'GET',
               headers: {
@@ -565,18 +567,30 @@ export default function Dashboard() {
               credentials: 'omit',
             })
             
+            console.log(`[채용 일정 API] 응답 상태: ${apiType}`, { status: response.status, ok: response.ok })
+            
             if (!response.ok) {
+              console.warn(`[채용 일정 API] 응답 실패 (${apiType}):`, response.status, response.statusText)
               continue // 해당 타입에 대한 데이터가 없으면 건너뛰기
             }
             
             const result = await response.json()
+            console.log(`[채용 일정 API] 응답 데이터 (${apiType}):`, result)
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+              const schedulesCount = result.data.schedules.length
+              console.log(`[채용 일정 API] 스케줄 개수 (${apiType}):`, schedulesCount)
+              
               // 각 스케줄의 각 스테이지에 대해 이벤트 생성
               result.data.schedules.forEach((schedule: any) => {
                 const scheduleCompanyName = schedule.company_name || ''
                 
-                schedule.stages?.forEach((stage: any) => {
+                if (!schedule.stages || schedule.stages.length === 0) {
+                  console.warn(`[채용 일정 API] 스테이지 없음:`, schedule)
+                  return
+                }
+                
+                schedule.stages.forEach((stage: any) => {
                   // type 변환: API 응답의 type(한글)을 UI 타입으로 변환
                   const eventType: '신입공채' | '인턴십' | '공개채용' = 
                     convertApiTypeToEventType(schedule.type || responseType)
@@ -592,16 +606,22 @@ export default function Dashboard() {
                       title: `${scheduleCompanyName} ${stage.stage}`,
                       stage: stage.stage
                     })
+                  } else {
+                    console.warn(`[채용 일정 API] 날짜 정보 없음:`, { schedule, stage })
                   }
                 })
               })
+            } else {
+              console.warn(`[채용 일정 API] 데이터 형식 오류 (${apiType}):`, result)
             }
           } catch (error) {
             // 개별 API 호출 실패는 무시하고 계속 진행
-            console.error(`채용 일정 API 호출 실패 (${apiType}):`, error)
+            console.error(`[채용 일정 API] 호출 실패 (${apiType}):`, error)
             continue
           }
         }
+        
+        console.log(`[채용 일정 API] 총 이벤트 개수:`, allEvents.length)
         
         // 날짜순으로 정렬 (startDate 기준)
         allEvents.sort((a, b) => {
@@ -610,6 +630,7 @@ export default function Dashboard() {
           return dateA - dateB
         })
         
+        console.log(`[채용 일정 API] 최종 데이터:`, allEvents)
         setRecruitmentScheduleData(allEvents)
       } catch (error) {
         setRecruitmentScheduleError(error instanceof Error ? error.message : '채용 일정 데이터를 불러오는 중 오류가 발생했습니다.')
@@ -3465,7 +3486,33 @@ export default function Dashboard() {
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
             <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
-                <NewRecruitmentCalendar events={recruitmentScheduleData} />
+                {isLoadingRecruitmentSchedule ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <svg className="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p className="text-sm text-gray-600">채용 일정 데이터를 불러오는 중...</p>
+                    </div>
+                  </div>
+                ) : recruitmentScheduleError ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center p-4">
+                      <p className="text-sm text-red-600 mb-2">데이터를 불러오는 중 오류가 발생했습니다.</p>
+                      <p className="text-xs text-gray-500">{recruitmentScheduleError}</p>
+                    </div>
+                  </div>
+                ) : recruitmentScheduleData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center p-4">
+                      <p className="text-sm text-gray-600 mb-2">표시할 채용 일정 데이터가 없습니다.</p>
+                      <p className="text-xs text-gray-500">API에서 데이터를 가져오지 못했습니다.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <NewRecruitmentCalendar events={recruitmentScheduleData} />
+                )}
               </div>
             </DarkDashboardCard>
 

@@ -27,6 +27,13 @@ export function Calendar({
 }: CalendarProps) {
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
+  // 날짜를 YYYY-MM-DD 형식으로 정규화하여 시간 부분 제거
+  const normalizeDateForComparison = (d: Date): Date => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
   // Calculate max overlaps for legend
   const daysInMonth = new Date(
     currentDate.getFullYear(),
@@ -41,10 +48,16 @@ export function Calendar({
       currentDate.getMonth(),
       day
     );
+    const normalizedDate = normalizeDateForComparison(date);
+    
     const overlapsOnDay = companySchedules.filter((schedule) =>
-      schedule.stages.some(
-        (stage) => date >= stage.startDate && date <= stage.endDate
-      )
+      schedule.stages.some((stage) => {
+        const normalizedStartDate = normalizeDateForComparison(stage.startDate);
+        const normalizedEndDate = normalizeDateForComparison(stage.endDate);
+        // 종료일은 하루 끝까지 포함하도록 설정
+        normalizedEndDate.setHours(23, 59, 59, 999);
+        return normalizedDate >= normalizedStartDate && normalizedDate <= normalizedEndDate;
+      })
     ).length;
     maxOverlaps = Math.max(maxOverlaps, overlapsOnDay);
   }

@@ -198,8 +198,20 @@ export default function RecruitmentSchedulePage() {
         setSchedulesError(null)
         
         // 쿼리 파라미터 구성
+        // API 스펙에 따르면 type은 영어("Entry-level", "Experienced")를 받습니다.
+        const typeMapping: Record<'신입' | '경력', string> = {
+          '신입': 'Entry-level',
+          '경력': 'Experienced'
+        }
+        
         const params = new URLSearchParams()
-        params.append('type', activeTab)
+        params.append('type', typeMapping[activeTab])
+        
+        // 날짜 범위 설정 (현재 연도 전체)
+        const currentYear = new Date().getFullYear()
+        params.append('start_date', `${currentYear}-01-01`)
+        params.append('end_date', `${currentYear}-12-31`)
+        
         if (activeTab === '신입' && dataFilter !== 'all') {
           params.append('data_type', dataFilter)
         }
@@ -209,13 +221,16 @@ export default function RecruitmentSchedulePage() {
           params.append('job_role', selectedJobRoles.join(','))
         }
         
-        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/recruitment-schedule/companies?${params.toString()}`
+        // 올바른 API 경로 사용 (앞에 /api/v1/ 없음)
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
         
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
+          mode: 'cors',
+          credentials: 'omit',
         })
         
         if (!response.ok) {

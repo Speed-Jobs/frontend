@@ -503,9 +503,12 @@ export default function Dashboard() {
   // 채용 공채 일정 API 상태
   const [recruitmentScheduleData, setRecruitmentScheduleData] = useState<Array<{
     date: string
+    startDate: string
+    endDate: string
     company: string
     type: '신입공채' | '인턴십' | '공개채용'
     title?: string
+    stage?: string
   }>>([])
   const [isLoadingRecruitmentSchedule, setIsLoadingRecruitmentSchedule] = useState(false)
   const [recruitmentScheduleError, setRecruitmentScheduleError] = useState<string | null>(null)
@@ -527,28 +530,36 @@ export default function Dashboard() {
         
         const allEvents: Array<{
           date: string
+          startDate: string
+          endDate: string
           company: string
           type: '신입공채' | '인턴십' | '공개채용'
           title?: string
+          stage?: string
         }> = []
         
         // API 응답의 type을 UI 타입으로 변환하는 함수
+        // API 응답은 한글("신입", "경력")을 반환하므로 이를 UI 타입으로 변환
         const convertApiTypeToEventType = (apiType: string): '신입공채' | '공개채용' => {
           return apiType === '신입' ? '신입공채' : '공개채용'
         }
         
-        // 각 타입(신입/경력)에 대해 API 호출 (전체 회사 한 번에 조회)
-        // API 스펙에 따르면 type은 한글("신입", "경력")을 받습니다.
+        // 각 타입(Entry-level/Experienced)에 대해 API 호출 (전체 회사 한 번에 조회)
+        // API 스펙에 따르면 type은 영어("Entry-level", "Experienced")를 받습니다.
         // encodeURIComponent를 사용하여 URL 인코딩 문제를 방지합니다.
-        for (const type of ['신입', '경력']) {
+        const typeMapping = [
+          { apiType: 'Entry-level', responseType: '신입' },
+          { apiType: 'Experienced', responseType: '경력' }
+        ]
+        
+        for (const { apiType, responseType } of typeMapping) {
           try {
-            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(type)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
+            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
             
             const response = await fetch(apiUrl, {
               method: 'GET',
               headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json',
               },
               mode: 'cors',
               credentials: 'omit',
@@ -566,17 +577,20 @@ export default function Dashboard() {
                 const scheduleCompanyName = schedule.company_name || ''
                 
                 schedule.stages?.forEach((stage: any) => {
-                  // type 변환: API 응답의 type을 UI 타입으로 변환
+                  // type 변환: API 응답의 type(한글)을 UI 타입으로 변환
                   const eventType: '신입공채' | '인턴십' | '공개채용' = 
-                    convertApiTypeToEventType(schedule.type || type)
+                    convertApiTypeToEventType(schedule.type || responseType)
                   
-                  // start_date를 date로 사용
-                  if (stage.start_date) {
+                  // start_date와 end_date를 모두 사용하여 기간 설정
+                  if (stage.start_date && stage.end_date) {
                     allEvents.push({
-                      date: stage.start_date,
+                      date: stage.start_date, // 호환성을 위해 유지
+                      startDate: stage.start_date,
+                      endDate: stage.end_date,
                       company: scheduleCompanyName,
                       type: eventType,
-                      title: `${scheduleCompanyName} ${stage.stage}`
+                      title: `${scheduleCompanyName} ${stage.stage}`,
+                      stage: stage.stage
                     })
                   }
                 })
@@ -584,14 +598,15 @@ export default function Dashboard() {
             }
           } catch (error) {
             // 개별 API 호출 실패는 무시하고 계속 진행
+            console.error(`채용 일정 API 호출 실패 (${apiType}):`, error)
             continue
           }
         }
         
-        // 날짜순으로 정렬
+        // 날짜순으로 정렬 (startDate 기준)
         allEvents.sort((a, b) => {
-          const dateA = new Date(a.date).getTime()
-          const dateB = new Date(b.date).getTime()
+          const dateA = new Date(a.startDate).getTime()
+          const dateB = new Date(b.startDate).getTime()
           return dateA - dateB
         })
         

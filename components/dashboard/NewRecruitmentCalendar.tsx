@@ -7,10 +7,13 @@ import { Calendar } from './calendar/Calendar'
 import { CompanySchedule, UserPin } from './calendar/types'
 
 interface RecruitmentEvent {
-  date: string // YYYY-MM-DD 형식
+  date: string // YYYY-MM-DD 형식 (호환성을 위해 유지)
+  startDate?: string // YYYY-MM-DD 형식
+  endDate?: string // YYYY-MM-DD 형식
   company: string
   type: '신입공채' | '인턴십' | '공개채용'
   title?: string
+  stage?: string
 }
 
 interface NewRecruitmentCalendarProps {
@@ -44,14 +47,16 @@ export default function NewRecruitmentCalendar({
 
     companyMap.forEach((companyEvents, companyName) => {
       const stages = companyEvents.map((event, index) => {
-        const eventDate = new Date(event.date)
-        // 기본적으로 7일 기간으로 설정 (시작일 = 종료일)
-        const startDate = new Date(eventDate)
-        const endDate = new Date(eventDate)
+        // startDate와 endDate가 있으면 사용, 없으면 date를 사용
+        const startDateStr = event.startDate || event.date
+        const endDateStr = event.endDate || event.date
+        
+        const startDate = new Date(startDateStr)
+        const endDate = new Date(endDateStr)
         
         return {
           id: `${companyName}-${index}`,
-          stage: event.type === '신입공채' ? '서류접수' : event.type === '인턴십' ? '서류접수' : '서류전형',
+          stage: event.stage || (event.type === '신입공채' ? '서류접수' : event.type === '인턴십' ? '서류접수' : '서류전형'),
           startDate,
           endDate,
         }

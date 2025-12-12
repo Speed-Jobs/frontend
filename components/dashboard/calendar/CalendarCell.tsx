@@ -97,8 +97,18 @@ export function CalendarCell({
     companyStagesOnThisDate.map((cs) => cs.company.id)
   );
   const overlapCount = uniqueCompaniesWithActiveStages.size;
+  
+  // Get unique company names (for display)
+  const uniqueCompanyNames = Array.from(
+    new Set(companyStagesOnThisDate.map((cs) => cs.company.name))
+  );
+  
+  // 최대 3개까지 표시할 회사명
+  const displayCompanyNames = uniqueCompanyNames.slice(0, 3);
+  const remainingCompanyCount = uniqueCompanyNames.length - 3;
 
   // 각 경쟁사의 전체 채용 일정 범위 계산 (첫 전형 시작일부터 마지막 전형 종료일까지)
+  // 주의: 이 함수는 더 이상 배경색 결정에 사용되지 않으며, 참고용으로만 유지됩니다.
   const getCompanyTotalScheduleRanges = () => {
     const ranges: Array<{ start: Date; end: Date }> = [];
     
@@ -124,9 +134,10 @@ export function CalendarCell({
   };
 
   const companyTotalScheduleRanges = getCompanyTotalScheduleRanges();
-  const isInAnyCompanyTotalSchedule = companyTotalScheduleRanges.some(range => 
-    normalizedCurrentDate >= range.start && normalizedCurrentDate <= range.end
-  );
+  // 더 이상 사용하지 않음: 실제 진행 중인 스테이지가 있는 경우에만 색칠
+  // const isInAnyCompanyTotalSchedule = companyTotalScheduleRanges.some(range => 
+  //   normalizedCurrentDate >= range.start && normalizedCurrentDate <= range.end
+  // );
 
   // Check if this date is within any user pin range
   const userPinRangesOnThisDate: UserPin[] = [];
@@ -173,26 +184,15 @@ export function CalendarCell({
 
   // Calculate opacity based on overlap (more overlaps = darker)
   const getBackgroundStyle = () => {
-    // 경쟁 강도 배경색 계산
-    const baseOpacity = 0.15;
-    const incrementPerOverlap = 0.08;
-    const opacity = overlapCount > 0 
-      ? Math.min(baseOpacity + (overlapCount - 1) * incrementPerOverlap, 0.9)
-      : 0;
-    
-    // 전체 일정 범위가 있으면 빨간색으로 표시 (경쟁 강도에 따라 opacity 조절)
-    if (isInAnyCompanyTotalSchedule) {
-      // 경쟁 강도가 있으면 그에 맞는 opacity 사용, 없으면 최소 opacity
-      const finalOpacity = overlapCount > 0 ? opacity : baseOpacity;
-      return {
-        backgroundColor: `rgba(234, 0, 44, ${finalOpacity})`, // SK Red
-      };
-    }
-    
-    // 전체 일정 범위 밖의 날짜
+    // 실제 진행 중인 스테이지가 있는 경우에만 색칠
     if (overlapCount === 0) {
       return { backgroundColor: 'white' };
     }
+    
+    // 경쟁 강도 배경색 계산
+    const baseOpacity = 0.15;
+    const incrementPerOverlap = 0.08;
+    const opacity = Math.min(baseOpacity + (overlapCount - 1) * incrementPerOverlap, 0.9);
     
     return {
       backgroundColor: `rgba(234, 0, 44, ${opacity})`, // SK Red
@@ -265,6 +265,33 @@ export function CalendarCell({
               >
                 {day}
               </div>
+
+              {/* 회사명 표시 (최대 3개) */}
+              {displayCompanyNames.length > 0 && (
+                <div className="flex-1 flex flex-col justify-start pt-0.5 gap-0.5 min-h-0 overflow-hidden">
+                  {displayCompanyNames.map((companyName, idx) => (
+                    <div
+                      key={idx}
+                      className="text-[8px] text-slate-700 leading-tight px-0.5 font-medium"
+                      style={{
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        lineHeight: '1.1',
+                      }}
+                      title={companyName}
+                    >
+                      {companyName}
+                    </div>
+                  ))}
+                  {remainingCompanyCount > 0 && (
+                    <div className="text-[7px] text-slate-500 px-0.5 font-medium">
+                      +{remainingCompanyCount}개
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Long bars for user ranges */}
               {userBadges.length > 0 && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import JobPostingCard from '@/components/JobPostingCard'
@@ -65,6 +65,7 @@ export default function Dashboard() {
     { key: 'sk', name: 'SK AX' },
   ]
   const [selectedRecruitmentCompanies, setSelectedRecruitmentCompanies] = useState<string[]>([])
+  const isRecruitmentCompaniesInitialized = useRef(false) // 초기화 여부 추적
   
   // 회사별 채용 활동 API 데이터 상태
   const [companyRecruitmentApiData, setCompanyRecruitmentApiData] = useState<{
@@ -501,14 +502,13 @@ export default function Dashboard() {
 
   // API 데이터가 로드되면 초기 선택 회사 목록 설정
   useEffect(() => {
-    if (companyRecruitmentApiData && companyRecruitmentApiData.companies.length > 0) {
+    if (companyRecruitmentApiData && companyRecruitmentApiData.companies.length > 0 && !isRecruitmentCompaniesInitialized.current) {
       // API에서 받은 모든 회사의 key를 초기 선택 목록으로 설정
       const allCompanyKeys = companyRecruitmentApiData.companies.map(c => c.key)
-      if (selectedRecruitmentCompanies.length === 0) {
-        setSelectedRecruitmentCompanies(allCompanyKeys)
-      }
+      setSelectedRecruitmentCompanies(allCompanyKeys)
+      isRecruitmentCompaniesInitialized.current = true
     }
-  }, [companyRecruitmentApiData, selectedRecruitmentCompanies.length])
+  }, [companyRecruitmentApiData])
 
   // 새로운 공고 알림 시스템 (알림만 처리, UI는 마이페이지에서 관리)
   const allJobPostings = useMemo(() => [...jobPostingsData], [])

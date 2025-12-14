@@ -4004,17 +4004,7 @@ export default function Dashboard() {
                           
                           {/* 주요 인사이트 */}
                           {(() => {
-                        // 디버깅: 렌더링 시점 데이터 확인
                         const insights = hhiAnalysisApiData.total_insight?.insights
-                        console.log('[HHI 집중도 분석] 렌더링 시점 인사이트 확인:', {
-                          hasTotalInsight: !!hhiAnalysisApiData.total_insight,
-                          totalInsight: hhiAnalysisApiData.total_insight,
-                          insights,
-                          insightsType: typeof insights,
-                          isArray: Array.isArray(insights),
-                          insightsLength: insights?.length,
-                          insightsValue: insights
-                        })
                         
                         if (hhiAnalysisApiData.total_insight && 
                             insights && 

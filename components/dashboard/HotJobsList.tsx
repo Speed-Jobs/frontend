@@ -133,7 +133,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             href={`/dashboard/jobs/${job.id}`}
             className="block"
           >
-            <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer">
+            <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer">
               <div className="flex items-start gap-3">
                 {/* 회사 로고 */}
                 <div className="flex-shrink-0 w-12 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
@@ -165,7 +165,10 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
           <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            onClick={(e) => {
+              e.stopPropagation()
+              setCurrentPage(prev => Math.max(1, prev - 1))
+            }}
             disabled={currentPage === 1}
             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
               currentPage === 1
@@ -179,7 +182,10 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
-                onClick={() => setCurrentPage(page)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCurrentPage(page)
+                }}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
                   currentPage === page
                     ? 'bg-gray-900 text-white border-gray-900'
@@ -191,7 +197,10 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             ))}
           </div>
           <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            onClick={(e) => {
+              e.stopPropagation()
+              setCurrentPage(prev => Math.min(totalPages, prev + 1))
+            }}
             disabled={currentPage === totalPages}
             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
               currentPage === totalPages

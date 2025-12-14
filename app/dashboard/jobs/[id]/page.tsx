@@ -31,10 +31,11 @@ interface JobPosting {
   title: string
   role: string
   experience: string
-  daysLeft: number
-  postedAt: PostedAt
-  closeAt: PostedAt
+  daysLeft: number | null
+  postedAt: PostedAt | null
+  closeAt: PostedAt | null
   applyUrl: string
+  screenShotUrl?: string | null
   skills: string[]
   company: Company
   description?: string
@@ -60,95 +61,40 @@ export default function JobDetailPage() {
         
         const jobId = params.id as string
         
-        // 기본 데이터를 먼저 로드하여 빠른 표시
-        const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
-        if (foundJob) {
-          const today = new Date()
-          const postedDate = new Date(foundJob.posted_date)
-          const expiredDate = foundJob.expired_date ? new Date(foundJob.expired_date) : null
-          
-          const transformedJob: JobPosting = {
-            id: foundJob.id,
-            title: foundJob.title,
-            role: foundJob.meta_data?.job_category || '개발',
-            experience: foundJob.experience,
-            daysLeft: expiredDate ? Math.ceil((expiredDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0,
-            postedAt: {
-              year: postedDate.getFullYear(),
-              month: postedDate.getMonth() + 1,
-              day: postedDate.getDate(),
-              hour: postedDate.getHours(),
-              minute: postedDate.getMinutes(),
-              second: postedDate.getSeconds(),
-            },
-            closeAt: expiredDate ? {
-              year: expiredDate.getFullYear(),
-              month: expiredDate.getMonth() + 1,
-              day: expiredDate.getDate(),
-              hour: expiredDate.getHours(),
-              minute: expiredDate.getMinutes(),
-              second: expiredDate.getSeconds(),
-            } : {
-              year: 0,
-              month: 0,
-              day: 0,
-              hour: 0,
-              minute: 0,
-              second: 0,
-            },
-            applyUrl: '',
-            skills: foundJob.meta_data?.tech_stack || [],
-            company: {
-              id: 0,
-              name: foundJob.company.replace('(주)', '').trim(),
-            },
-            description: foundJob.description,
-            meta_data: foundJob.meta_data,
-          }
-          setJob(transformedJob)
-          setIsLoading(false)
-        } else {
-          // 기본 데이터가 없으면 에러 설정
-          setJob(null)
-          setError('공고를 찾을 수 없습니다.')
-          setIsLoading(false)
-          return
-        }
-        
-        // 백엔드 API 호출 (타임아웃 3초)
-        const apiUrl = `http://172.20.10.2:8080/api/v1/posts/${jobId}`
+        // 상세 공고 API 호출 시도
+        const detailApiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
         
         console.log('=== 상세 공고 API 호출 ===')
-        console.log('호출 URL:', apiUrl)
+        console.log('호출 URL:', detailApiUrl)
         console.log('호출 시각:', new Date().toISOString())
         
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 3000) // 3초 타임아웃
-        
         try {
-          const response = await fetch(apiUrl, {
+          const response = await fetch(detailApiUrl, {
             method: 'GET',
             headers: {
+              'accept': '*/*',
               'Content-Type': 'application/json',
             },
             mode: 'cors',
             credentials: 'omit',
-            signal: controller.signal,
           })
-          
-          clearTimeout(timeoutId)
           
           console.log('응답 상태:', response.status)
           console.log('응답 URL:', response.url)
           
           if (!response.ok) {
+            // 404 등 에러인 경우 대시보드 API로 재시도
+            if (response.status === 404) {
+              throw new Error('NOT_FOUND')
+            }
             throw new Error(`HTTP error! status: ${response.status}`)
           }
           
           const result = await response.json()
           console.log('백엔드에서 받은 상세 데이터:', result)
         
-          if (result.data) {
+          // API 응답 형식: { status, code, message, data }
+          if (result.status === 200 && result.code === 'OK' && result.data) {
             // 백엔드 데이터에 description이 없을 경우 기본 데이터에서 찾기
             const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
             if (foundJob && !result.data.description) {
@@ -157,36 +103,130 @@ export default function JobDetailPage() {
             if (foundJob && !result.data.meta_data) {
               result.data.meta_data = foundJob.meta_data
             }
-            // 백엔드 데이터로 업데이트
+            // 백엔드 데이터로 설정
             setJob(result.data)
             setIsLoading(false)
+            return // API 성공 시 여기서 종료
+          } else {
+            console.warn('API 응답 형식이 올바르지 않습니다:', result)
+            throw new Error(result.message || 'API 응답 형식이 올바르지 않습니다.')
           }
         } catch (fetchError: any) {
-          clearTimeout(timeoutId)
+          console.error('=== 상세 공고 API 호출 에러 ===')
+          console.error('에러 타입:', fetchError instanceof Error ? fetchError.constructor.name : typeof fetchError)
+          console.error('에러 메시지:', fetchError instanceof Error ? fetchError.message : String(fetchError))
           
-          // 타임아웃 또는 네트워크 에러인 경우 기본 데이터 사용 (이미 로드됨)
-          if (fetchError.name === 'AbortError') {
-            console.log('API 호출 타임아웃. 기본 데이터를 사용합니다.')
-            // 기본 데이터는 이미 로드되었으므로 아무것도 하지 않음
+          // 상세 API 실패 시 대시보드 API에서 해당 공고 찾기 시도
+          if (fetchError.message === 'NOT_FOUND' || fetchError.message.includes('404')) {
+            try {
+              console.log('대시보드 API에서 공고 찾기 시도...')
+              const dashboardApiUrl = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=100'
+              const dashboardResponse = await fetch(dashboardApiUrl, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': '*/*',
+                },
+                mode: 'cors',
+                credentials: 'omit',
+              })
+              
+              if (dashboardResponse.ok) {
+                const dashboardResult = await dashboardResponse.json()
+                if (dashboardResult.status === 200 && dashboardResult.code === 'OK' && dashboardResult.data?.posts) {
+                  const foundPost = dashboardResult.data.posts.find((p: any) => p.id === parseInt(jobId))
+                  if (foundPost) {
+                    // 대시보드 API 데이터를 상세 페이지 형식으로 변환
+                    const transformedJob: JobPosting = {
+                      id: foundPost.id,
+                      title: foundPost.title,
+                      role: foundPost.role || '',
+                      experience: '', // 대시보드 API에 없음
+                      daysLeft: null, // 대시보드 API에 없음
+                      postedAt: foundPost.registeredAt ? {
+                        year: foundPost.registeredAt.year,
+                        month: foundPost.registeredAt.month,
+                        day: foundPost.registeredAt.day,
+                        hour: 0,
+                        minute: 0,
+                        second: 0,
+                      } : null,
+                      closeAt: null, // 대시보드 API에 없음
+                      applyUrl: '',
+                      skills: foundPost.role ? [foundPost.role] : [],
+                      company: {
+                        id: 0,
+                        name: foundPost.companyName || '',
+                      },
+                      description: '',
+                      meta_data: undefined,
+                    }
+                    setJob(transformedJob)
+                    setIsLoading(false)
+                    return
+                  }
+                }
+              }
+            } catch (dashboardError) {
+              console.error('대시보드 API 호출 실패:', dashboardError)
+            }
+          }
+          
+          // 모든 API 실패 시 기본 데이터에서 찾기
+          const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
+          if (foundJob) {
+            const today = new Date()
+            const postedDate = new Date(foundJob.posted_date)
+            const expiredDate = foundJob.expired_date ? new Date(foundJob.expired_date) : null
+            
+            const transformedJob: JobPosting = {
+              id: foundJob.id,
+              title: foundJob.title,
+              role: foundJob.meta_data?.job_category || '개발',
+              experience: foundJob.experience,
+              daysLeft: expiredDate ? Math.ceil((expiredDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null,
+              postedAt: {
+                year: postedDate.getFullYear(),
+                month: postedDate.getMonth() + 1,
+                day: postedDate.getDate(),
+                hour: postedDate.getHours(),
+                minute: postedDate.getMinutes(),
+                second: postedDate.getSeconds(),
+              },
+              closeAt: expiredDate ? {
+                year: expiredDate.getFullYear(),
+                month: expiredDate.getMonth() + 1,
+                day: expiredDate.getDate(),
+                hour: expiredDate.getHours(),
+                minute: expiredDate.getMinutes(),
+                second: expiredDate.getSeconds(),
+              } : null,
+              applyUrl: '',
+              skills: foundJob.meta_data?.tech_stack || [],
+              company: {
+                id: 0,
+                name: foundJob.company.replace('(주)', '').trim(),
+              },
+              description: foundJob.description,
+              meta_data: foundJob.meta_data,
+            }
+            setJob(transformedJob)
+            setIsLoading(false)
           } else {
-            console.error('=== 상세 공고 API 호출 에러 ===')
-            console.error('에러 타입:', fetchError instanceof Error ? fetchError.constructor.name : typeof fetchError)
-            console.error('에러 메시지:', fetchError instanceof Error ? fetchError.message : String(fetchError))
-            // 기본 데이터는 이미 로드되었으므로 에러만 기록
+            // 모든 방법 실패 시 에러 표시
+            setJob(null)
+            setError('공고를 찾을 수 없습니다.')
+            setIsLoading(false)
           }
         }
       } catch (err) {
-        // 기본 데이터 로드 실패 시
-        console.error('=== 기본 데이터 로드 에러 ===')
+        // 예상치 못한 에러
+        console.error('=== 공고 상세 조회 에러 ===')
         console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
         console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
         
-        const jobId = parseInt(params.id as string)
-        const foundJob = jobPostingsData.find((j) => j.id === jobId)
-        if (!foundJob) {
-          setJob(null)
-          setError('공고를 찾을 수 없습니다.')
-        }
+        setJob(null)
+        setError('공고를 불러오는 중 오류가 발생했습니다.')
         setIsLoading(false)
       }
     }
@@ -262,26 +302,30 @@ export default function JobDetailPage() {
   }, [job])
 
   // 날짜 객체를 문자열로 변환
-  const formatDateFromObject = (dateObj: PostedAt) => {
-    if (dateObj.year === 0) return '상시채용'
+  const formatDateFromObject = (dateObj: PostedAt | null | undefined) => {
+    if (!dateObj || dateObj.year === 0) return '상시채용'
     return `${dateObj.year}년 ${dateObj.month}월 ${dateObj.day}일`
   }
 
   // 날짜 객체를 Date 객체로 변환
-  const dateObjectToDate = (dateObj: PostedAt) => {
+  const dateObjectToDate = (dateObj: PostedAt | null | undefined) => {
+    if (!dateObj) return null
     return new Date(dateObj.year, dateObj.month - 1, dateObj.day, dateObj.hour, dateObj.minute, dateObj.second)
   }
 
-  const formatDate = (dateObj: PostedAt) => {
-    if (dateObj.year === 0) return '상시채용'
-    return dateObjectToDate(dateObj).toLocaleDateString('ko-KR', {
+  const formatDate = (dateObj: PostedAt | null | undefined) => {
+    if (!dateObj || dateObj.year === 0) return '상시채용'
+    const date = dateObjectToDate(dateObj)
+    if (!date) return '상시채용'
+    return date.toLocaleDateString('ko-KR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
   }
 
-  const getDaysUntilExpiry = (daysLeft: number): string => {
+  const getDaysUntilExpiry = (daysLeft: number | null | undefined): string => {
+    if (daysLeft === null || daysLeft === undefined) return '정보 없음'
     if (daysLeft < 0) return '마감'
     if (daysLeft === 0) return '오늘 마감'
     return `${daysLeft}일 남음`
@@ -403,26 +447,26 @@ export default function JobDetailPage() {
           </div>
         </div>
 
-        {/* Apply Button */}
-        {job.applyUrl && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
-            <a
-              href={job.applyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full text-center px-8 py-4 bg-sk-red hover:bg-sk-red-dark text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              지원하기 →
-            </a>
-          </div>
-        )}
-
         {/* 공고 내용 */}
         {job.description && (
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">공고 내용</h2>
             <div className="space-y-2">
               <p className="text-gray-700 whitespace-pre-wrap text-base leading-relaxed">{job.description}</p>
+            </div>
+          </div>
+        )}
+
+        {/* 스크린샷 이미지 */}
+        {job.screenShotUrl && (
+          <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">공고 스크린샷</h2>
+            <div className="flex justify-center">
+              <img
+                src={job.screenShotUrl}
+                alt={`${job.title} 공고 스크린샷`}
+                className="max-w-full h-auto rounded-lg border border-gray-200"
+              />
             </div>
           </div>
         )}

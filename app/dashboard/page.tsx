@@ -296,6 +296,18 @@ export default function Dashboard() {
   const [isLoadingHhiAnalysis, setIsLoadingHhiAnalysis] = useState(false)
   const [hhiAnalysisError, setHhiAnalysisError] = useState<string | null>(null)
 
+  // 경쟁사 최신 공고 API 상태
+  const [competitorPostsApiData, setCompetitorPostsApiData] = useState<Array<{
+    id: number
+    companyName: string
+    title: string
+    role: string
+    registeredAt: { year: number; month: number; day: number }
+    employmentType: string
+  }>>([])
+  const [isLoadingCompetitorPosts, setIsLoadingCompetitorPosts] = useState(false)
+  const [competitorPostsError, setCompetitorPostsError] = useState<string | null>(null)
+
   // 직군별 채용 공고 데이터 계산 (직군별 통계의 직군 종류 사용)
   const jobRoleData = useMemo(() => {
     const now = new Date()
@@ -1177,51 +1189,33 @@ export default function Dashboard() {
   }, [jobRoleData])
 
 
-  // 경쟁사 최신 공고 - 실제 공고 데이터 사용
+  // 경쟁사 최신 공고 - API 데이터를 HotJobsList 형식으로 변환
   const hotJobsData = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    if (!competitorPostsApiData || competitorPostsApiData.length === 0) {
+      return []
+    }
 
-    // 최근 7일 이내 공고 필터링
-    const recentJobs = jobPostingsData.filter(job => {
-      try {
-        const postedDate = new Date(job.posted_date)
-        postedDate.setHours(0, 0, 0, 0)
-        return postedDate >= lastWeek
-      } catch {
-        return false
+    return competitorPostsApiData.map((post, index) => {
+      // registeredAt을 YYYY-MM-DD 형식의 문자열로 변환
+      const registeredDate = `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
+      
+      return {
+        id: post.id,
+        rank: index + 1,
+        company: post.companyName,
+        title: post.title,
+        salary: '협의', // API 응답에 없으므로 기본값
+        location: '', // API 응답에 없으므로 빈 문자열
+        views: 0, // API 응답에 없으므로 기본값
+        experience: '', // API 응답에 없으므로 빈 문자열
+        techStack: post.role ? [post.role] : [], // role을 techStack으로 사용
+        postedDate: registeredDate,
+        expiredDate: null, // API 응답에 없으므로 null
+        description: post.role || '', // role을 description으로 사용
+        employmentType: post.employmentType || '정규직',
       }
     })
-
-    // 최근 공고가 없으면 전체 데이터 사용 (최대 50개)
-    const jobsToUse = recentJobs.length > 0 
-      ? recentJobs 
-      : jobPostingsData.slice(0, 50)
-
-    // 뷰 카운트 시뮬레이션 및 정렬 (실제로는 API에서 가져와야 함)
-    return jobsToUse
-      .map((job) => ({
-        id: job.id,
-        rank: 0, // 나중에 설정
-        company: job.company.replace('(주)', '').trim(),
-        title: job.title,
-        salary: job.meta_data?.salary || '협의',
-        location: job.location,
-        views: Math.floor(Math.random() * 500) + 500,
-        experience: job.experience || '',
-        techStack: job.meta_data?.tech_stack || [],
-        postedDate: job.posted_date,
-        expiredDate: job.expired_date,
-        description: job.description || '',
-        employmentType: job.employment_type || '',
-      }))
-      .sort((a, b) => b.views - a.views) // 조회수 기준 정렬
-      .map((job, index) => ({
-        ...job,
-        rank: index + 1,
-      }))
-  }, [])
+  }, [competitorPostsApiData])
 
 
   // timeframe 동기화: jobPostingsTrendTimeframe이 변경되면 companyRecruitmentTimeframe도 동기화
@@ -1230,6 +1224,47 @@ export default function Dashboard() {
       setCompanyRecruitmentTimeframe(jobPostingsTrendTimeframe)
     }
   }, [jobPostingsTrendTimeframe])
+
+  // 경쟁사 최신 공고 API 호출
+  useEffect(() => {
+    const fetchCompetitorPosts = async () => {
+      setIsLoadingCompetitorPosts(true)
+      setCompetitorPostsError(null)
+      
+      try {
+        const apiUrl = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=10'
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        
+        if (result.status === 200 && result.code === 'OK' && result.data && result.data.posts) {
+          setCompetitorPostsApiData(result.data.posts)
+        } else {
+          throw new Error(result.message || '데이터 형식이 올바르지 않습니다.')
+        }
+      } catch (error) {
+        console.error('경쟁사 최신 공고 API 호출 에러:', error)
+        setCompetitorPostsError(error instanceof Error ? error.message : '경쟁사 최신 공고를 불러오는 중 오류가 발생했습니다.')
+        setCompetitorPostsApiData([])
+      } finally {
+        setIsLoadingCompetitorPosts(false)
+      }
+    }
+    
+    fetchCompetitorPosts()
+  }, [])
 
   // 채용 공고 수 추이 API 호출 (새로운 형식: 회사 파라미터 포함)
   useEffect(() => {
@@ -3482,7 +3517,63 @@ export default function Dashboard() {
 
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
-          {/* 중앙 컬럼 (9열) - 확장 */}
+          {/* 왼쪽 컬럼 (3열) - 경쟁사 최신 공고 */}
+          <div className="lg:col-span-3 flex flex-col space-y-6 h-full">
+            {(() => {
+              // 인사이트가 표시되는지 확인
+              const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
+                (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
+              const hasInsight = !isAllSelected && selectedRecruitmentCompanies.length === 1 && combinedTrendData?.insight
+              
+              return (
+                <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col ${hasInsight ? 'h-full' : 'min-h-[450px]'}`}>
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                    <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
+                    <Link 
+                      href="/jobs"
+                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
+                    >
+                      전체 보기
+                      <span className="text-xs">→</span>
+                    </Link>
+                  </div>
+                  <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
+                    {isLoadingCompetitorPosts ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <svg className="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <p className="text-sm text-gray-600">경쟁사 최신 공고를 불러오는 중...</p>
+                        </div>
+                      </div>
+                    ) : competitorPostsError ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center p-4">
+                          <p className="text-sm text-red-600 mb-2">데이터를 불러오는 중 오류가 발생했습니다.</p>
+                          <p className="text-xs text-gray-500">{competitorPostsError}</p>
+                        </div>
+                      </div>
+                    ) : hotJobsData.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center p-4">
+                          <p className="text-sm text-gray-600 mb-2">표시할 경쟁사 최신 공고가 없습니다.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <HotJobsList 
+                        jobs={hotJobsData} 
+                        itemsPerPage={hasInsight ? 10 : 5} 
+                      />
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* 오른쪽 컬럼 (9열) - 채용 공채 일정 시뮬레이션 및 채용 공고 수 추이 */}
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
             <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
@@ -3710,37 +3801,6 @@ export default function Dashboard() {
                 return null
               })()}
             </DarkDashboardCard>
-          </div>
-
-          {/* 오른쪽 컬럼 (3열) */}
-          <div className="lg:col-span-3 flex flex-col space-y-6 h-full">
-            {(() => {
-              // 인사이트가 표시되는지 확인
-              const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
-                (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
-              const hasInsight = !isAllSelected && selectedRecruitmentCompanies.length === 1 && combinedTrendData?.insight
-              
-              return (
-                <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col ${hasInsight ? 'h-full' : 'min-h-[450px]'}`}>
-                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                    <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
-                    <Link 
-                      href="/jobs"
-                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
-                    >
-                      전체 보기
-                      <span className="text-xs">→</span>
-                    </Link>
-                  </div>
-                  <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
-                    <HotJobsList 
-                      jobs={hotJobsData} 
-                      itemsPerPage={hasInsight ? 10 : 5} 
-                    />
-                  </div>
-                </div>
-              )
-            })()}
           </div>
         </div>
 

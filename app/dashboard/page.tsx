@@ -3517,63 +3517,7 @@ export default function Dashboard() {
 
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
-          {/* 왼쪽 컬럼 (3열) - 경쟁사 최신 공고 */}
-          <div className="lg:col-span-3 flex flex-col space-y-6 h-full">
-            {(() => {
-              // 인사이트가 표시되는지 확인
-              const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
-                (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
-              const hasInsight = !isAllSelected && selectedRecruitmentCompanies.length === 1 && combinedTrendData?.insight
-              
-              return (
-                <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col ${hasInsight ? 'h-full' : 'min-h-[450px]'}`}>
-                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                    <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
-                    <Link 
-                      href="/jobs"
-                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
-                    >
-                      전체 보기
-                      <span className="text-xs">→</span>
-                    </Link>
-                  </div>
-                  <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
-                    {isLoadingCompetitorPosts ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <svg className="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <p className="text-sm text-gray-600">경쟁사 최신 공고를 불러오는 중...</p>
-                        </div>
-                      </div>
-                    ) : competitorPostsError ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center p-4">
-                          <p className="text-sm text-red-600 mb-2">데이터를 불러오는 중 오류가 발생했습니다.</p>
-                          <p className="text-xs text-gray-500">{competitorPostsError}</p>
-                        </div>
-                      </div>
-                    ) : hotJobsData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center p-4">
-                          <p className="text-sm text-gray-600 mb-2">표시할 경쟁사 최신 공고가 없습니다.</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <HotJobsList 
-                        jobs={hotJobsData} 
-                        itemsPerPage={hasInsight ? 10 : 5} 
-                      />
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-
-          {/* 오른쪽 컬럼 (9열) - 채용 공채 일정 시뮬레이션 및 채용 공고 수 추이 */}
+          {/* 왼쪽 컬럼 (9열) - 채용 공채 일정 시뮬레이션 및 채용 공고 수 추이 */}
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
             <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
@@ -3801,6 +3745,62 @@ export default function Dashboard() {
                 return null
               })()}
             </DarkDashboardCard>
+          </div>
+
+          {/* 오른쪽 컬럼 (3열) - 경쟁사 최신 공고 */}
+          <div className="lg:col-span-3 flex flex-col space-y-6 h-full">
+            {(() => {
+              // 인사이트가 표시되는지 확인
+              const isAllSelected = selectedRecruitmentCompanies.length === 0 || 
+                (recruitmentCompanies.length > 0 && selectedRecruitmentCompanies.length === recruitmentCompanies.length)
+              const hasInsight = !isAllSelected && selectedRecruitmentCompanies.length === 1 && combinedTrendData?.insight
+              
+              return (
+                <div className={`bg-white rounded-lg border border-gray-200 shadow-lg p-6 flex flex-col ${hasInsight ? 'h-full' : 'min-h-[450px]'}`}>
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                    <h2 className="text-lg font-semibold text-gray-900">경쟁사 최신 공고</h2>
+                    <Link 
+                      href="/jobs"
+                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1"
+                    >
+                      전체 보기
+                      <span className="text-xs">→</span>
+                    </Link>
+                  </div>
+                  <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
+                    {isLoadingCompetitorPosts ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <svg className="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <p className="text-sm text-gray-600">경쟁사 최신 공고를 불러오는 중...</p>
+                        </div>
+                      </div>
+                    ) : competitorPostsError ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center p-4">
+                          <p className="text-sm text-red-600 mb-2">데이터를 불러오는 중 오류가 발생했습니다.</p>
+                          <p className="text-xs text-gray-500">{competitorPostsError}</p>
+                        </div>
+                      </div>
+                    ) : hotJobsData.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center p-4">
+                          <p className="text-sm text-gray-600 mb-2">표시할 경쟁사 최신 공고가 없습니다.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <HotJobsList 
+                        jobs={hotJobsData} 
+                        itemsPerPage={hasInsight ? 10 : 5} 
+                      />
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
 

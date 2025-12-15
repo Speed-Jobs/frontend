@@ -198,50 +198,58 @@ export default function RecruitmentSchedulePage() {
   
   // Debouncing을 위한 ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // 중복 요청 방지를 위한 ref
+  const fetchingRef = useRef(false)
+  const lastRequestParamsRef = useRef<string>('')
   
-  // API 호출 (debouncing 적용)
+  // API 호출 (debouncing 및 중복 요청 방지 적용)
   useEffect(() => {
     // 이전 타이머 취소
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
     
+    // 쿼리 파라미터 구성 (요청 키 생성용)
+    const typeMapping: Record<'신입' | '경력', string> = {
+      '신입': 'Entry-level',
+      '경력': 'Experienced'
+    }
+    
+    const params = new URLSearchParams()
+    params.append('type', typeMapping[activeTab])
+    
+    // 날짜 범위 설정 (현재 연도 전체)
+    const currentYear = new Date().getFullYear()
+    params.append('start_date', `${currentYear}-01-01`)
+    params.append('end_date', `${currentYear}-12-31`)
+    
+    // 신입 공고일 때 data_type 파라미터 전달
+    if (activeTab === '신입') {
+      params.append('data_type', dataFilter === 'all' ? 'all' : dataFilter)
+    }
+    // 경력 공고일 때 직군 필터 추가
+    if (activeTab === '경력' && selectedJobRoles.length > 0) {
+      params.append('job_role', selectedJobRoles.join(','))
+    }
+    
+    const requestKey = params.toString()
+    
     // Debouncing: 300ms 후에 API 호출
     debounceTimerRef.current = setTimeout(async () => {
+      // 중복 요청 방지: 동일한 파라미터로 이미 요청이 진행 중이면 스킵
+      if (fetchingRef.current && lastRequestParamsRef.current === requestKey) {
+        return
+      }
+      
+      fetchingRef.current = true
+      lastRequestParamsRef.current = requestKey
+      
       try {
         setIsLoadingSchedules(true)
         setSchedulesError(null)
         
-        // 쿼리 파라미터 구성
-        // API 스펙에 따르면 type은 영어("Entry-level", "Experienced")를 받습니다.
-        const typeMapping: Record<'신입' | '경력', string> = {
-          '신입': 'Entry-level',
-          '경력': 'Experienced'
-        }
-        
-        const params = new URLSearchParams()
-        params.append('type', typeMapping[activeTab])
-        
-        // 날짜 범위 설정 (현재 연도 전체)
-        const currentYear = new Date().getFullYear()
-        params.append('start_date', `${currentYear}-01-01`)
-        params.append('end_date', `${currentYear}-12-31`)
-        
-        // 신입 공고일 때 data_type 파라미터 전달
-        // 전체 보기: data_type=all (실제 공고 + 예측치 모두 반환)
-        // 실제 공고만: data_type=actual
-        // 예측치만: data_type=predicted
-        if (activeTab === '신입') {
-          params.append('data_type', dataFilter === 'all' ? 'all' : dataFilter)
-        }
-        // 경력 공고일 때 직군 필터 추가 (API가 지원하는 경우)
-        // 선택된 직군들을 콤마로 구분하여 전달
-        if (activeTab === '경력' && selectedJobRoles.length > 0) {
-          params.append('job_role', selectedJobRoles.join(','))
-        }
-        
         // 올바른 API 경로 사용 (앞에 /api/v1/ 없음)
-        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${requestKey}`
         
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -270,6 +278,7 @@ export default function RecruitmentSchedulePage() {
         setServerSchedules([])
       } finally {
         setIsLoadingSchedules(false)
+        fetchingRef.current = false
       }
     }, 300)
     
@@ -279,7 +288,7 @@ export default function RecruitmentSchedulePage() {
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [activeTab, dataFilter, selectedJobRoles])
+  }, [activeTab, dataFilter, selectedJobRoles.join(',')])
   
   // 더미 데이터 (API 실패 시 fallback)
   const fallbackSchedules: CompanySchedule[] = [
@@ -380,7 +389,6 @@ export default function RecruitmentSchedulePage() {
         }))
       }
     } catch (error) {
-      console.error('Failed to load user pins from storage:', error)
     }
     return []
   }
@@ -394,7 +402,6 @@ export default function RecruitmentSchedulePage() {
       try {
         localStorage.setItem('recruitment-schedule-user-pins', JSON.stringify(userPins))
       } catch (error) {
-        console.error('Failed to save user pins to storage:', error)
       }
     }
   }, [userPins])

@@ -1267,8 +1267,8 @@ export default function CompaniesPage() {
                         // ">" 또는 "→" 또는 ">" 기호로 단계 구분
                         const steps = processText
                           .split(/>|→|>/)
-                          .map(step => step.trim())
-                          .filter(step => step.length > 0)
+                          .map((step: string) => step.trim())
+                          .filter((step: string) => step.length > 0)
                         
                         if (steps.length === 0) {
                           // 구분자가 없으면 원본 텍스트 표시
@@ -1283,7 +1283,7 @@ export default function CompaniesPage() {
                         
                         return (
                           <div className="space-y-3">
-                            {steps.map((step, index) => (
+                            {steps.map((step: string, index: number) => (
                               <div key={index} className="flex items-center gap-3">
                                 {/* 단계 번호 */}
                                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm">

@@ -22,7 +22,6 @@ const COMPANY_ID_MAP: Record<string, number> = {
   'Kakao': 5,
   'LG CNS': 6,
   'LGCNS': 6,
-  'LG CNS': 6,
   'LINE': 10,
   '라인': 10,
   'NAVER Cloud': 28,

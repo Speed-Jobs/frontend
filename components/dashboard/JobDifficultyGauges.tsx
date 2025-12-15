@@ -170,16 +170,6 @@ export default function JobDifficultyGauges({
   onPositionChange,
   onIndustryChange
 }: JobDifficultyGaugesProps) {
-  // 디버깅: 전달받은 data 확인
-  useEffect(() => {
-    console.log('[JobDifficultyGauges] 전달받은 data:', data)
-    console.log('[JobDifficultyGauges] data 인사이트 확인:', data?.map(item => ({
-      name: item.name,
-      hasInsights: !!item.insights,
-      insightsLength: item.insights?.length,
-      insights: item.insights
-    })))
-  }, [data])
   
   const [selectedGauge, setSelectedGauge] = useState<string | null>('overall')
   const [selectedJobRoleFilter, setSelectedJobRoleFilter] = useState<string>('전체') // 직군 필터 (Software Development 등)
@@ -221,17 +211,6 @@ export default function JobDifficultyGauges({
     const insights: string[] = overallItem?.insights || []
     const recommendations: string[] = [] // recommendations는 제거하거나 API에서 제공하는 경우에만 사용
     
-    // 디버깅: 전체 시장 인사이트 확인
-    console.log('[전체 시장 상세 정보] 인사이트 확인:', {
-      overallItemName: overallItem?.name,
-      overallItem: overallItem,
-      overallItemInsights: overallItem?.insights,
-      overallItemInsightsType: typeof overallItem?.insights,
-      overallItemInsightsIsArray: Array.isArray(overallItem?.insights),
-      insights,
-      insightsLength: insights?.length,
-      hasInsights: insights && insights.length > 0
-    })
     
     return {
       difficulty: overallDifficulty.difficulty, // 숫자 값만 사용
@@ -303,24 +282,6 @@ export default function JobDifficultyGauges({
     const insights: string[] = selectedRole?.insights || []
     const recommendations: string[] = []
     
-    // 디버깅: 인사이트 확인
-    console.log('[직군 상세 정보] 인사이트 확인:', {
-      selectedJobRoleFilter,
-      selectedRoleName: selectedRole?.name,
-      selectedRole: selectedRole,
-      selectedRoleInsights: selectedRole?.insights,
-      selectedRoleInsightsType: typeof selectedRole?.insights,
-      selectedRoleInsightsIsArray: Array.isArray(selectedRole?.insights),
-      insights,
-      insightsLength: insights?.length,
-      hasInsights: insights && insights.length > 0,
-      allDataItems: data.map(item => ({
-        name: item.name,
-        hasInsights: !!item.insights,
-        insightsLength: item.insights?.length,
-        insights: item.insights
-      }))
-    })
     
     return {
       difficulty: selectedJobRoleDifficulty.difficulty, // 숫자 값만 사용
@@ -454,18 +415,6 @@ export default function JobDifficultyGauges({
 
     // API에서 제공하는 인사이트만 사용 (하드코딩 제거)
     const apiInsights = details.insights || []
-    
-    // 디버깅: 인사이트 표시 확인
-    console.log('[상세 인사이트 렌더링]', {
-      gaugeType,
-      hasDetails: !!details,
-      details,
-      apiInsights,
-      apiInsightsType: typeof apiInsights,
-      isArray: Array.isArray(apiInsights),
-      apiInsightsLength: apiInsights?.length,
-      firstInsight: apiInsights?.[0]
-    })
 
     return (
       <div className="mt-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm">
@@ -554,13 +503,6 @@ export default function JobDifficultyGauges({
     
     const result = [...filteredRoles, ...additionalRoles]
     
-    // 디버깅: 직군 목록 확인
-    console.log('[JobDifficultyGauges] availableJobRoles:', {
-      dataLength: data.length,
-      dataNames: data.map(item => item.name),
-      jobRolesFromData,
-      result
-    })
     
     // 항상 모든 직군을 반환 (선택 상태와 무관하게)
     return result
@@ -593,7 +535,6 @@ export default function JobDifficultyGauges({
 
   // 직군 변경 시 직무 필터 리셋 및 부모 컴포넌트에 알림
   const handleJobRoleChange = (jobRole: string) => {
-    console.log('[JobDifficultyGauges] handleJobRoleChange:', jobRole)
     const normalizedJobRole = jobRole === '전체' ? '' : jobRole
     // 직군 변경 시 항상 직무 선택 초기화
     setSelectedJobRoleFilter(jobRole)
@@ -681,25 +622,21 @@ export default function JobDifficultyGauges({
               onChange={(e) => {
                 e.stopPropagation()
                 const value = e.target.value
-                console.log('[JobDifficultyGauges] 드롭다운 onChange:', value, '현재 값:', selectedJobRoleFilter)
                 handleJobRoleChange(value)
               }}
               className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-0 relative z-[100]"
               style={{ pointerEvents: 'auto' }}
               onClick={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 드롭다운 onClick')
               }}
               onMouseDown={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 드롭다운 onMouseDown')
               }}
               onTouchStart={(e) => {
                 e.stopPropagation()
               }}
               onFocus={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 드롭다운 onFocus')
               }}
             >
               <option value="전체">전체</option>
@@ -738,7 +675,6 @@ export default function JobDifficultyGauges({
               onChange={(e) => {
                 e.stopPropagation()
                 const value = e.target.value
-                console.log('[JobDifficultyGauges] 직무 드롭다운 onChange:', value, '현재 값:', selectedSkillSetFilter)
                 handleSkillSetChange(value)
               }}
               disabled={selectedJobRoleFilter === '전체'}
@@ -747,18 +683,15 @@ export default function JobDifficultyGauges({
               }`}
               onClick={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 직무 드롭다운 onClick')
               }}
               onMouseDown={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 직무 드롭다운 onMouseDown')
               }}
               onTouchStart={(e) => {
                 e.stopPropagation()
               }}
               onFocus={(e) => {
                 e.stopPropagation()
-                console.log('[JobDifficultyGauges] 직무 드롭다운 onFocus')
               }}
             >
               <option value="전체">

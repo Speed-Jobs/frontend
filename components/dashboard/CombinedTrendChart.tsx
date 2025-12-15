@@ -69,6 +69,14 @@ export default function CombinedTrendChart({
 
   // 두 데이터를 period 기준으로 병합
   const mergedData = useMemo(() => {
+    // 디버깅: 데이터 확인 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('CombinedTrendChart - jobPostingsTrendData:', jobPostingsTrendData)
+      console.log('CombinedTrendChart - companyRecruitmentData:', companyRecruitmentData)
+      console.log('CombinedTrendChart - companies:', companies)
+      console.log('CombinedTrendChart - selectedCompanies:', selectedCompanies)
+    }
+    
     if (!jobPostingsTrendData || jobPostingsTrendData.length === 0) {
       const result = (companyRecruitmentData || []).map(item => ({
         period: normalizePeriod(item.period),
@@ -76,6 +84,9 @@ export default function CombinedTrendChart({
           Object.entries(item).filter(([key]) => key !== 'period')
         ),
       }))
+      if (process.env.NODE_ENV === 'development') {
+        console.log('CombinedTrendChart - mergedData (companyRecruitmentData only):', result)
+      }
       return result
     }
     if (!companyRecruitmentData || companyRecruitmentData.length === 0) {
@@ -83,6 +94,9 @@ export default function CombinedTrendChart({
         period: normalizePeriod(item.period),
         totalCount: item.count,
       }))
+      if (process.env.NODE_ENV === 'development') {
+        console.log('CombinedTrendChart - mergedData (jobPostingsTrendData only):', result)
+      }
       return result
     }
 
@@ -90,11 +104,13 @@ export default function CombinedTrendChart({
     const dataMap = new Map<string, any>()
 
     // 일간 채용 공고 수 데이터 추가
+    // 단일 회사 선택 시: 해당 회사의 공고 수
+    // 전체 조회 시: 전체 공고 수
     jobPostingsTrendData.forEach(item => {
       const normalizedPeriod = normalizePeriod(item.period)
       dataMap.set(normalizedPeriod, {
         period: normalizedPeriod,
-        totalCount: item.count,
+        totalCount: item.count, // 단일 회사 선택 시에는 해당 회사의 count, 전체 조회 시에는 전체 count
       })
     })
 
@@ -152,6 +168,9 @@ export default function CombinedTrendChart({
       return parseMD(a.period) - parseMD(b.period)
     })
     
+    if (process.env.NODE_ENV === 'development') {
+      console.log('CombinedTrendChart - mergedData (final):', sorted)
+    }
     return sorted
   }, [jobPostingsTrendData, companyRecruitmentData])
 
@@ -245,16 +264,33 @@ export default function CombinedTrendChart({
   }
 
   if (!mergedData || mergedData.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[400px]">
-        <div className="text-gray-500 text-sm mb-2">데이터가 없습니다.</div>
-        <div className="text-xs text-gray-400">
-          {!jobPostingsTrendData || jobPostingsTrendData.length === 0 ? '전체 공고 수 데이터가 없습니다. ' : ''}
-          {!companyRecruitmentData || companyRecruitmentData.length === 0 ? '회사별 채용 활동 데이터가 없습니다.' : ''}
+    // 데이터가 없는 이유 분석
+    const hasJobPostingsData = jobPostingsTrendData && jobPostingsTrendData.length > 0
+    const hasCompanyRecruitmentData = companyRecruitmentData && companyRecruitmentData.length > 0
+    
+    // 데이터가 있지만 병합 후 비어있는 경우
+    if (hasJobPostingsData || hasCompanyRecruitmentData) {
+      console.warn('CombinedTrendChart - 데이터가 있지만 병합 후 비어있음:', {
+        jobPostingsTrendData,
+        companyRecruitmentData,
+        mergedData
+      })
+    }
+    
+    // 에러가 있을 때만 에러 메시지 표시, 그 외에는 빈 공간으로 표시
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[400px]">
+          <div className="text-red-500 text-sm mb-2">데이터를 불러오는 중 오류가 발생했습니다.</div>
+          <div className="text-xs text-gray-500">{error}</div>
         </div>
-        {error && (
-          <div className="text-xs text-red-400 mt-2">에러: {error}</div>
-        )}
+      )
+    }
+    
+    // 데이터가 없고 로딩 중이 아닐 때는 빈 공간으로 표시 (메시지 숨김)
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        {/* 빈 공간 - 메시지 없이 표시 */}
       </div>
     )
   }
@@ -360,6 +396,29 @@ export default function CombinedTrendChart({
         {selectedCompanies.length !== 1 && companies.map((company) => {
           // selectedCompanies는 회사 이름 배열이므로 name으로 비교
           if (selectedCompanies.includes(company.name)) {
+            // 데이터에 해당 키가 있는지 확인
+            const hasData = mergedData.some(item => {
+              const value = item[company.key]
+              return value !== undefined && value !== null && Number(value) > 0
+            })
+            
+            // 데이터가 있으면 표시
+            if (hasData) {
+              return (
+                <Line 
+                  key={company.key}
+                  type="monotone" 
+                  dataKey={company.key} 
+                  stroke={company.color} 
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: company.color }}
+                  activeDot={{ r: 6 }}
+                  name={company.name}
+                />
+              )
+            }
+            
+            // 데이터가 없어도 키가 있으면 표시 (0 값일 수도 있음)
             return (
               <Line 
                 key={company.key}

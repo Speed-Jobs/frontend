@@ -448,9 +448,7 @@ export default function JobRoleStatisticsChart({
                     fill="#6b7280"
                     dataKey="value"
                     onClick={(data: any, index: number, e: any) => {
-                      console.log('[도넛 차트 클릭] 이전 기간 차트 클릭:', data)
                       const roleName = data.name || data.payload?.name
-                      console.log('[도넛 차트 클릭] roleName:', roleName)
                       if (roleName) {
                         if (selectedRole === roleName) {
                           onRoleClick(null)
@@ -533,9 +531,7 @@ export default function JobRoleStatisticsChart({
                       fill="#6b7280"
                       dataKey="value"
                       onClick={(data: any, index: number, e: any) => {
-                        console.log('[도넛 차트 클릭] 현재 기간 차트 클릭:', data)
                         const roleName = data.name || data.payload?.name
-                        console.log('[도넛 차트 클릭] roleName:', roleName)
                         if (roleName) {
                           if (selectedRole === roleName) {
                             onRoleClick(null)

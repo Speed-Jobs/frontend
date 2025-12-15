@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
@@ -22,6 +22,31 @@ interface JobPosting {
     salary?: string
     benefits?: string[]
     tech_stack?: string[]
+  }
+}
+
+// API 응답 타입 정의
+interface ApiPostContent {
+  id: number
+  title: string
+  company: string
+  employmentType: string
+  crawledAt: {
+    year: number
+    month: number
+    day: number
+  }
+}
+
+interface ApiPostsResponse {
+  status: number
+  code: string
+  message: string
+  data: {
+    page: number
+    size: number
+    totalPages: number
+    content: ApiPostContent[]
   }
 }
 
@@ -153,9 +178,13 @@ export default function QualityPage() {
   const [showCompetitorJobImageUpload, setShowCompetitorJobImageUpload] = useState(false)
 
   // 우리 회사 공고 필터
-  const [experienceFilter, setExperienceFilter] = useState<string[]>([])
   const [employmentTypeFilter, setEmploymentTypeFilter] = useState<string[]>([])
   const [jobRoleInput, setJobRoleInput] = useState('')
+
+  // 우리 회사 공고 API 상태
+  const [ourCompanyJobs, setOurCompanyJobs] = useState<JobPosting[]>([])
+  const [isLoadingOurJobs, setIsLoadingOurJobs] = useState(false)
+  const [ourJobsError, setOurJobsError] = useState<string | null>(null)
 
   // 경쟁사 공고 필터
   const [selectedCompany, setSelectedCompany] = useState('전체')
@@ -163,9 +192,15 @@ export default function QualityPage() {
   const [searchResults, setSearchResults] = useState<JobPosting[]>([])
 
   // 페이지네이션 상태
-  const [ourJobPage, setOurJobPage] = useState(1)
+  const [ourJobPage, setOurJobPage] = useState(1) // UI는 1부터 시작
   const [competitorJobPage, setCompetitorJobPage] = useState(1)
-  const itemsPerPage = 5
+  const displayItemsPerPage = 5 // UI에 표시할 공고 개수
+  const apiPageSize = 20 // API에서 한 번에 가져올 공고 개수
+
+  // 공고 상세 모달 상태
+  const [showJobDetailModal, setShowJobDetailModal] = useState(false)
+  const [selectedJobForDetail, setSelectedJobForDetail] = useState<JobPosting | null>(null)
+  const [selectedJobType, setSelectedJobType] = useState<'our' | 'competitor'>('our')
 
   // 상세 평가 결과 모달 상태
   const [selectedDetailItem, setSelectedDetailItem] = useState<{
@@ -206,54 +241,126 @@ export default function QualityPage() {
     'Biz. Supporting',
   ]
 
-  // 우리 회사 공고 필터링
-  const filteredOurJobs = useMemo(() => {
-    // 필터가 하나도 선택되지 않았으면 빈 배열 반환
-    if (experienceFilter.length === 0 && employmentTypeFilter.length === 0 && jobRoleInput === '') {
-      return []
+  // API 응답을 JobPosting 형식으로 변환
+  const transformApiPostToJobPosting = (apiPost: ApiPostContent): JobPosting => {
+    const crawlDate = `${apiPost.crawledAt.year}-${String(apiPost.crawledAt.month).padStart(2, '0')}-${String(apiPost.crawledAt.day).padStart(2, '0')}`
+    
+    return {
+      id: apiPost.id,
+      title: apiPost.title,
+      company: apiPost.company,
+      location: '',
+      employment_type: apiPost.employmentType,
+      experience: '', // API에서 제공하지 않음
+      crawl_date: crawlDate,
+      posted_date: crawlDate,
+      expired_date: null,
+      description: '',
+      meta_data: {
+        job_category: undefined,
+        salary: undefined,
+        benefits: undefined,
+        tech_stack: undefined,
+      },
     }
+  }
 
-    return skaxJobPostingsData.filter((job) => {
-      const experienceMatch =
-        experienceFilter.length === 0 ||
-        experienceFilter.some((filter) => {
-          if (filter === '신입') return job.experience.includes('신입')
-          if (filter === '경력') return job.experience.includes('경력')
-          if (filter === '인턴') return job.experience.includes('인턴')
-          if (filter === '무관') return job.experience.includes('무관')
-          return false
-        })
+  // 우리 회사 공고 API 호출
+  const fetchOurCompanyJobs = useCallback(async (page: number = 0) => {
+    try {
+      setIsLoadingOurJobs(true)
+      setOurJobsError(null)
 
-      const employmentTypeMatch =
-        employmentTypeFilter.length === 0 ||
-        employmentTypeFilter.some((filter) => {
-          if (filter === '정규') return job.employment_type.includes('정규')
-          if (filter === '계약') return job.employment_type.includes('계약')
-          if (filter === '아르바이트') return job.employment_type.includes('아르바이트')
-          if (filter === '기타') return true
-          return false
-        })
+      // 우리 회사 이름 목록
+      const companyNames = [
+        'SK(주) AX',
+        'SK주식회사(AX)',
+        'SK AX (Beijing)co.,Ltd'
+      ]
 
-      const jobRoleMatch =
-        jobRoleInput === '' ||
-        job.title.toLowerCase().includes(jobRoleInput.toLowerCase()) ||
-        job.meta_data?.job_category?.toLowerCase().includes(jobRoleInput.toLowerCase())
+      // 쿼리 파라미터 구성
+      const params = new URLSearchParams()
+      params.append('sort', 'POST_AT')
+      params.append('isAscending', 'false')
+      companyNames.forEach(name => {
+        params.append('companyNames', name)
+      })
+      params.append('page', page.toString())
+      params.append('size', apiPageSize.toString())
 
-      return experienceMatch && employmentTypeMatch && jobRoleMatch
-    })
-  }, [experienceFilter, employmentTypeFilter, jobRoleInput])
+      // 직무 필터 (postTitle로 검색)
+      if (jobRoleInput.trim() !== '') {
+        params.append('postTitle', jobRoleInput.trim())
+      }
 
-  // 우리 회사 공고 페이지네이션
-  const ourJobTotalPages = Math.ceil(filteredOurJobs.length / itemsPerPage)
-  const ourJobPaginatedData = filteredOurJobs.slice(
-    (ourJobPage - 1) * itemsPerPage,
-    ourJobPage * itemsPerPage
-  )
+      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        mode: 'cors',
+        credentials: 'omit',
+      })
 
-  // 필터 변경 시 페이지 초기화
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result: ApiPostsResponse = await response.json()
+
+      if (result.status === 200 && result.data) {
+        // API 응답을 JobPosting 형식으로 변환
+        const transformedJobs = result.data.content.map(transformApiPostToJobPosting)
+        
+        // 클라이언트 사이드 필터링 (고용형태)
+        let filteredJobs = transformedJobs
+
+        // 고용형태 필터링
+        if (employmentTypeFilter.length > 0) {
+          filteredJobs = filteredJobs.filter((job) => {
+            return employmentTypeFilter.some((filter) => {
+              if (filter === '정규') return job.employment_type.includes('정규')
+              if (filter === '계약') return job.employment_type.includes('계약')
+              if (filter === '아르바이트') return job.employment_type.includes('아르바이트')
+              if (filter === '기타') return true
+              return false
+            })
+          })
+        }
+
+        setOurCompanyJobs(filteredJobs)
+      } else {
+        throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+      }
+    } catch (error: any) {
+      setOurJobsError(error.message || '우리 회사 공고를 불러오는데 실패했습니다.')
+      setOurCompanyJobs([])
+    } finally {
+      setIsLoadingOurJobs(false)
+    }
+  }, [employmentTypeFilter, jobRoleInput, apiPageSize])
+
+  // 필터 변경 시 API 호출
   useEffect(() => {
-    setOurJobPage(1)
-  }, [experienceFilter, employmentTypeFilter, jobRoleInput])
+    // 필터가 하나라도 선택되었거나 직무 입력이 있으면 API 호출
+    if (employmentTypeFilter.length > 0 || jobRoleInput.trim() !== '') {
+      fetchOurCompanyJobs(0) // 필터 변경 시 첫 페이지로
+      setOurJobPage(1) // UI 페이지는 1부터 시작
+    } else {
+      // 필터가 없으면 빈 배열로 설정
+      setOurCompanyJobs([])
+      setOurJobPage(1)
+    }
+  }, [employmentTypeFilter, jobRoleInput, fetchOurCompanyJobs])
+
+  // 우리 회사 공고 페이지네이션 데이터 (클라이언트 사이드에서 5개씩 표시)
+  const ourJobTotalPages = Math.ceil(ourCompanyJobs.length / displayItemsPerPage)
+  const ourJobPaginatedData = ourCompanyJobs.slice(
+    (ourJobPage - 1) * displayItemsPerPage,
+    ourJobPage * displayItemsPerPage
+  )
 
   // 경쟁사 공고 검색
   const handleCompetitorSearch = () => {
@@ -279,10 +386,10 @@ export default function QualityPage() {
   }
 
   // 경쟁사 공고 페이지네이션
-  const competitorJobTotalPages = Math.ceil(searchResults.length / itemsPerPage)
+  const competitorJobTotalPages = Math.ceil(searchResults.length / displayItemsPerPage)
   const competitorJobPaginatedData = searchResults.slice(
-    (competitorJobPage - 1) * itemsPerPage,
-    competitorJobPage * itemsPerPage
+    (competitorJobPage - 1) * displayItemsPerPage,
+    competitorJobPage * displayItemsPerPage
   )
 
   // 필터 토글 함수
@@ -721,36 +828,6 @@ export default function QualityPage() {
                 <div className="flex flex-col flex-1">
                   {/* 필터 영역 */}
                   <div className="space-y-4 flex-shrink-0 flex flex-col">
-                    {/* 구분 필터 */}
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <label className="text-sm font-medium text-gray-700">구분</label>
-                          <button
-                            onClick={() => setExperienceFilter([])}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            초기화
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {['신입', '경력', '인턴', '무관'].map((option) => (
-                            <button
-                              key={option}
-                              onClick={() => toggleFilter(experienceFilter, setExperienceFilter, option)}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                experienceFilter.includes(option)
-                                  ? 'bg-gray-900 text-white'
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
                     {/* 유형 필터 */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -847,12 +924,20 @@ export default function QualityPage() {
                 <div>
                   <button
                     onClick={() => {
-                      // 필터가 이미 적용되어 있으므로 단순히 포커스를 공고 목록으로 이동
+                      // 필터가 하나라도 선택되었거나 직무 입력이 있으면 API 호출
+                      if (employmentTypeFilter.length > 0 || jobRoleInput.trim() !== '') {
+                        setOurJobPage(1) // 검색 시 첫 페이지로
+                        fetchOurCompanyJobs(0)
+                      } else {
+                        alert('필터를 선택하거나 직무를 입력해주세요.')
+                      }
+                      // 공고 목록으로 스크롤 이동
                       document.getElementById('our-job-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }}
-                    className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                    disabled={isLoadingOurJobs}
+                    className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    공고 검색
+                    {isLoadingOurJobs ? '검색 중...' : '공고 검색'}
                   </button>
                 </div>
 
@@ -984,9 +1069,16 @@ export default function QualityPage() {
               <div id="our-job-list" className="flex-1 flex flex-col min-h-0">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
                     <div className="space-y-3 flex-1 overflow-y-auto">
-                    {filteredOurJobs.length === 0 ? (
+                    {isLoadingOurJobs ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-900 mx-auto mb-2"></div>
+                        <p>공고를 불러오는 중...</p>
+                      </div>
+                    ) : ourJobsError ? (
+                      <p className="text-center text-red-500 py-8">{ourJobsError}</p>
+                    ) : ourCompanyJobs.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">
-                        {experienceFilter.length === 0 && employmentTypeFilter.length === 0 && jobRoleInput === ''
+                        {employmentTypeFilter.length === 0 && jobRoleInput === ''
                           ? '필터를 선택하거나 직무를 입력한 후 공고 검색 버튼을 클릭하세요.'
                           : '공고가 없습니다.'}
                       </p>
@@ -998,6 +1090,9 @@ export default function QualityPage() {
                         onClick={() => {
                           setSelectedOurJob(job)
                           setOurJobImage(null)
+                          setSelectedJobForDetail(job)
+                          setSelectedJobType('our')
+                          setShowJobDetailModal(true)
                         }}
                         className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                           selectedOurJob?.id === job.id
@@ -1009,7 +1104,7 @@ export default function QualityPage() {
                         <p className="text-sm text-gray-600 mb-2">{job.company}</p>
                         <div className="flex flex-wrap gap-2 mb-2">
                           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.experience}
+                            {job.experience || '경력 무관'}
                           </span>
                           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
                             {job.employment_type}
@@ -1025,9 +1120,9 @@ export default function QualityPage() {
                           <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
                             <button
                               onClick={() => setOurJobPage(prev => Math.max(1, prev - 1))}
-                              disabled={ourJobPage === 1}
+                              disabled={ourJobPage === 1 || isLoadingOurJobs}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                ourJobPage === 1
+                                ourJobPage === 1 || isLoadingOurJobs
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
@@ -1039,9 +1134,9 @@ export default function QualityPage() {
                             </span>
                             <button
                               onClick={() => setOurJobPage(prev => Math.min(ourJobTotalPages, prev + 1))}
-                              disabled={ourJobPage === ourJobTotalPages}
+                              disabled={ourJobPage >= ourJobTotalPages || isLoadingOurJobs}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                ourJobPage === ourJobTotalPages
+                                ourJobPage >= ourJobTotalPages || isLoadingOurJobs
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
@@ -1069,6 +1164,9 @@ export default function QualityPage() {
                           onClick={() => {
                             setSelectedCompetitorJob(job)
                             setCompetitorJobImage(null)
+                            setSelectedJobForDetail(job)
+                            setSelectedJobType('competitor')
+                            setShowJobDetailModal(true)
                           }}
                           className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                             selectedCompetitorJob?.id === job.id
@@ -2652,6 +2750,162 @@ export default function QualityPage() {
                   </>
                 )
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 공고 상세 모달 */}
+      {showJobDetailModal && selectedJobForDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">공고 상세 정보</h2>
+              <button
+                onClick={() => {
+                  setShowJobDetailModal(false)
+                  setSelectedJobForDetail(null)
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* 제목 및 회사 */}
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedJobForDetail.title}</h3>
+                  <p className="text-lg text-gray-600">{selectedJobForDetail.company}</p>
+                </div>
+
+                {/* 기본 정보 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">고용형태</label>
+                    <p className="text-gray-900">{selectedJobForDetail.employment_type || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">경력</label>
+                    <p className="text-gray-900">{selectedJobForDetail.experience || '경력 무관'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">지역</label>
+                    <p className="text-gray-900">{selectedJobForDetail.location || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">공고 등록일</label>
+                    <p className="text-gray-900">{formatDate(selectedJobForDetail.posted_date)}</p>
+                  </div>
+                  {selectedJobForDetail.expired_date && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">마감일</label>
+                      <p className="text-gray-900">{formatDate(selectedJobForDetail.expired_date)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">크롤링 일자</label>
+                    <p className="text-gray-900">{formatDate(selectedJobForDetail.crawl_date)}</p>
+                  </div>
+                </div>
+
+                {/* 기술 스택 */}
+                {selectedJobForDetail.meta_data?.tech_stack && selectedJobForDetail.meta_data.tech_stack.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-2 block">기술 스택</label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJobForDetail.meta_data.tech_stack.map((tech, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 급여 정보 */}
+                {selectedJobForDetail.meta_data?.salary && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-2 block">급여</label>
+                    <p className="text-gray-900">{selectedJobForDetail.meta_data.salary}</p>
+                  </div>
+                )}
+
+                {/* 복리후생 */}
+                {selectedJobForDetail.meta_data?.benefits && selectedJobForDetail.meta_data.benefits.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-2 block">복리후생</label>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedJobForDetail.meta_data.benefits.map((benefit, idx) => (
+                        <li key={idx} className="text-gray-900">{benefit}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 직무 카테고리 */}
+                {selectedJobForDetail.meta_data?.job_category && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-2 block">직무 카테고리</label>
+                    <p className="text-gray-900">{selectedJobForDetail.meta_data.job_category}</p>
+                  </div>
+                )}
+
+                {/* 공고 설명 */}
+                {selectedJobForDetail.description && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-2 block">공고 설명</label>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-gray-900 whitespace-pre-wrap">{selectedJobForDetail.description}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowJobDetailModal(false)
+                  setSelectedJobForDetail(null)
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                닫기
+              </button>
+              {selectedJobType === 'our' && (
+                <button
+                  onClick={() => {
+                    setSelectedOurJob(selectedJobForDetail)
+                    setShowJobDetailModal(false)
+                    setSelectedJobForDetail(null)
+                  }}
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  이 공고 선택
+                </button>
+              )}
+              {selectedJobType === 'competitor' && (
+                <button
+                  onClick={() => {
+                    setSelectedCompetitorJob(selectedJobForDetail)
+                    setShowJobDetailModal(false)
+                    setSelectedJobForDetail(null)
+                  }}
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  이 공고 선택
+                </button>
+              )}
             </div>
           </div>
         </div>

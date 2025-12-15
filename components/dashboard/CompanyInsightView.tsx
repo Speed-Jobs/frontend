@@ -190,40 +190,35 @@ export default function CompanyInsightView({
             </div>
           )}
         </div>
-        {!isMainInsightLoading && (
-          <div className="flex gap-4 text-sm">
-            {recruitmentData && recruitmentData.length > 0 && (
-              <>
-                <div className="text-gray-600">
-                  총 <span className="text-gray-900 font-medium">{recruitmentData.reduce((sum, d) => sum + d.count, 0)}</span> 건
-                </div>
-                <div className="text-gray-600">
-                  평균 <span className="text-gray-900 font-medium">{Math.round(recruitmentData.reduce((sum, d) => sum + d.count, 0) / recruitmentData.length)}</span> 건/{timeframe === 'Daily' ? '일' : timeframe === 'Weekly' ? '주' : '월'}
-                </div>
-              </>
-            )}
-            {postsData.length > 0 && (
+        <div className="flex gap-4 text-sm">
+          {recruitmentData && recruitmentData.length > 0 && (
+            <>
               <div className="text-gray-600">
-                최근 공고 <span className="text-gray-900 font-medium">{postsData.length}</span> 건
+                총 <span className="text-gray-900 font-medium">{recruitmentData.reduce((sum, d) => sum + d.count, 0)}</span> 건
               </div>
-            )}
-          </div>
-        )}
+              <div className="text-gray-600">
+                평균 <span className="text-gray-900 font-medium">{Math.round(recruitmentData.reduce((sum, d) => sum + d.count, 0) / recruitmentData.length)}</span> 건/{timeframe === 'Daily' ? '일' : timeframe === 'Weekly' ? '주' : '월'}
+              </div>
+            </>
+          )}
+          {postsData.length > 0 && (
+            <div className="text-gray-600">
+              최근 공고 <span className="text-gray-900 font-medium">{postsData.length}</span> 건
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 메인 인사이트 로딩 중일 때만 전체 로딩 메시지 표시 */}
-      {isMainInsightLoading && (
-        <div className="bg-white rounded-lg border border-gray-200 px-5 py-8">
+      {/* 메인 인사이트 로딩 중일 때는 인사이트 섹션만 로딩 메시지 표시, 그래프는 이미 위에서 표시됨 */}
+      {isMainInsightLoading ? (
+        <div className="bg-white rounded-lg border border-gray-200 px-5 py-6">
           <div className="flex flex-col items-center justify-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             <p className="text-gray-600 text-sm font-medium">인사이트 생성 중...</p>
-            <p className="text-gray-400 text-xs">잠시만 기다려주세요</p>
+            <p className="text-gray-400 text-xs">위의 그래프를 확인하세요. 인사이트는 곧 표시됩니다.</p>
           </div>
         </div>
-      )}
-
-      {/* 메인 인사이트 로딩이 완료되면 인사이트 내용 표시 (posts 로딩은 별도로 처리) */}
-      {!isMainInsightLoading && (
+      ) : (
         <>
           {/* 채용 공고 데이터 에러 표시 */}
           {postsError && (

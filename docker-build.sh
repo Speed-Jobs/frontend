@@ -10,3 +10,4 @@ docker build \
   --file Dockerfile \
   --platform linux/${CPU_PLATFORM} \
   ${IS_CACHE} .
+

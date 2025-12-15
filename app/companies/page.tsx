@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
 import jobPostingsData from '@/data/jobPostings.json'
+import { Send, X, Minimize2, Maximize2, Bot } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   BarChart,
   Bar,
@@ -50,9 +54,14 @@ export default function CompaniesPage() {
 
   // AI 챗봇 상태
   const [showChatbot, setShowChatbot] = useState(false)
+  const [isChatbotMinimized, setIsChatbotMinimized] = useState(false)
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, jobs?: any[] }>>([])
   const [chatInput, setChatInput] = useState('')
   const [isChatbotLoading, setIsChatbotLoading] = useState(false)
+  const [chatbotPosition, setChatbotPosition] = useState<{ x: number; y: number } | null>(null)
+  const [isChatbotDragging, setIsChatbotDragging] = useState(false)
+  const [chatbotDragOffset, setChatbotDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const chatbotRef = useRef<HTMLDivElement>(null)
 
   // 공고 리스트 필터링 상태
   const [jobListFilter, setJobListFilter] = useState('')
@@ -563,13 +572,60 @@ export default function CompaniesPage() {
   // 선택된 공고 상세 정보 상태
   const [selectedJobDetail, setSelectedJobDetail] = useState<any>(null)
 
+  // 챗봇 드래그 핸들러
+  const handleChatbotMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (chatbotRef.current) {
+      const rect = chatbotRef.current.getBoundingClientRect()
+      setChatbotDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      })
+      setIsChatbotDragging(true)
+    }
+  }
+
+  // 챗봇 드래그 중
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isChatbotDragging && chatbotRef.current) {
+        const newX = e.clientX - chatbotDragOffset.x
+        const newY = e.clientY - chatbotDragOffset.y
+        
+        // 화면 경계 체크
+        const maxX = window.innerWidth - chatbotRef.current.offsetWidth
+        const maxY = window.innerHeight - chatbotRef.current.offsetHeight
+        
+        const boundedX = Math.max(0, Math.min(newX, maxX))
+        const boundedY = Math.max(0, Math.min(newY, maxY))
+        
+        setChatbotPosition({ x: boundedX, y: boundedY })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsChatbotDragging(false)
+    }
+
+    if (isChatbotDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
+    }
+  }, [isChatbotDragging, chatbotDragOffset])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
       <div className="px-8 py-8 max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">옛날 공고 검색</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">공고 이력</h1>
           <p className="text-gray-600">다양한 필터를 사용하여 과거 공고를 검색하고 확인하세요</p>
         </div>
 
@@ -1227,166 +1283,217 @@ export default function CompaniesPage() {
         )}
 
         {/* AI 챗봇 버튼 */}
-        <button
-          onClick={() => setShowChatbot(!showChatbot)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 z-40"
-        >
-          {showChatbot ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-          )}
-        </button>
+        {!showChatbot && (
+          <button
+            onClick={() => setShowChatbot(true)}
+            className="fixed bottom-6 right-6 w-14 h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 z-[9999]"
+            aria-label="챗봇 열기"
+          >
+            <Bot className="w-6 h-6" />
+          </button>
+        )}
 
         {/* AI 챗봇 패널 */}
-        {showChatbot && (
-          <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-xl shadow-2xl border-2 border-gray-200 flex flex-col z-50">
-            {/* 챗봇 헤더 */}
-            <div className="bg-blue-600 text-white px-4 py-3 rounded-t-xl flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
+        {showChatbot && (() => {
+          const chatbotStyle: React.CSSProperties = chatbotPosition
+            ? {
+                left: `${chatbotPosition.x}px`,
+                top: `${chatbotPosition.y}px`,
+                right: 'auto',
+                bottom: 'auto',
+                transition: isChatbotDragging ? 'none' : 'all 0.3s'
+              }
+            : {
+                right: '1.5rem',
+                bottom: '6rem'
+              }
+
+          return (
+            <div
+              ref={chatbotRef}
+              className={`fixed w-96 max-w-[calc(100vw-3rem)] bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-[9999] ${
+                isChatbotMinimized ? 'h-16' : 'h-[600px] max-h-[calc(100vh-3rem)]'
+              } ${isChatbotDragging ? 'cursor-move' : ''}`}
+              style={chatbotStyle}
+            >
+              {/* 챗봇 헤더 */}
+              <div
+                className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg cursor-move select-none"
+                onMouseDown={handleChatbotMouseDown}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">공고 검색 AI Agent</h3>
+                    <p className="text-xs text-gray-500">공고를 검색해드립니다</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">공고 검색 AI Agent</h3>
-                  <p className="text-xs text-blue-100">공고를 검색해드립니다</p>
+                <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => setIsChatbotMinimized(!isChatbotMinimized)}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label={isChatbotMinimized ? '최대화' : '최소화'}
+                  >
+                    {isChatbotMinimized ? (
+                      <Maximize2 className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <Minimize2 className="w-4 h-4 text-gray-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowChatbot(false)}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label="닫기"
+                  >
+                    <X className="w-4 h-4 text-gray-600" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => setShowChatbot(false)}
-                className="text-white hover:text-blue-200 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
 
-            {/* 채팅 메시지 영역 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {chatMessages.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-2">안녕하세요! 공고 검색 AI Agent입니다.</p>
-                  <p className="text-gray-500 text-xs">원하는 공고를 검색해보세요.</p>
-                  <div className="mt-4 space-y-2">
-                    <p className="text-xs text-gray-500 font-semibold">예시 질문:</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      <button
-                        onClick={() => {
-                          setChatInput('React 개발자')
-                          setTimeout(() => handleChatbotSend(), 100)
-                        }}
-                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
-                      >
-                        React 개발자
-                      </button>
-                      <button
-                        onClick={() => {
-                          setChatInput('카카오')
-                          setTimeout(() => handleChatbotSend(), 100)
-                        }}
-                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
-                      >
-                        카카오
-                      </button>
-                      <button
-                        onClick={() => {
-                          setChatInput('백엔드')
-                          setTimeout(() => handleChatbotSend(), 100)
-                        }}
-                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100 transition-colors"
-                      >
-                        백엔드
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                chatMessages.map((message, idx) => (
-                  <div key={idx} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-lg p-3`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      {message.jobs && message.jobs.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {message.jobs.map((job, jobIdx) => (
-                            <div
-                              key={jobIdx}
-                              onClick={() => setSelectedJobDetail(job)}
-                              className="bg-gray-50 border border-gray-200 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors"
+              {/* 메시지 영역 */}
+              {!isChatbotMinimized && (
+                <>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {chatMessages.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                        <p className="text-gray-600 text-sm mb-2">안녕하세요! 공고 검색 AI Agent입니다.</p>
+                        <p className="text-gray-500 text-xs">원하는 공고를 검색해보세요.</p>
+                        <div className="mt-4 space-y-2">
+                          <p className="text-xs text-gray-500 font-semibold">예시 질문:</p>
+                          <div className="flex flex-wrap gap-2 justify-center">
+                            <button
+                              onClick={() => {
+                                setChatInput('React 개발자')
+                                setTimeout(() => handleChatbotSend(), 100)
+                              }}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors"
                             >
-                              <p className="text-xs font-semibold text-gray-900 mb-1">{job.title}</p>
-                              <p className="text-xs text-gray-600">{job.company}</p>
-                              {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {job.meta_data.tech_stack.slice(0, 3).map((tech: string, techIdx: number) => (
-                                    <span key={techIdx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                                      {tech}
-                                    </span>
+                              React 개발자
+                            </button>
+                            <button
+                              onClick={() => {
+                                setChatInput('카카오')
+                                setTimeout(() => handleChatbotSend(), 100)
+                              }}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors"
+                            >
+                              카카오
+                            </button>
+                            <button
+                              onClick={() => {
+                                setChatInput('백엔드')
+                                setTimeout(() => handleChatbotSend(), 100)
+                              }}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors"
+                            >
+                              백엔드
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      chatMessages.map((message, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+                            {message.role === 'assistant' && (
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-2">
+                                <Bot className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                            <div
+                              className={`rounded-lg p-3 ${
+                                message.role === 'user'
+                                  ? 'bg-gray-900 text-white'
+                                  : 'bg-gray-100 text-gray-900'
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              {message.jobs && message.jobs.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                  {message.jobs.map((job, jobIdx) => (
+                                    <Card
+                                      key={jobIdx}
+                                      className="p-3 hover:bg-gray-50 cursor-pointer transition-all border border-gray-200 hover:border-gray-300 hover:shadow-md"
+                                      onClick={() => setSelectedJobDetail(job)}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="font-semibold text-sm text-gray-900 mb-1">
+                                            {job.title}
+                                          </h4>
+                                          <p className="text-xs text-gray-600 mb-2">{job.company}</p>
+                                          {job.meta_data?.tech_stack && job.meta_data.tech_stack.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {job.meta_data.tech_stack.slice(0, 3).map((tech: string, techIdx: number) => (
+                                                <span key={techIdx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                                  {tech}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </Card>
                                   ))}
                                 </div>
                               )}
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      ))
+                    )}
+                    {isChatbotLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-gray-100 rounded-lg p-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
-              {isChatbotLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* 입력 영역 */}
-            <div className="border-t border-gray-200 p-4 bg-white rounded-b-xl">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleChatbotSend()
-                    }
-                  }}
-                  placeholder="공고를 검색해보세요..."
-                  className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-                  disabled={isChatbotLoading}
-                />
-                <button
-                  onClick={handleChatbotSend}
-                  disabled={!chatInput.trim() || isChatbotLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+                  {/* 입력 영역 */}
+                  <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+                    <div className="flex gap-2">
+                      <Input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            handleChatbotSend()
+                          }
+                        }}
+                        placeholder="공고를 검색해보세요..."
+                        className="flex-1 text-sm"
+                        disabled={isChatbotLoading}
+                      />
+                      <Button
+                        onClick={handleChatbotSend}
+                        disabled={!chatInput.trim() || isChatbotLoading}
+                        className="bg-gray-900 hover:bg-gray-800 text-white"
+                        size="sm"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
           </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )

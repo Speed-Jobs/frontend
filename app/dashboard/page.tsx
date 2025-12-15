@@ -1233,6 +1233,9 @@ export default function Dashboard() {
       
       try {
         const apiUrl = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=10'
+        
+        console.log('경쟁사 최신 공고 API 호출:', apiUrl)
+        
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -1244,7 +1247,8 @@ export default function Dashboard() {
         })
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          const errorText = await response.text().catch(() => '')
+          throw new Error(`HTTP error! status: ${response.status}${errorText ? `, message: ${errorText.substring(0, 200)}` : ''}`)
         }
         
         const result = await response.json()
@@ -1256,7 +1260,16 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('경쟁사 최신 공고 API 호출 에러:', error)
-        setCompetitorPostsError(error instanceof Error ? error.message : '경쟁사 최신 공고를 불러오는 중 오류가 발생했습니다.')
+        
+        // 네트워크 에러에 대한 더 자세한 정보 제공
+        let errorMessage = '경쟁사 최신 공고를 불러오는 중 오류가 발생했습니다.'
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          errorMessage = '네트워크 연결에 실패했습니다. 서버에 연결할 수 없거나 CORS 정책에 의해 차단되었을 수 있습니다.'
+        } else if (error instanceof Error) {
+          errorMessage = error.message
+        }
+        
+        setCompetitorPostsError(errorMessage)
         setCompetitorPostsApiData([])
       } finally {
         setIsLoadingCompetitorPosts(false)
@@ -3517,9 +3530,9 @@ export default function Dashboard() {
 
         {/* 메인 3열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
-          {/* 왼쪽 컬럼 (9열) - 채용 공채 일정 시뮬레이션 및 채용 공고 수 추이 */}
+          {/* 왼쪽 컬럼 (9열) - 채용 일정 시뮬레이션 및 채용 공고 수 추이 */}
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
-            <DarkDashboardCard title="채용 공채 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
+            <DarkDashboardCard title="채용 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
               <div className="flex-1 min-h-0">
                 {isLoadingRecruitmentSchedule ? (
                   <div className="flex items-center justify-center h-full">

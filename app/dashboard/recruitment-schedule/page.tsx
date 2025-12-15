@@ -139,19 +139,25 @@ interface ApiResponse {
 
 // 백엔드 응답을 프론트엔드 형식으로 변환하는 함수
 function transformApiResponse(apiData: ApiCompanySchedule[]): CompanySchedule[] {
-  return apiData.map((schedule) => {
+  return apiData.map((schedule, index) => {
     // 회사명에 맞는 색상 할당 (백엔드 color 우선, 없으면 회사명 기반 매핑)
     const color = getCompanyColor(schedule.company_name, schedule.color)
     
+    // 같은 id를 가진 스케줄들이 있을 수 있으므로 (예: 같은 회사의 actual과 predicted)
+    // data_type과 index를 조합하여 고유한 id 생성
+    const uniqueId = schedule.data_type 
+      ? `${schedule.id}-${schedule.data_type}-${index}` 
+      : `${schedule.id}-${index}`
+    
     return {
-      id: schedule.id,
+      id: uniqueId,
       name: schedule.company_name,
       color: color,
       type: schedule.type,
       dataType: schedule.data_type,
       jobRole: schedule.job_role, // 직군 정보 추가
-      stages: schedule.stages.map((stage) => ({
-        id: stage.id,
+      stages: schedule.stages.map((stage, stageIndex) => ({
+        id: `${uniqueId}-${stage.id}-${stageIndex}`,
         stage: stage.stage,
         startDate: new Date(stage.start_date),
         endDate: new Date(stage.end_date),
@@ -212,8 +218,12 @@ export default function RecruitmentSchedulePage() {
         params.append('start_date', `${currentYear}-01-01`)
         params.append('end_date', `${currentYear}-12-31`)
         
-        if (activeTab === '신입' && dataFilter !== 'all') {
-          params.append('data_type', dataFilter)
+        // 신입 공고일 때 data_type 파라미터 전달
+        // 전체 보기: data_type=all (실제 공고 + 예측치 모두 반환)
+        // 실제 공고만: data_type=actual
+        // 예측치만: data_type=predicted
+        if (activeTab === '신입') {
+          params.append('data_type', dataFilter === 'all' ? 'all' : dataFilter)
         }
         // 경력 공고일 때 직군 필터 추가 (API가 지원하는 경우)
         // 선택된 직군들을 콤마로 구분하여 전달
@@ -240,7 +250,34 @@ export default function RecruitmentSchedulePage() {
         const result: ApiResponse = await response.json()
         
         if (result.status === 200 && result.data && result.data.schedules) {
+          // 디버깅: API 원본 데이터 확인
+          const originalCompanyNames = Array.from(new Set(result.data.schedules.map(s => s.company_name)))
+          console.log(`[채용 일정 API 원본]`, {
+            전체개수: result.data.schedules.length,
+            회사목록: originalCompanyNames,
+            회사수: originalCompanyNames.length,
+            dataType별: {
+              actual: result.data.schedules.filter(s => s.data_type === 'actual').length,
+              predicted: result.data.schedules.filter(s => s.data_type === 'predicted').length,
+              없음: result.data.schedules.filter(s => !s.data_type).length,
+            },
+            원본데이터: result.data.schedules
+          })
+          
           const transformedSchedules = transformApiResponse(result.data.schedules)
+          
+          // 디버깅: 변환된 데이터 확인
+          const transformedCompanyNames = Array.from(new Set(transformedSchedules.map(s => s.name)))
+          console.log(`[채용 일정 API 변환후] ${activeTab} - 필터: ${dataFilter}`, {
+            전체데이터: transformedSchedules.length,
+            회사목록: transformedCompanyNames,
+            회사수: transformedCompanyNames.length,
+            actual: transformedSchedules.filter(s => s.dataType === 'actual').length,
+            predicted: transformedSchedules.filter(s => s.dataType === 'predicted').length,
+            기타: transformedSchedules.filter(s => !s.dataType).length,
+            변환된데이터: transformedSchedules
+          })
+          
           setServerSchedules(transformedSchedules)
         } else {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
@@ -443,9 +480,18 @@ export default function RecruitmentSchedulePage() {
     // 신입 공고: data_type 필터 적용
     if (activeTab === '신입') {
       result = result.filter((schedule) => {
-        if (dataFilter === 'all') return true
-        if (dataFilter === 'actual') return schedule.dataType === 'actual'
-        if (dataFilter === 'predicted') return schedule.dataType === 'predicted'
+        // 전체 보기: actual과 predicted 모두 표시 (dataType이 없는 경우도 포함)
+        if (dataFilter === 'all') {
+          return true // 모든 데이터 표시
+        }
+        // 실제 공고만 표시
+        if (dataFilter === 'actual') {
+          return schedule.dataType === 'actual'
+        }
+        // 예측치만 표시
+        if (dataFilter === 'predicted') {
+          return schedule.dataType === 'predicted'
+        }
         return true
       })
     }
@@ -459,6 +505,20 @@ export default function RecruitmentSchedulePage() {
         return selectedJobRoles.includes(schedule.jobRole)
       })
     }
+
+    // 디버깅: 필터링 후 결과 확인
+    const uniqueCompanyNames = Array.from(new Set(result.map(s => s.name)))
+    console.log(`[필터링 결과] ${activeTab} - 필터: ${dataFilter}`, {
+      필터링전: filteredSchedules.length,
+      필터링후: result.length,
+      회사목록: uniqueCompanyNames,
+      회사수: uniqueCompanyNames.length,
+      dataType별: {
+        actual: result.filter(s => s.dataType === 'actual').length,
+        predicted: result.filter(s => s.dataType === 'predicted').length,
+        없음: result.filter(s => !s.dataType).length,
+      }
+    })
 
     return result
   }, [filteredSchedules, activeTab, dataFilter, selectedJobRoles])
@@ -484,11 +544,6 @@ export default function RecruitmentSchedulePage() {
             {schedulesError && (
               <p className="text-sm text-red-600 mt-2">
                 ⚠️ {schedulesError}
-              </p>
-            )}
-            {isLoadingSchedules && (
-              <p className="text-sm text-gray-500 mt-2">
-                데이터를 불러오는 중...
               </p>
             )}
           </div>
@@ -561,7 +616,7 @@ export default function RecruitmentSchedulePage() {
                       className="fixed inset-0 z-10" 
                       onClick={() => setIsJobRoleDropdownOpen(false)}
                     />
-                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                       <div className="p-2 border-b border-gray-200">
                         <Button
                           variant="ghost"
@@ -616,7 +671,18 @@ export default function RecruitmentSchedulePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 relative">
+            {isLoadingSchedules && (
+              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                  <div className="text-center">
+                    <p className="text-lg font-semibold text-gray-900">데이터를 불러오는 중...</p>
+                    <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
                 <TabsContent value="신입" className="mt-0">

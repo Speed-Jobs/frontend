@@ -190,6 +190,8 @@ export default function QualityPage() {
   const [selectedCompany, setSelectedCompany] = useState('전체')
   const [selectedJobRole, setSelectedJobRole] = useState('전체')
   const [searchResults, setSearchResults] = useState<JobPosting[]>([])
+  const [isLoadingCompetitorJobs, setIsLoadingCompetitorJobs] = useState(false)
+  const [competitorJobsError, setCompetitorJobsError] = useState<string | null>(null)
 
   // 페이지네이션 상태
   const [ourJobPage, setOurJobPage] = useState(1) // UI는 1부터 시작
@@ -342,18 +344,8 @@ export default function QualityPage() {
     }
   }, [employmentTypeFilter, jobRoleInput, apiPageSize])
 
-  // 필터 변경 시 API 호출
-  useEffect(() => {
-    // 필터가 하나라도 선택되었거나 직무 입력이 있으면 API 호출
-    if (employmentTypeFilter.length > 0 || jobRoleInput.trim() !== '') {
-      fetchOurCompanyJobs(0) // 필터 변경 시 첫 페이지로
-      setOurJobPage(1) // UI 페이지는 1부터 시작
-    } else {
-      // 필터가 없으면 빈 배열로 설정
-      setOurCompanyJobs([])
-      setOurJobPage(1)
-    }
-  }, [employmentTypeFilter, jobRoleInput, fetchOurCompanyJobs])
+  // 필터 변경 시 자동 검색 제거 - "공고 검색" 버튼을 눌러야만 검색됨
+  // useEffect 제거됨 - 이제 버튼 클릭 시에만 검색됩니다
 
   // 우리 회사 공고 페이지네이션 데이터 (클라이언트 사이드에서 5개씩 표시)
   const ourJobTotalPages = Math.ceil(ourCompanyJobs.length / displayItemsPerPage)
@@ -362,28 +354,92 @@ export default function QualityPage() {
     ourJobPage * displayItemsPerPage
   )
 
-  // 경쟁사 공고 검색
+  // 경쟁사 공고 API 호출
+  const fetchCompetitorJobs = useCallback(async (page: number = 0) => {
+    try {
+      setIsLoadingCompetitorJobs(true)
+      setCompetitorJobsError(null)
+
+      // 쿼리 파라미터 구성
+      const params = new URLSearchParams()
+      params.append('sort', 'POST_AT')
+      params.append('isAscending', 'false')
+      params.append('page', page.toString())
+      params.append('size', apiPageSize.toString())
+
+      // 회사명 필터 (전체가 아닌 경우)
+      if (selectedCompany && selectedCompany !== '전체') {
+        params.append('companyNames', selectedCompany)
+      }
+
+      // 직군 필터 (전체가 아닌 경우)
+      if (selectedJobRole && selectedJobRole !== '전체') {
+        params.append('positionName', selectedJobRole)
+      }
+
+      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      
+      console.log('경쟁사 공고 API 호출:', apiUrl) // 디버깅용
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        mode: 'cors',
+        credentials: 'omit',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result: ApiPostsResponse = await response.json()
+
+      console.log('경쟁사 공고 API 응답:', result) // 디버깅용
+
+      if (result.status === 200 && result.data) {
+        // API 응답을 JobPosting 형식으로 변환
+        const transformedJobs = result.data.content.map(transformApiPostToJobPosting)
+        console.log('변환된 경쟁사 공고 수:', transformedJobs.length) // 디버깅용
+        setSearchResults(transformedJobs)
+      } else {
+        throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+      }
+    } catch (error: any) {
+      setCompetitorJobsError(error.message || '경쟁사 공고를 불러오는데 실패했습니다.')
+      setSearchResults([])
+    } finally {
+      setIsLoadingCompetitorJobs(false)
+    }
+  }, [selectedCompany, selectedJobRole, apiPageSize])
+
+  // 경쟁사 공고 검색 (버튼 클릭 시 호출)
   const handleCompetitorSearch = () => {
-    const filtered = jobPostingsData.filter((job) => {
-      const normalizedJobCompany = job.company.replace('(주)', '').trim().toLowerCase()
-      const normalizedSelectedCompany = selectedCompany.toLowerCase()
-      const companyMatch =
-        selectedCompany === '전체' ||
-        normalizedJobCompany.includes(normalizedSelectedCompany) ||
-        normalizedSelectedCompany.includes(normalizedJobCompany)
-
-      const normalizedJobTitle = job.title.toLowerCase()
-      const normalizedSelectedRole = selectedJobRole.toLowerCase()
-      const roleMatch =
-        selectedJobRole === '전체' ||
-        normalizedJobTitle.includes(normalizedSelectedRole) ||
-        job.meta_data?.job_category?.toLowerCase().includes(normalizedSelectedRole)
-
-      return companyMatch && roleMatch
-    })
-    setSearchResults(filtered)
-    setCompetitorJobPage(1) // 검색 시 페이지 초기화
+    setCompetitorJobPage(1) // 검색 시 첫 페이지로
+    fetchCompetitorJobs(0)
   }
+
+  // Step 3로 이동했을 때 평가가 완료되지 않았다면 자동으로 평가 API 호출
+  useEffect(() => {
+    if (currentStep === 3 && selectedOurJob && (selectedCompetitorJob || competitorJobImage)) {
+      // 평가가 완료되지 않았다면 평가 API 호출
+      if (!evaluationCompleted || !evaluationData || evaluationError) {
+        console.log('Step 3: 평가가 완료되지 않아 자동으로 평가 API 호출')
+        fetchEvaluationData()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, selectedOurJob, selectedCompetitorJob, competitorJobImage])
+
+  // 평가 완료 후 AI 추천 공고 자동 가져오기
+  useEffect(() => {
+    if (currentStep === 3 && evaluationCompleted && evaluationData && !evaluationError && selectedOurJob && !isLoadingImprovedPosting && !improvedPosting && !improvedPostingError) {
+      console.log('평가 완료 후 AI 추천 공고 가져오기')
+      fetchImprovedPosting(selectedOurJob.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, evaluationCompleted, evaluationData, evaluationError, selectedOurJob, isLoadingImprovedPosting, improvedPosting, improvedPostingError])
 
   // 경쟁사 공고 페이지네이션
   const competitorJobTotalPages = Math.ceil(searchResults.length / displayItemsPerPage)
@@ -598,16 +654,21 @@ export default function QualityPage() {
       }
       // Step 3로 이동할 때 AI 추천 공고 가져오기
       else if (currentStep === 2) {
-        // 평가가 완료되었는지 확인
+        // 평가가 완료되지 않았다면 먼저 평가 API 호출
         if (!evaluationCompleted || !evaluationData || evaluationError) {
-          alert('먼저 Step 2에서 평가를 완료해주세요.\n\n평가가 완료되지 않으면 AI 추천 공고를 생성할 수 없습니다.\n평가 결과가 표시되는지 확인해주세요.')
-          return
-        }
-        // Step 3로 이동하고, Step 3에서 AI 추천 공고 로드
-        setCurrentStep(currentStep + 1)
-        // Step 3로 이동한 후 AI 추천 공고 가져오기
-        if (selectedOurJob) {
-          await fetchImprovedPosting(selectedOurJob.id)
+          // Step 3로 이동하고 평가 API 호출
+          setCurrentStep(currentStep + 1)
+          await fetchEvaluationData()
+          // 평가 완료 후 AI 추천 공고 가져오기
+          if (selectedOurJob && evaluationCompleted) {
+            await fetchImprovedPosting(selectedOurJob.id)
+          }
+        } else {
+          // 평가가 이미 완료되었다면 바로 AI 추천 공고 가져오기
+          setCurrentStep(currentStep + 1)
+          if (selectedOurJob) {
+            await fetchImprovedPosting(selectedOurJob.id)
+          }
         }
       }
       // Step 3 이상으로는 바로 이동
@@ -1000,10 +1061,15 @@ export default function QualityPage() {
               <div className="space-y-4">
                 <div>
                   <button
-                    onClick={handleCompetitorSearch}
-                    className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+                    onClick={() => {
+                      handleCompetitorSearch()
+                      // 공고 목록으로 스크롤 이동
+                      document.getElementById('competitor-job-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                    disabled={isLoadingCompetitorJobs}
+                    className="w-full px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    공고 검색
+                    {isLoadingCompetitorJobs ? '검색 중...' : '공고 검색'}
                   </button>
                 </div>
 
@@ -1153,9 +1219,19 @@ export default function QualityPage() {
               {/* 경쟁사 공고 목록 */}
               <div className="flex-1 flex flex-col min-h-0">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">공고 목록</h3>
-                    <div className="space-y-3 flex-1 overflow-y-auto">
-                    {searchResults.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">회사와 직무를 선택한 후 검색 버튼을 클릭하세요.</p>
+                    <div className="space-y-3 flex-1 overflow-y-auto" id="competitor-job-list">
+                    {isLoadingCompetitorJobs ? (
+                      <div className="flex items-center justify-center py-8">
+                        <p>공고를 불러오는 중...</p>
+                      </div>
+                    ) : competitorJobsError ? (
+                      <p className="text-center text-red-500 py-8">{competitorJobsError}</p>
+                    ) : searchResults.length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">
+                        {selectedCompany === '전체' && selectedJobRole === '전체'
+                          ? '회사와 직무를 선택한 후 검색 버튼을 클릭하세요.'
+                          : '공고가 없습니다.'}
+                      </p>
                     ) : (
                       <>
                         {competitorJobPaginatedData.map((job) => (
@@ -1196,9 +1272,9 @@ export default function QualityPage() {
                           <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200">
                             <button
                               onClick={() => setCompetitorJobPage(prev => Math.max(1, prev - 1))}
-                              disabled={competitorJobPage === 1}
+                              disabled={competitorJobPage === 1 || isLoadingCompetitorJobs}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                competitorJobPage === 1
+                                competitorJobPage === 1 || isLoadingCompetitorJobs
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
@@ -1210,9 +1286,9 @@ export default function QualityPage() {
                             </span>
                             <button
                               onClick={() => setCompetitorJobPage(prev => Math.min(competitorJobTotalPages, prev + 1))}
-                              disabled={competitorJobPage === competitorJobTotalPages}
+                              disabled={competitorJobPage === competitorJobTotalPages || isLoadingCompetitorJobs}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                competitorJobPage === competitorJobTotalPages
+                                competitorJobPage === competitorJobTotalPages || isLoadingCompetitorJobs
                                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                               }`}
@@ -2379,176 +2455,6 @@ export default function QualityPage() {
                   </div>
                 )}
 
-                {/* 원본 공고 내용 (비교용 또는 기본 표시) */}
-                {(!isLoadingImprovedPosting && !improvedPostingError) && (
-                  <div className={`bg-white border-2 rounded-xl p-8 space-y-8 ${improvedPosting ? 'border-gray-300' : 'border-gray-200'}`}>
-                    {improvedPosting && (
-                      <div className="mb-6 pb-4 border-b-2 border-gray-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-3 py-1 bg-gray-500 text-white rounded-lg text-sm font-semibold">
-                            원본 공고
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            비교를 위한 원본 공고입니다
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    {/* 공고 제목 */}
-                    <div className="border-b-2 border-gray-200 pb-6">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">{selectedOurJob.title}</h2>
-                      <p className="text-lg text-gray-600">{selectedOurJob.company}</p>
-                    </div>
-
-                  {/* 섹션 1: 이런 일을 합니다 */} 
-                  <section className="space-y-6">
-                    <div className="flex items-start gap-3 flex-wrap">
-                      <h3 className="text-2xl font-bold text-gray-900">이런 일을 합니다</h3>
-                      <div className="relative flex items-start gap-2">
-                        <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                        </svg>
-                        <div className="bg-blue-500 text-white text-xs rounded-lg px-3 py-2 max-w-xs shadow-lg">
-                          <p>AI 개선 제안: 문단 구성 점수가 낮습니다. 문단을 더 짧게 나누어 가독성을 개선하세요.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 조직 소개 */}
-                    <div className="pl-4 border-l-4 border-gray-900">
-                      <h4 className="font-semibold text-gray-900 mb-3">조직 소개</h4>
-                      <ul className="space-y-2 text-gray-700">
-                        <li className="flex items-start gap-2">
-                          <span className="text-gray-900 mt-1">•</span>
-                          <span>SAP ERP, S/4HANA 등 엔터프라이즈 솔루션을 활용한 비즈니스 혁신</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-gray-900 mt-1">•</span>
-                          <span>자유롭고 효율적인 업무 환경, 지속적인 학습과 성장을 추구하는 문화</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-gray-900 mt-1">•</span>
-                          <span>AI First 전략을 통한 디지털 혁신</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* 업무 환경 및 문화 */}
-                    <div className="pl-4 border-l-4 border-gray-300">
-                      <h4 className="font-semibold text-gray-900 mb-3">업무 환경 및 문화</h4>
-                      <p className="text-gray-700 leading-relaxed">
-                        자유롭고 효율적인 업무 환경에서 지속적인 학습과 성장을 추구합니다.
-                        팀원 간의 협업과 소통을 중시하며, 새로운 기술과 방법론에 대한 실험을 장려합니다.
-                      </p>
-                    </div>
-
-                    {/* 담당 업무 */}
-                    <div className="pl-4 border-l-4 border-gray-300">
-                      <div className="flex items-start gap-2 mb-3 flex-wrap">
-                        <h4 className="font-semibold text-gray-900">담당 업무</h4>
-                        <div className="relative flex items-start gap-2">
-                          <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                          </svg>
-                          <div className="bg-blue-500 text-white text-xs rounded-lg px-3 py-2 max-w-xs shadow-lg">
-                            <p>AI 개선 제안: 담당 업무 구체성 점수가 낮습니다. 각 업무 항목을 더 상세하게 설명하세요.</p>
-                          </div>
-                        </div>
-                      </div>
-                      <ul className="space-y-2 text-gray-700">
-                        {selectedOurJob.description.split('\n\n')[0]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-gray-900 mt-1">•</span>
-                            <span>{item.replace(/^-\s*/, '')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {selectedOurJob.meta_data?.tech_stack && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {selectedOurJob.meta_data.tech_stack.map((tech, idx) => (
-                            <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium border border-blue-200">
-                              {tech}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </section>
-
-                  {/* 섹션 2: 이런 분과 함께 하고 싶습니다 */}
-                  <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                    <div className="flex items-start gap-3 flex-wrap">
-                      <h3 className="text-2xl font-bold text-gray-900">이런 분과 함께 하고 싶습니다</h3>
-                      <div className="relative flex items-start gap-2">
-                        <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                        </svg>
-                        <div className="bg-blue-500 text-white text-xs rounded-lg px-3 py-2 max-w-xs shadow-lg">
-                          <p>AI 개선 제안: 필요 역량 구체성 점수가 낮습니다. 각 역량에 대한 상세한 설명을 추가하세요.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 필요 역량 및 경험 */}
-                    <div className="pl-4 border-l-4 border-gray-300">
-                      <h4 className="font-semibold text-gray-900 mb-3">필요 역량 및 경험</h4>
-                      <ul className="space-y-2 text-gray-700">
-                        {selectedOurJob.description.split('\n\n')[1]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-gray-900 mt-1">•</span>
-                            <span>{item.replace(/^-\s*/, '')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </section>
-
-                  {/* 섹션 3: 이런 경험이 있다면 더 환영합니다 */}
-                  <section className="space-y-6 pt-6 border-t-2 border-gray-200">
-                    <div className="flex items-start gap-3 flex-wrap">
-                      <h3 className="text-2xl font-bold text-gray-900">이런 경험이 있다면 더 환영합니다</h3>
-                      <div className="relative flex items-start gap-2">
-                        <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-                        </svg>
-                        <div className="bg-blue-500 text-white text-xs rounded-lg px-3 py-2 max-w-xs shadow-lg">
-                          <p>AI 개선 제안: 매력적인 콘텐츠가 부족합니다. 현직자 인터뷰나 회사 비전을 추가하세요.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 우대사항 */}
-                    <div className="pl-4 border-l-4 border-gray-300">
-                      <h4 className="font-semibold text-gray-900 mb-3">우대사항</h4>
-                      <ul className="space-y-2 text-gray-700">
-                        {selectedOurJob.description.split('\n\n')[2]?.split('\n').filter(line => line.trim().startsWith('-')).map((item, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <span className="text-gray-900 mt-1">•</span>
-                            <span>{item.replace(/^-\s*/, '')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* 복리후생 */}
-                    {selectedOurJob.meta_data?.benefits && selectedOurJob.meta_data.benefits.length > 0 && (
-                      <div className="pl-4 border-l-4 border-gray-300">
-                        <h4 className="font-semibold text-gray-900 mb-3">복리후생</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          {selectedOurJob.meta_data.benefits.map((benefit, idx) => (
-                            <div key={idx} className="flex items-center gap-2 text-gray-700">
-                              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              <span>{benefit}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                  </div>
-                )}
 
                 {/* PDF 다운로드 버튼 */}
                 <div className="flex justify-between items-center pt-6 border-t border-gray-200">

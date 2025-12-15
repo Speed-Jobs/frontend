@@ -3631,6 +3631,8 @@ export default function Dashboard() {
                       <HotJobsList 
                         itemsPerPage={hasInsight ? 10 : 5}
                         limit={10}
+                        companyNames={selectedRecruitmentCompanies.length > 0 ? selectedRecruitmentCompanies : undefined}
+                        positionName={selectedDifficultyPosition || undefined}
                       />
                     </Suspense>
                   </div>

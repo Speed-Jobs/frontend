@@ -26,6 +26,7 @@ import {
 interface ApiJobPosting {
   id: number
   title: string
+  company: string
   employmentType: string
   crawledAt: {
     year: number
@@ -99,7 +100,7 @@ function transformApiJobToLocalFormat(apiJob: ApiJobPosting, companyName?: strin
   return {
     id: apiJob.id.toString(),
     title: apiJob.title,
-    company: companyName || '알 수 없음',
+    company: apiJob.company || companyName || '알 수 없음',
     employment_type: apiJob.employmentType,
     posted_date: crawledDate.toISOString(),
     location: '',
@@ -232,9 +233,9 @@ export default function CompaniesPage() {
       const result: ApiPostsResponse = await response.json()
 
       if (result.status === 200 && result.data) {
-        // API 응답을 기존 형식으로 변환
+        // API 응답을 기존 형식으로 변환 (API 응답의 company 필드가 우선 사용됨)
         const transformedJobs = result.data.content.map((job) => 
-          transformApiJobToLocalFormat(job, selectedCompany || searchQuery.trim() || undefined)
+          transformApiJobToLocalFormat(job)
         )
         
         setApiJobs(transformedJobs)

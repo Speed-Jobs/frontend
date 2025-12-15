@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CompanyInsightAnalysis from './CompanyInsightAnalysis'
 
 interface CompanyInsightViewProps {
@@ -70,9 +70,23 @@ export default function CompanyInsightView({
   const [isLoadingPosts, setIsLoadingPosts] = useState(false)
   const [postsError, setPostsError] = useState<string | null>(null)
 
-  // 채용 공채 일정 시뮬레이션 인사이트 API 호출
+  // Debouncing을 위한 ref
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // 채용 공채 일정 시뮬레이션 인사이트 API 호출 (debouncing 적용)
   useEffect(() => {
-    const fetchPostsData = async () => {
+    // 이전 타이머 취소
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    // 회사명이 없으면 API 호출하지 않음
+    if (!companyName) {
+      return
+    }
+    
+    // Debouncing: 300ms 후에 API 호출
+    debounceTimerRef.current = setTimeout(async () => {
       try {
         setIsLoadingPosts(true)
         setPostsError(null)
@@ -95,8 +109,6 @@ export default function CompanyInsightView({
         
         const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
         
-        console.log(`[채용 공채 일정 인사이트 API] 호출 시작: ${companyName}`, { apiUrl })
-        
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -106,33 +118,30 @@ export default function CompanyInsightView({
           credentials: 'omit',
         })
         
-        console.log(`[채용 공채 일정 인사이트 API] 응답 상태: ${companyName}`, { status: response.status, ok: response.ok })
-        
         if (!response.ok) {
           throw new Error(`API 호출 실패: ${response.status} ${response.statusText}`)
         }
         
         const result: PostsApiResponse = await response.json()
-        console.log(`[채용 공채 일정 인사이트 API] 응답 데이터: ${companyName}`, result)
         
         if (result.status === 200 && result.code === 'OK' && result.data?.content) {
           setPostsData(result.data.content)
-          console.log(`[채용 공채 일정 인사이트 API] 공고 개수: ${result.data.content.length}`)
         } else {
           throw new Error(result.message || '데이터 형식 오류')
         }
       } catch (error) {
-        console.error(`[채용 공채 일정 인사이트 API] 호출 실패: ${companyName}`, error)
         setPostsError(error instanceof Error ? error.message : '채용 공고 데이터를 불러오는 중 오류가 발생했습니다.')
         setPostsData([])
       } finally {
         setIsLoadingPosts(false)
       }
-    }
+    }, 300)
     
-    // 회사명이 있을 때만 API 호출
-    if (companyName) {
-      fetchPostsData()
+    // Cleanup 함수: 컴포넌트 언마운트 시 타이머 정리
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
     }
   }, [companyName])
 
@@ -144,16 +153,6 @@ export default function CompanyInsightView({
     setSkillTrendError(null)
   }, [companyName])
 
-  // 디버깅: 인사이트 데이터 확인
-  useEffect(() => {
-    console.log(`[CompanyInsightView] ${companyName} 인사이트 데이터:`, {
-      insightData,
-      isLoading,
-      isLoadingPosts,
-      recruitmentDataLength: recruitmentData?.length,
-      totalTrendDataLength: totalTrendData?.length,
-    })
-  }, [companyName, insightData, isLoading, isLoadingPosts, recruitmentData, totalTrendData])
 
 
 

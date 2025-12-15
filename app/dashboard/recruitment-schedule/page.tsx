@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import { Calendar } from '@/components/dashboard/calendar/Calendar'
@@ -196,9 +196,18 @@ export default function RecruitmentSchedulePage() {
   const [isLoadingSchedules, setIsLoadingSchedules] = useState(true)
   const [schedulesError, setSchedulesError] = useState<string | null>(null)
   
-  // API 호출
+  // Debouncing을 위한 ref
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // API 호출 (debouncing 적용)
   useEffect(() => {
-    const fetchSchedules = async () => {
+    // 이전 타이머 취소
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    
+    // Debouncing: 300ms 후에 API 호출
+    debounceTimerRef.current = setTimeout(async () => {
       try {
         setIsLoadingSchedules(true)
         setSchedulesError(null)
@@ -250,34 +259,7 @@ export default function RecruitmentSchedulePage() {
         const result: ApiResponse = await response.json()
         
         if (result.status === 200 && result.data && result.data.schedules) {
-          // 디버깅: API 원본 데이터 확인
-          const originalCompanyNames = Array.from(new Set(result.data.schedules.map(s => s.company_name)))
-          console.log(`[채용 일정 API 원본]`, {
-            전체개수: result.data.schedules.length,
-            회사목록: originalCompanyNames,
-            회사수: originalCompanyNames.length,
-            dataType별: {
-              actual: result.data.schedules.filter(s => s.data_type === 'actual').length,
-              predicted: result.data.schedules.filter(s => s.data_type === 'predicted').length,
-              없음: result.data.schedules.filter(s => !s.data_type).length,
-            },
-            원본데이터: result.data.schedules
-          })
-          
           const transformedSchedules = transformApiResponse(result.data.schedules)
-          
-          // 디버깅: 변환된 데이터 확인
-          const transformedCompanyNames = Array.from(new Set(transformedSchedules.map(s => s.name)))
-          console.log(`[채용 일정 API 변환후] ${activeTab} - 필터: ${dataFilter}`, {
-            전체데이터: transformedSchedules.length,
-            회사목록: transformedCompanyNames,
-            회사수: transformedCompanyNames.length,
-            actual: transformedSchedules.filter(s => s.dataType === 'actual').length,
-            predicted: transformedSchedules.filter(s => s.dataType === 'predicted').length,
-            기타: transformedSchedules.filter(s => !s.dataType).length,
-            변환된데이터: transformedSchedules
-          })
-          
           setServerSchedules(transformedSchedules)
         } else {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
@@ -289,9 +271,14 @@ export default function RecruitmentSchedulePage() {
       } finally {
         setIsLoadingSchedules(false)
       }
-    }
+    }, 300)
     
-    fetchSchedules()
+    // Cleanup 함수: 컴포넌트 언마운트 시 타이머 정리
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
   }, [activeTab, dataFilter, selectedJobRoles])
   
   // 더미 데이터 (API 실패 시 fallback)
@@ -504,20 +491,6 @@ export default function RecruitmentSchedulePage() {
         return selectedJobRoles.includes(schedule.jobRole)
       })
     }
-
-    // 디버깅: 필터링 후 결과 확인
-    const uniqueCompanyNames = Array.from(new Set(result.map(s => s.name)))
-    console.log(`[필터링 결과] ${activeTab} - 필터: ${dataFilter}`, {
-      필터링전: filteredSchedules.length,
-      필터링후: result.length,
-      회사목록: uniqueCompanyNames,
-      회사수: uniqueCompanyNames.length,
-      dataType별: {
-        actual: result.filter(s => s.dataType === 'actual').length,
-        predicted: result.filter(s => s.dataType === 'predicted').length,
-        없음: result.filter(s => !s.dataType).length,
-      }
-    })
 
     return result
   }, [filteredSchedules, activeTab, dataFilter, selectedJobRoles])

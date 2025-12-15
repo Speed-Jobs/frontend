@@ -29,12 +29,10 @@ interface SubscriptionFormData {
   jobRoles: number[]
   jobSkills: string[] // 직군별 직무 (Skill set)
   companies: number[]
-  notificationConditions: {
-    newJobPosting: boolean
-    jobCountIncrease: boolean
-    competitorHiring: boolean
+  emailNotification: {
+    enabled: boolean
+    time: string // HH:mm 형식
   }
-  notificationFrequency: 'realtime' | 'daily' | 'weekly'
 }
 
 // 직군별 직무(Skill set) 매핑
@@ -258,12 +256,10 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     jobRoles: [],
     jobSkills: [],
     companies: [],
-    notificationConditions: {
-      newJobPosting: true,
-      jobCountIncrease: false,
-      competitorHiring: false,
+    emailNotification: {
+      enabled: true,
+      time: '09:00', // 매일 오전 9시
     },
-    notificationFrequency: 'realtime',
   })
 
   // 선택된 직군에 해당하는 직무 목록 가져오기
@@ -324,12 +320,10 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
               jobRoles: savedData.jobRoles || [],
               jobSkills: savedData.jobSkills || [],
               companies: savedData.companies || [],
-              notificationConditions: savedData.notificationConditions || {
-                newJobPosting: true,
-                jobCountIncrease: false,
-                competitorHiring: false,
+              emailNotification: savedData.emailNotification || {
+                enabled: true,
+                time: '09:00',
               },
-              notificationFrequency: savedData.notificationFrequency || 'realtime',
             })
           }
         } catch (error) {
@@ -410,14 +404,11 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
       parts.push(`기업: ${companyNames.join(', ')}`)
     }
 
-    const frequencyText =
-      formData.notificationFrequency === 'realtime'
-        ? '실시간 알림'
-        : formData.notificationFrequency === 'daily'
-        ? '하루 1회 요약'
-        : '주간 요약'
+    const emailText = formData.emailNotification.enabled
+      ? `이메일 알림: 매일 ${formData.emailNotification.time}`
+      : '이메일 알림: 비활성화'
 
-    return parts.length > 0 ? `${parts.join(' | ')} | ${frequencyText}` : '조건을 선택해주세요'
+    return parts.length > 0 ? `${parts.join(' | ')} | ${emailText}` : '조건을 선택해주세요'
   }
 
   if (isLoading) {
@@ -571,82 +562,49 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           />
         </div>
 
-        {/* 알림 조건 설정 */}
+        {/* 이메일 알림 설정 */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">알림 조건</h3>
-          <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-gray-900">이메일 알림 설정</h3>
+          <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <Checkbox
-                checked={formData.notificationConditions.newJobPosting}
+                checked={formData.emailNotification.enabled}
                 onCheckedChange={(checked) =>
                   setFormData({
                     ...formData,
-                    notificationConditions: {
-                      ...formData.notificationConditions,
-                      newJobPosting: checked === true,
+                    emailNotification: {
+                      ...formData.emailNotification,
+                      enabled: checked === true,
                     },
                   })
                 }
               />
-              <span className="text-sm text-gray-700">새로운 채용 공고가 등록되면 알림</span>
+              <span className="text-sm text-gray-700">이메일 알림 활성화</span>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <Checkbox
-                checked={formData.notificationConditions.jobCountIncrease}
-                onCheckedChange={(checked) =>
-                  setFormData({
-                    ...formData,
-                    notificationConditions: {
-                      ...formData.notificationConditions,
-                      jobCountIncrease: checked === true,
-                    },
-                  })
-                }
-              />
-              <span className="text-sm text-gray-700">전주 대비 공고 수가 증가하면 알림</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <Checkbox
-                checked={formData.notificationConditions.competitorHiring}
-                onCheckedChange={(checked) =>
-                  setFormData({
-                    ...formData,
-                    notificationConditions: {
-                      ...formData.notificationConditions,
-                      competitorHiring: checked === true,
-                    },
-                  })
-                }
-              />
-              <span className="text-sm text-gray-700">경쟁사 채용 시작 시 알림</span>
-            </label>
-          </div>
-        </div>
-
-        {/* 알림 수신 빈도 */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">알림 수신 빈도</h3>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { value: 'realtime', label: '실시간' },
-              { value: 'daily', label: '하루 1회 요약' },
-              { value: 'weekly', label: '주간 요약' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  setFormData({ ...formData, notificationFrequency: option.value as any })
-                }
-                className={`px-4 py-3 rounded-lg border transition-all ${
-                  formData.notificationFrequency === option.value
-                    ? 'border-blue-500 bg-blue-50 text-blue-900 font-semibold'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {formData.emailNotification.enabled && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  알림 시간
+                </label>
+                <Input
+                  type="time"
+                  value={formData.emailNotification.time}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      emailNotification: {
+                        ...formData.emailNotification,
+                        time: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full max-w-xs"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  매일 선택한 시간에 새로운 채용 공고 알림을 이메일로 받습니다.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

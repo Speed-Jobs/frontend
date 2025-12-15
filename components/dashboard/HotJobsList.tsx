@@ -1,31 +1,142 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import CompanyLogo from '@/components/CompanyLogo'
 
+interface Job {
+  id: number
+  rank: number
+  company: string
+  title: string
+  salary: string
+  location: string
+  views: number
+  experience?: string
+  techStack?: string[]
+  postedDate?: string
+  expiredDate?: string | null
+  description?: string
+  employmentType?: string
+}
+
 interface HotJobsListProps {
-  jobs: Array<{
-    id: number
-    rank: number
-    company: string
-    title: string
-    salary: string
-    location: string
-    views: number
-    experience?: string
-    techStack?: string[]
-    postedDate?: string
-    expiredDate?: string | null
-    description?: string
-    employmentType?: string
-  }>
+  jobs?: Job[] // 선택적: 외부에서 데이터를 전달할 수도 있음
   itemsPerPage?: number // 동적으로 한 페이지에 표시할 공고 수 조정
+  limit?: number // API에서 가져올 공고 수
 }
 
 const DEFAULT_ITEMS_PER_PAGE = 5 // 기본 한 페이지에 표시할 공고 수
+const DEFAULT_LIMIT = 10 // 기본 API limit
 
-export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAGE }: HotJobsListProps) {
+export default function HotJobsList({ jobs: externalJobs, itemsPerPage = DEFAULT_ITEMS_PER_PAGE, limit = DEFAULT_LIMIT }: HotJobsListProps) {
+  const [jobs, setJobs] = useState<Job[]>(externalJobs || [])
+  const [isLoading, setIsLoading] = useState(!externalJobs)
+  const [error, setError] = useState<string | null>(null)
+  
+  // 외부에서 jobs가 전달되면 사용하고, 없으면 자체적으로 데이터 페칭
+  useEffect(() => {
+    // 외부에서 jobs가 전달되면 사용
+    if (externalJobs && externalJobs.length > 0) {
+      setJobs(externalJobs)
+      setIsLoading(false)
+      return
+    }
+    
+    // 자체적으로 데이터 페칭
+    const fetchJobs = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=${limit}`
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result = await response.json()
+        
+        if (result.status === 200 && result.code === 'OK') {
+          // 다양한 응답 형식 지원
+          let posts = null
+          if (result.data?.posts) {
+            posts = result.data.posts
+          } else if (result.data?.content) {
+            posts = result.data.content
+          } else if (Array.isArray(result.data)) {
+            posts = result.data
+          } else if (Array.isArray(result.posts)) {
+            posts = result.posts
+          } else if (result.data && typeof result.data === 'object') {
+            const arrayKeys = Object.keys(result.data).filter(key => Array.isArray(result.data[key]))
+            if (arrayKeys.length > 0) {
+              posts = result.data[arrayKeys[0]]
+            }
+          }
+          
+          if (posts && Array.isArray(posts) && posts.length > 0) {
+            // API 응답을 Job 형식으로 변환
+            const convertedJobs: Job[] = posts.map((post: any, index: number) => {
+              let registeredDate = ''
+              if (post.registeredAt) {
+                if (post.registeredAt.year && post.registeredAt.month && post.registeredAt.day) {
+                  registeredDate = `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
+                }
+              } else if (post.crawledAt) {
+                if (post.crawledAt.year && post.crawledAt.month && post.crawledAt.day) {
+                  registeredDate = `${post.crawledAt.year}-${String(post.crawledAt.month).padStart(2, '0')}-${String(post.crawledAt.day).padStart(2, '0')}`
+                }
+              } else if (post.postedDate) {
+                registeredDate = post.postedDate
+              } else {
+                const today = new Date()
+                registeredDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+              }
+              
+              return {
+                id: post.id || index,
+                rank: index + 1,
+                company: post.companyName || post.company || '',
+                title: post.title || '',
+                salary: '협의',
+                location: '',
+                views: 0,
+                experience: '',
+                techStack: post.role ? [post.role] : [],
+                postedDate: registeredDate,
+                expiredDate: null,
+                description: post.role || '',
+                employmentType: post.employmentType || '정규직',
+              }
+            }).filter((item: Job) => item.title && item.company)
+            
+            setJobs(convertedJobs)
+          } else {
+            setJobs([])
+          }
+        } else {
+          throw new Error(result.message || '데이터 형식이 올바르지 않습니다.')
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : '데이터를 불러오는 중 오류가 발생했습니다.')
+        setJobs([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchJobs()
+  }, [externalJobs, limit])
   const [currentPage, setCurrentPage] = useState(1)
 
   // itemsPerPage가 변경되면 첫 페이지로 리셋
@@ -37,6 +148,23 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const paginatedJobs = jobs.slice(startIndex, endIndex)
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-gray-500 text-sm">데이터를 불러오는 중...</div>
+      </div>
+    )
+  }
+  
+  if (error) {
+    return (
+      <div className="text-red-500 text-sm text-center py-8">
+        {error}
+      </div>
+    )
+  }
+  
   if (!jobs || jobs.length === 0) {
     return (
       <div className="text-gray-500 text-sm text-center py-8">
@@ -59,7 +187,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
   }
 
   // 직무 추출 (제목, 기술 스택, 설명 기반)
-  const extractPosition = (job: HotJobsListProps['jobs'][0]): string => {
+  const extractPosition = (job: Job): string => {
     const title = (job.title || '').toLowerCase()
     const description = (job.description || '').toLowerCase()
     const techStack = (job.techStack || []).join(' ').toLowerCase()
@@ -133,7 +261,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             href={`/dashboard/jobs/${job.id}`}
             className="block"
           >
-            <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer">
+            <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer">
               <div className="flex items-start gap-3">
                 {/* 회사 로고 */}
                 <div className="flex-shrink-0 w-12 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
@@ -165,10 +293,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setCurrentPage(prev => Math.max(1, prev - 1))
-            }}
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
               currentPage === 1
@@ -182,10 +307,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setCurrentPage(page)
-                }}
+                onClick={() => setCurrentPage(page)}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
                   currentPage === page
                     ? 'bg-gray-900 text-white border-gray-900'
@@ -197,10 +319,7 @@ export default function HotJobsList({ jobs, itemsPerPage = DEFAULT_ITEMS_PER_PAG
             ))}
           </div>
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setCurrentPage(prev => Math.min(totalPages, prev + 1))
-            }}
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
               currentPage === totalPages

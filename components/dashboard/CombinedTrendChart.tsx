@@ -221,7 +221,8 @@ export default function CombinedTrendChart({
     return max > 0 ? max : 1
   }, [mergedData, selectedCompanies])
 
-  if (isLoading) {
+  // 데이터가 있으면 로딩 중이어도 표시, 데이터가 없고 로딩 중일 때만 로딩 표시
+  if (isLoading && (!mergedData || mergedData.length === 0)) {
     return (
       <div className="flex items-center justify-center h-[400px]">
         <div className="text-gray-500">데이터를 불러오는 중...</div>

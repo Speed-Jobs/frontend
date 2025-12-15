@@ -7,6 +7,80 @@ interface CompanyLogoProps {
   className?: string
 }
 
+// 회사명을 ID로 매핑 (API에서 로고를 가져오기 위한 매핑)
+const COMPANY_ID_MAP: Record<string, number> = {
+  'Coupang': 1,
+  '쿠팡': 1,
+  '한화시스템/ICT': 2,
+  '한화시스템': 2,
+  '한화 ICT': 2,
+  '한화손해보험': 3,
+  '현대오토에버': 4,
+  '현대 오토에버': 4,
+  '카카오': 5,
+  'kakao': 5,
+  'Kakao': 5,
+  'LG CNS': 6,
+  'LGCNS': 6,
+  'LG CNS': 6,
+  'LINE': 10,
+  '라인': 10,
+  'NAVER Cloud': 28,
+  '네이버 클라우드': 28,
+  'NAVER': 29,
+  '네이버': 29,
+  'NAVER WEBTOON': 30,
+  '네이버 웹툰': 30,
+  'SK주식회사(AX)': 31,
+  'SK주식회사': 31,
+  'SK AX': 31,
+  'SK C&C': 31,
+  'SK주식회사 C&C': 31,
+  'SK 주식회사 C&C': 31,
+  'SK주식회사C&C': 31,
+  '토스증권': 32,
+  '토스': 34,
+  'Toss': 34,
+  '토스뱅크': 35,
+  '토스인슈어런스': 36,
+  '토스씨엑스': 37,
+  '토스플레이스': 39,
+  '토스페이먼츠': 41,
+  '우아한형제들': 47,
+  '배민': 47,
+  '배달의민족': 47,
+}
+
+// 회사명 정규화 함수 (부분 매칭 지원)
+function normalizeCompanyNameForId(companyName: string): string {
+  const normalized = companyName.replace(/\(주\)/g, '').replace(/\s+/g, ' ').trim()
+  
+  // 직접 매칭
+  if (COMPANY_ID_MAP[normalized]) {
+    return normalized
+  }
+  
+  // 부분 매칭 (예: "한화시스템/ICT"에서 "한화시스템" 찾기)
+  for (const [key, id] of Object.entries(COMPANY_ID_MAP)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return key
+    }
+  }
+  
+  return normalized
+}
+
+// 회사명으로 ID 찾기
+function getCompanyId(companyName: string): number | null {
+  const normalizedName = normalizeCompanyNameForId(companyName)
+  return COMPANY_ID_MAP[normalizedName] || null
+}
+
+// API 로고 URL 생성
+function getCompanyLogoUrl(companyId: number): string {
+  return `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/companies/${companyId}/logo?useWebp=false`
+}
+
 export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) {
   const [imgError, setImgError] = useState(false)
   const [useFallback, setUseFallback] = useState(false)
@@ -25,7 +99,13 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
   // 회사명 정규화 (공백 제거, (주) 제거 등)
   const normalizedName = name.replace(/\(주\)/g, '').replace(/\s+/g, ' ').trim()
 
-  // 회사명을 파일명으로 매핑
+  // 회사 ID 찾기
+  const companyId = getCompanyId(name)
+  
+  // API 로고 URL이 있으면 우선 사용
+  const apiLogoUrl = companyId ? getCompanyLogoUrl(companyId) : null
+
+  // 회사명을 파일명으로 매핑 (폴백용)
   const companyNameMap: Record<string, string> = {
     'SK AX': 'sk-ax',
     'SK주식회사 C&C': 'sk-ax',
@@ -75,7 +155,10 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
   const fallbackUrl = fallbackUrls[normalizedName] || fallbackUrls[name] || ''
 
   const handleError = () => {
-    if (!useFallback && fallbackUrl) {
+    // API URL이 실패하면 로컬 이미지로 폴백
+    if (apiLogoUrl && !useFallback) {
+      setUseFallback(true)
+    } else if (!useFallback && fallbackUrl) {
       setUseFallback(true)
     } else {
       setImgError(true)
@@ -93,10 +176,17 @@ export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) 
     )
   }
 
-  // 현재 사용할 이미지 경로 결정
-  const imageSrc = useFallback ? fallbackUrl : localImagePath
+  // 현재 사용할 이미지 경로 결정 (우선순위: API URL > 로컬 이미지 > 폴백 URL)
+  let imageSrc: string
+  if (apiLogoUrl && !useFallback) {
+    imageSrc = apiLogoUrl
+  } else if (useFallback && fallbackUrl) {
+    imageSrc = fallbackUrl
+  } else {
+    imageSrc = localImagePath
+  }
 
-  // 로컬 이미지 사용 (img 태그 사용)
+  // 이미지 사용 (img 태그 사용)
   return (
     <div className={`relative w-full h-full ${className}`}>
       <img

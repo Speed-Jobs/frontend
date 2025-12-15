@@ -572,8 +572,6 @@ export default function Dashboard() {
           try {
             const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
             
-            console.log(`[채용 일정 API] 호출 시작: ${apiType}`, { apiUrl, companyKeywords })
-            
             const response = await fetch(apiUrl, {
               method: 'GET',
               headers: {
@@ -583,26 +581,19 @@ export default function Dashboard() {
               credentials: 'omit',
             })
             
-            console.log(`[채용 일정 API] 응답 상태: ${apiType}`, { status: response.status, ok: response.ok })
-            
             if (!response.ok) {
-              console.warn(`[채용 일정 API] 응답 실패 (${apiType}):`, response.status, response.statusText)
               continue // 해당 타입에 대한 데이터가 없으면 건너뛰기
             }
             
             const result = await response.json()
-            console.log(`[채용 일정 API] 응답 데이터 (${apiType}):`, result)
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
-              const schedulesCount = result.data.schedules.length
-              console.log(`[채용 일정 API] 스케줄 개수 (${apiType}):`, schedulesCount)
               
               // 각 스케줄의 각 스테이지에 대해 이벤트 생성
               result.data.schedules.forEach((schedule: any) => {
                 const scheduleCompanyName = schedule.company_name || ''
                 
                 if (!schedule.stages || schedule.stages.length === 0) {
-                  console.warn(`[채용 일정 API] 스테이지 없음:`, schedule)
                   return
                 }
                 
@@ -622,22 +613,15 @@ export default function Dashboard() {
                       title: `${scheduleCompanyName} ${stage.stage}`,
                       stage: stage.stage
                     })
-                  } else {
-                    console.warn(`[채용 일정 API] 날짜 정보 없음:`, { schedule, stage })
                   }
                 })
               })
-            } else {
-              console.warn(`[채용 일정 API] 데이터 형식 오류 (${apiType}):`, result)
             }
           } catch (error) {
             // 개별 API 호출 실패는 무시하고 계속 진행
-            console.error(`[채용 일정 API] 호출 실패 (${apiType}):`, error)
             continue
           }
         }
-        
-        console.log(`[채용 일정 API] 총 이벤트 개수:`, allEvents.length)
         
         // 날짜순으로 정렬 (startDate 기준)
         allEvents.sort((a, b) => {
@@ -645,8 +629,6 @@ export default function Dashboard() {
           const dateB = new Date(b.startDate).getTime()
           return dateA - dateB
         })
-        
-        console.log(`[채용 일정 API] 최종 데이터:`, allEvents)
         setRecruitmentScheduleData(allEvents)
       } catch (error) {
         setRecruitmentScheduleError(error instanceof Error ? error.message : '채용 일정 데이터를 불러오는 중 오류가 발생했습니다.')
@@ -730,16 +712,6 @@ export default function Dashboard() {
       
       // API에서 제공하는 인사이트 사용
       const insights: string[] = Array.isArray(position_insight.insights) ? position_insight.insights : []
-      
-      // 디버깅: 직군별 인사이트 확인
-      console.log('[직무 인재 수급 난이도 지수] 직군별 인사이트 변환:', {
-        positionName: position_insight.position_name,
-        rawInsights: position_insight.insights,
-        insightsType: typeof position_insight.insights,
-        isArray: Array.isArray(position_insight.insights),
-        insightsLength: insights?.length,
-        insights: insights
-      })
 
       // 카테고리 분류
       const positionName = position_insight.position_name || ''
@@ -827,15 +799,6 @@ export default function Dashboard() {
         trend: industry_insight.yoy_trend || undefined,
       })
     }
-
-    // 디버깅: 변환된 데이터 확인
-    console.log('[직무 인재 수급 난이도 지수] 변환된 데이터:', result)
-    console.log('[직무 인재 수급 난이도 지수] 변환된 데이터 인사이트 확인:', result.map(item => ({
-      name: item.name,
-      hasInsights: !!item.insights,
-      insightsLength: item.insights?.length,
-      insights: item.insights
-    })))
     
     return result.length > 0 ? result : null
   }, [jobDifficultyApiData])
@@ -1000,17 +963,9 @@ export default function Dashboard() {
       )
       
       if (hasJobRoles) {
-        console.log('[직무 인재 수급 난이도 지수] API 데이터 사용 (직군 포함):', convertApiDataToJobDifficultyItems)
-        console.log('[직무 인재 수급 난이도 지수] API 데이터 인사이트 확인:', convertApiDataToJobDifficultyItems.map(item => ({
-          name: item.name,
-          hasInsights: !!item.insights,
-          insightsLength: item.insights?.length,
-          insights: item.insights
-        })))
         return convertApiDataToJobDifficultyItems
       } else {
         // API 데이터에 전체 시장만 있으면 fallback 데이터와 병합
-        console.log('[직무 인재 수급 난이도 지수] API 데이터와 Fallback 데이터 병합')
         const fallbackData = generateFallbackData()
         // API의 전체 시장 데이터를 유지하고 fallback 직군 데이터 추가
         const apiOverall = convertApiDataToJobDifficultyItems.find(item => item.name === '전체 시장')
@@ -1021,7 +976,6 @@ export default function Dashboard() {
       }
     }
 
-    console.log('[직무 인재 수급 난이도 지수] Fallback 데이터 사용')
     return generateFallbackData()
   }, [convertApiDataToJobDifficultyItems])
 
@@ -1193,68 +1147,10 @@ export default function Dashboard() {
   }, [jobRoleData])
 
 
-  // 경쟁사 최신 공고 - API 데이터를 HotJobsList 형식으로 변환
-  const hotJobsData = useMemo(() => {
-    console.log('경쟁사 최신 공고 hotJobsData 변환 시작:', {
-      competitorPostsApiData,
-      length: competitorPostsApiData?.length || 0,
-      isEmpty: !competitorPostsApiData || competitorPostsApiData.length === 0,
-    })
-    
-    if (!competitorPostsApiData || competitorPostsApiData.length === 0) {
-      console.log('⚠️ 경쟁사 최신 공고 데이터가 비어있습니다')
-      return []
-    }
-
-    console.log('✅ 경쟁사 최신 공고 데이터 변환 시작:', competitorPostsApiData.length, '개')
-
-    return competitorPostsApiData.map((post: any, index) => {
-      // 날짜 처리: 다양한 형식 지원
-      let registeredDate = ''
-      if (post.registeredAt) {
-        // { year, month, day } 형식
-        if (post.registeredAt.year && post.registeredAt.month && post.registeredAt.day) {
-          registeredDate = `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
-        }
-      } else if (post.crawledAt) {
-        // crawledAt 형식 지원
-        if (post.crawledAt.year && post.crawledAt.month && post.crawledAt.day) {
-          registeredDate = `${post.crawledAt.year}-${String(post.crawledAt.month).padStart(2, '0')}-${String(post.crawledAt.day).padStart(2, '0')}`
-        }
-      } else if (post.postedDate) {
-        // 문자열 형식 지원
-        registeredDate = post.postedDate
-      } else {
-        // 날짜가 없으면 현재 날짜 사용
-        const today = new Date()
-        registeredDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-      }
-      
-      return {
-        id: post.id || index,
-        rank: index + 1,
-        company: post.companyName || post.company || '',
-        title: post.title || '',
-        salary: '협의', // API 응답에 없으므로 기본값
-        location: '', // API 응답에 없으므로 빈 문자열
-        views: 0, // API 응답에 없으므로 기본값
-        experience: '', // API 응답에 없으므로 빈 문자열
-        techStack: post.role ? [post.role] : [], // role을 techStack으로 사용
-        postedDate: registeredDate,
-        expiredDate: null, // API 응답에 없으므로 null
-        description: post.role || '', // role을 description으로 사용
-        employmentType: post.employmentType || '정규직',
-      }
-    }).filter(item => item.title && item.company) // 제목과 회사명이 있는 항목만 필터링
-  }, [competitorPostsApiData])
+  // 경쟁사 최신 공고 데이터 변환은 HotJobsList 컴포넌트 내부에서 처리하므로 제거
+  // 컴포넌트가 독립적으로 데이터를 불러오도록 변경됨
+  const hotJobsData: any[] = []
   
-  // 변환 결과 로깅
-  useEffect(() => {
-    console.log('경쟁사 최신 공고 hotJobsData 최종 결과:', {
-      hotJobsDataLength: hotJobsData.length,
-      hotJobsData: hotJobsData,
-    })
-  }, [hotJobsData])
 
 
   // timeframe 동기화: jobPostingsTrendTimeframe이 변경되면 companyRecruitmentTimeframe도 동기화
@@ -1264,115 +1160,8 @@ export default function Dashboard() {
     }
   }, [jobPostingsTrendTimeframe])
 
-  // 경쟁사 최신 공고 API 호출
-  useEffect(() => {
-    const fetchCompetitorPosts = async () => {
-      setIsLoadingCompetitorPosts(true)
-      setCompetitorPostsError(null)
-      
-      try {
-        const apiUrl = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=10'
-        
-        console.log('경쟁사 최신 공고 API 호출:', apiUrl)
-        
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': '*/*',
-          },
-          mode: 'cors',
-          credentials: 'omit',
-        })
-        
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => '')
-          throw new Error(`HTTP error! status: ${response.status}${errorText ? `, message: ${errorText.substring(0, 200)}` : ''}`)
-        }
-        
-        const result = await response.json()
-        
-        console.log('경쟁사 최신 공고 API 응답 전체:', JSON.stringify(result, null, 2))
-        console.log('경쟁사 최신 공고 API 응답 구조:', {
-          status: result.status,
-          code: result.code,
-          message: result.message,
-          hasData: !!result.data,
-          dataType: typeof result.data,
-          dataIsArray: Array.isArray(result.data),
-          dataKeys: result.data ? Object.keys(result.data) : null,
-          hasPosts: !!result.posts,
-          postsIsArray: Array.isArray(result.posts),
-        })
-        
-        // API 응답 형식 확인 및 처리
-        if (result.status === 200 && result.code === 'OK') {
-          // 다양한 응답 형식 지원
-          let posts = null
-          if (result.data?.posts) {
-            posts = result.data.posts
-            console.log('경쟁사 최신 공고: result.data.posts에서 찾음')
-          } else if (result.data?.content) {
-            posts = result.data.content
-            console.log('경쟁사 최신 공고: result.data.content에서 찾음')
-          } else if (Array.isArray(result.data)) {
-            posts = result.data
-            console.log('경쟁사 최신 공고: result.data 배열에서 찾음')
-          } else if (Array.isArray(result.posts)) {
-            posts = result.posts
-            console.log('경쟁사 최신 공고: result.posts에서 찾음')
-          } else if (result.data && typeof result.data === 'object') {
-            // result.data가 객체인 경우, 모든 배열 속성 찾기
-            const arrayKeys = Object.keys(result.data).filter(key => Array.isArray(result.data[key]))
-            if (arrayKeys.length > 0) {
-              posts = result.data[arrayKeys[0]]
-              console.log(`경쟁사 최신 공고: result.data.${arrayKeys[0]}에서 찾음`)
-            }
-          }
-          
-          console.log('경쟁사 최신 공고 추출 결과:', {
-            posts,
-            postsLength: posts ? posts.length : 0,
-            postsIsArray: Array.isArray(posts),
-            firstPost: posts && posts.length > 0 ? posts[0] : null,
-          })
-          
-          if (posts && Array.isArray(posts) && posts.length > 0) {
-            console.log('✅ 경쟁사 최신 공고 데이터 설정 성공:', posts.length, '개')
-            setCompetitorPostsApiData(posts)
-          } else {
-            console.warn('⚠️ 경쟁사 최신 공고 데이터가 비어있거나 형식이 올바르지 않습니다:', {
-              posts,
-              postsType: typeof posts,
-              postsIsArray: Array.isArray(posts),
-              postsLength: posts ? posts.length : 'N/A',
-            })
-            setCompetitorPostsApiData([])
-          }
-        } else {
-          console.error('❌ 경쟁사 최신 공고 API 응답 오류:', result)
-          throw new Error(result.message || '데이터 형식이 올바르지 않습니다.')
-        }
-      } catch (error) {
-        console.error('경쟁사 최신 공고 API 호출 에러:', error)
-        
-        // 네트워크 에러에 대한 더 자세한 정보 제공
-        let errorMessage = '경쟁사 최신 공고를 불러오는 중 오류가 발생했습니다.'
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
-          errorMessage = '네트워크 연결에 실패했습니다. 서버에 연결할 수 없거나 CORS 정책에 의해 차단되었을 수 있습니다.'
-        } else if (error instanceof Error) {
-          errorMessage = error.message
-        }
-        
-        setCompetitorPostsError(errorMessage)
-        setCompetitorPostsApiData([])
-      } finally {
-        setIsLoadingCompetitorPosts(false)
-      }
-    }
-    
-    fetchCompetitorPosts()
-  }, [])
+  // 경쟁사 최신 공고 API 호출은 HotJobsList 컴포넌트에서 독립적으로 처리하므로 제거
+  // 컴포넌트가 독립적으로 데이터를 불러오도록 변경됨
 
   // 채용 공고 수 추이 API 호출 (새로운 형식: 회사 파라미터 포함)
   useEffect(() => {
@@ -2849,20 +2638,8 @@ export default function Dashboard() {
         
         const result = await response.json()
         
-        console.log('[직무 인재 수급 난이도 지수] API 응답:', result)
-        console.log('[직무 인재 수급 난이도 지수] result.data:', result.data)
-        console.log('[직무 인재 수급 난이도 지수] position_insight:', result.data?.position_insight)
-        console.log('[직무 인재 수급 난이도 지수] position_insight.insights:', result.data?.position_insight?.insights)
-        console.log('[직무 인재 수급 난이도 지수] position_insight.insights 타입:', typeof result.data?.position_insight?.insights)
-        console.log('[직무 인재 수급 난이도 지수] position_insight.insights 배열 여부:', Array.isArray(result.data?.position_insight?.insights))
-        console.log('[직무 인재 수급 난이도 지수] total_insight.insights:', result.data?.total_insight?.insights)
-        console.log('[직무 인재 수급 난이도 지수] industry_insight.insights:', result.data?.industry_insight?.insights)
-        
         if (result.status === 200 && result.data) {
           setJobDifficultyApiData(result.data)
-          // 디버깅: 저장된 데이터 확인
-          console.log('[직무 인재 수급 난이도 지수] 저장된 데이터:', result.data)
-          console.log('[직무 인재 수급 난이도 지수] 저장된 position_insight.insights:', result.data.position_insight?.insights)
         } else {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
@@ -3691,15 +3468,8 @@ export default function Dashboard() {
                   </button>
                 </div>
                 <div className="ml-auto items-center">
-                  {isLoadingJobPostingsTrend || isLoadingCompanyRecruitment ? (
-                    <div className="text-sm text-gray-500 flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      회사 목록 로딩중...
-                    </div>
-                  ) : recruitmentCompanies.length > 0 ? (
+                  {/* 데이터가 있으면 즉시 표시, 로딩 중이어도 기존 데이터 유지 */}
+                  {recruitmentCompanies.length > 0 ? (
                     <select
                       value={selectedRecruitmentCompanies.length === 1 ? selectedRecruitmentCompanies[0] : 'all'}
                       onChange={(e) => {
@@ -3732,14 +3502,14 @@ export default function Dashboard() {
                     ? selectedRecruitmentCompanies[0] !== combinedTrendData.selectedCompany.company_name
                     : false
                   
-                  // 회사가 변경되었거나 데이터가 없고 로딩 중이면 로딩 상태 표시
-                  const isLoading = (isCompanyChanged && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment)) || 
-                    (jobPostingsTrendApiData.length === 0 && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment))
+                  // 데이터가 있으면 즉시 표시, 로딩 중이어도 기존 데이터 유지
+                  // 회사가 변경되었을 때만 로딩 상태 표시
+                  const isLoading = isCompanyChanged && (isLoadingJobPostingsTrend || isLoadingCompanyRecruitment)
                   
                   return (
                     <CombinedTrendChart
-                      jobPostingsTrendData={isCompanyChanged && isLoading ? [] : jobPostingsTrendApiData}
-                      companyRecruitmentData={isCompanyChanged && isLoading ? [] : companyRecruitmentChartData}
+                      jobPostingsTrendData={jobPostingsTrendApiData}
+                      companyRecruitmentData={companyRecruitmentChartData}
                       companies={recruitmentCompanies}
                       selectedCompanies={selectedRecruitmentCompanies}
                       timeframe={jobPostingsTrendTimeframe}
@@ -3876,35 +3646,11 @@ export default function Dashboard() {
                     </Link>
                   </div>
                   <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
-                    {isLoadingCompetitorPosts ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <svg className="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <p className="text-sm text-gray-600">경쟁사 최신 공고를 불러오는 중...</p>
-                        </div>
-                      </div>
-                    ) : competitorPostsError ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center p-4">
-                          <p className="text-sm text-red-600 mb-2">데이터를 불러오는 중 오류가 발생했습니다.</p>
-                          <p className="text-xs text-gray-500">{competitorPostsError}</p>
-                        </div>
-                      </div>
-                    ) : hotJobsData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center p-4">
-                          <p className="text-sm text-gray-600 mb-2">표시할 경쟁사 최신 공고가 없습니다.</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <HotJobsList 
-                        jobs={hotJobsData} 
-                        itemsPerPage={hasInsight ? 10 : 5} 
-                      />
-                    )}
+                    {/* HotJobsList가 독립적으로 로딩 상태를 처리하므로 즉시 렌더링 */}
+                    <HotJobsList 
+                      itemsPerPage={hasInsight ? 10 : 5}
+                      limit={10}
+                    />
                   </div>
                 </div>
               )

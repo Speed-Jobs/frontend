@@ -190,7 +190,10 @@ export default function JobRoleStatisticsChart({
   if ((!data || data.length === 0) && isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
-        <div className="text-gray-500">데이터를 불러오는 중...</div>
+        <div className="flex items-center gap-2 text-gray-500">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+          <span>데이터를 불러오는 중...</span>
+        </div>
       </div>
     )
   }

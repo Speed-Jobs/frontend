@@ -298,12 +298,16 @@ export default function Dashboard() {
 
   // 경쟁사 최신 공고 API 상태
   const [competitorPostsApiData, setCompetitorPostsApiData] = useState<Array<{
-    id: number
-    companyName: string
-    title: string
-    role: string
-    registeredAt: { year: number; month: number; day: number }
-    employmentType: string
+    id?: number
+    companyName?: string
+    company?: string
+    title?: string
+    role?: string
+    registeredAt?: { year: number; month: number; day: number }
+    crawledAt?: { year: number; month: number; day: number }
+    postedDate?: string
+    employmentType?: string
+    [key: string]: any // 추가 필드 지원
   }>>([])
   const [isLoadingCompetitorPosts, setIsLoadingCompetitorPosts] = useState(false)
   const [competitorPostsError, setCompetitorPostsError] = useState<string | null>(null)
@@ -1191,19 +1195,46 @@ export default function Dashboard() {
 
   // 경쟁사 최신 공고 - API 데이터를 HotJobsList 형식으로 변환
   const hotJobsData = useMemo(() => {
+    console.log('경쟁사 최신 공고 hotJobsData 변환 시작:', {
+      competitorPostsApiData,
+      length: competitorPostsApiData?.length || 0,
+      isEmpty: !competitorPostsApiData || competitorPostsApiData.length === 0,
+    })
+    
     if (!competitorPostsApiData || competitorPostsApiData.length === 0) {
+      console.log('⚠️ 경쟁사 최신 공고 데이터가 비어있습니다')
       return []
     }
 
-    return competitorPostsApiData.map((post, index) => {
-      // registeredAt을 YYYY-MM-DD 형식의 문자열로 변환
-      const registeredDate = `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
+    console.log('✅ 경쟁사 최신 공고 데이터 변환 시작:', competitorPostsApiData.length, '개')
+
+    return competitorPostsApiData.map((post: any, index) => {
+      // 날짜 처리: 다양한 형식 지원
+      let registeredDate = ''
+      if (post.registeredAt) {
+        // { year, month, day } 형식
+        if (post.registeredAt.year && post.registeredAt.month && post.registeredAt.day) {
+          registeredDate = `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
+        }
+      } else if (post.crawledAt) {
+        // crawledAt 형식 지원
+        if (post.crawledAt.year && post.crawledAt.month && post.crawledAt.day) {
+          registeredDate = `${post.crawledAt.year}-${String(post.crawledAt.month).padStart(2, '0')}-${String(post.crawledAt.day).padStart(2, '0')}`
+        }
+      } else if (post.postedDate) {
+        // 문자열 형식 지원
+        registeredDate = post.postedDate
+      } else {
+        // 날짜가 없으면 현재 날짜 사용
+        const today = new Date()
+        registeredDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      }
       
       return {
-        id: post.id,
+        id: post.id || index,
         rank: index + 1,
-        company: post.companyName,
-        title: post.title,
+        company: post.companyName || post.company || '',
+        title: post.title || '',
         salary: '협의', // API 응답에 없으므로 기본값
         location: '', // API 응답에 없으므로 빈 문자열
         views: 0, // API 응답에 없으므로 기본값
@@ -1214,8 +1245,16 @@ export default function Dashboard() {
         description: post.role || '', // role을 description으로 사용
         employmentType: post.employmentType || '정규직',
       }
-    })
+    }).filter(item => item.title && item.company) // 제목과 회사명이 있는 항목만 필터링
   }, [competitorPostsApiData])
+  
+  // 변환 결과 로깅
+  useEffect(() => {
+    console.log('경쟁사 최신 공고 hotJobsData 최종 결과:', {
+      hotJobsDataLength: hotJobsData.length,
+      hotJobsData: hotJobsData,
+    })
+  }, [hotJobsData])
 
 
   // timeframe 동기화: jobPostingsTrendTimeframe이 변경되면 companyRecruitmentTimeframe도 동기화
@@ -1253,9 +1292,65 @@ export default function Dashboard() {
         
         const result = await response.json()
         
-        if (result.status === 200 && result.code === 'OK' && result.data && result.data.posts) {
-          setCompetitorPostsApiData(result.data.posts)
+        console.log('경쟁사 최신 공고 API 응답 전체:', JSON.stringify(result, null, 2))
+        console.log('경쟁사 최신 공고 API 응답 구조:', {
+          status: result.status,
+          code: result.code,
+          message: result.message,
+          hasData: !!result.data,
+          dataType: typeof result.data,
+          dataIsArray: Array.isArray(result.data),
+          dataKeys: result.data ? Object.keys(result.data) : null,
+          hasPosts: !!result.posts,
+          postsIsArray: Array.isArray(result.posts),
+        })
+        
+        // API 응답 형식 확인 및 처리
+        if (result.status === 200 && result.code === 'OK') {
+          // 다양한 응답 형식 지원
+          let posts = null
+          if (result.data?.posts) {
+            posts = result.data.posts
+            console.log('경쟁사 최신 공고: result.data.posts에서 찾음')
+          } else if (result.data?.content) {
+            posts = result.data.content
+            console.log('경쟁사 최신 공고: result.data.content에서 찾음')
+          } else if (Array.isArray(result.data)) {
+            posts = result.data
+            console.log('경쟁사 최신 공고: result.data 배열에서 찾음')
+          } else if (Array.isArray(result.posts)) {
+            posts = result.posts
+            console.log('경쟁사 최신 공고: result.posts에서 찾음')
+          } else if (result.data && typeof result.data === 'object') {
+            // result.data가 객체인 경우, 모든 배열 속성 찾기
+            const arrayKeys = Object.keys(result.data).filter(key => Array.isArray(result.data[key]))
+            if (arrayKeys.length > 0) {
+              posts = result.data[arrayKeys[0]]
+              console.log(`경쟁사 최신 공고: result.data.${arrayKeys[0]}에서 찾음`)
+            }
+          }
+          
+          console.log('경쟁사 최신 공고 추출 결과:', {
+            posts,
+            postsLength: posts ? posts.length : 0,
+            postsIsArray: Array.isArray(posts),
+            firstPost: posts && posts.length > 0 ? posts[0] : null,
+          })
+          
+          if (posts && Array.isArray(posts) && posts.length > 0) {
+            console.log('✅ 경쟁사 최신 공고 데이터 설정 성공:', posts.length, '개')
+            setCompetitorPostsApiData(posts)
+          } else {
+            console.warn('⚠️ 경쟁사 최신 공고 데이터가 비어있거나 형식이 올바르지 않습니다:', {
+              posts,
+              postsType: typeof posts,
+              postsIsArray: Array.isArray(posts),
+              postsLength: posts ? posts.length : 'N/A',
+            })
+            setCompetitorPostsApiData([])
+          }
         } else {
+          console.error('❌ 경쟁사 최신 공고 API 응답 오류:', result)
           throw new Error(result.message || '데이터 형식이 올바르지 않습니다.')
         }
       } catch (error) {
@@ -3820,7 +3915,17 @@ export default function Dashboard() {
         {/* 하단 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* 직군 비중 변화 분석 */}
-          <DarkDashboardCard title="직군 비중 변화 분석" className="overflow-visible">
+          <DarkDashboardCard title={
+            <div className="flex items-center justify-between w-full">
+              <span>직군 비중 변화 분석</span>
+              {isLoadingJobRoleStatistics && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  <span>로딩중</span>
+                </div>
+              )}
+            </div>
+          } className="overflow-visible">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex flex-wrap gap-2">
                 <button
@@ -3895,7 +4000,17 @@ export default function Dashboard() {
             />
           </DarkDashboardCard>
 
-          <DarkDashboardCard title="직무 인재 수급 난이도 지수">
+          <DarkDashboardCard title={
+            <div className="flex items-center justify-between w-full">
+              <span>직무 인재 수급 난이도 지수</span>
+              {isLoadingJobDifficulty && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  <span>로딩중</span>
+                </div>
+              )}
+            </div>
+          }>
             {jobDifficultyError && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                 <div className="text-yellow-800 text-sm">{jobDifficultyError}</div>
@@ -3905,11 +4020,6 @@ export default function Dashboard() {
             {/* 로딩 중에도 컴포넌트 표시 (기존 데이터 유지) */}
             {jobDifficultyData && jobDifficultyData.length > 0 ? (
               <div className="relative">
-                {isLoadingJobDifficulty && (
-                  <div className="absolute top-0 right-0 z-10 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 text-xs text-blue-700">
-                    업데이트 중...
-                  </div>
-                )}
                 <JobDifficultyGauges 
                   data={jobDifficultyData}
                   onPositionChange={(position) => setSelectedDifficultyPosition(position)}
@@ -4239,7 +4349,17 @@ export default function Dashboard() {
         {/* API 연동 차트 섹션 */}
         <div className="space-y-6">
           {/* 상위 스킬 연도별 트렌드 및 스킬 클라우드 */}
-          <DarkDashboardCard title="상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)">
+          <DarkDashboardCard title={
+            <div className="flex items-center justify-between w-full">
+              <span>상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)</span>
+              {(isLoadingSkillTrend || isLoadingSkills) && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  <span>로딩중</span>
+                </div>
+              )}
+            </div>
+          }>
             <div className="mb-4 flex flex-wrap gap-3 items-center">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">스킬 트렌드 회사:</span>

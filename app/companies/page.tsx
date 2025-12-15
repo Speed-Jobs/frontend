@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
-import jobPostingsData from '@/data/jobPostings.json'
 import { Send, X, Minimize2, Maximize2, Bot } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -22,6 +21,97 @@ import {
   Legend,
   CartesianGrid,
 } from 'recharts'
+
+// API 응답 타입 정의
+interface ApiJobPosting {
+  id: number
+  title: string
+  employmentType: string
+  crawledAt: {
+    year: number
+    month: number
+    day: number
+  }
+}
+
+interface ApiPostsResponse {
+  status: number
+  code: string
+  message: string
+  data: {
+    page: number
+    size: number
+    totalPages: number
+    content: ApiJobPosting[]
+  }
+}
+
+// 공고 상세 정보 API 응답 타입
+interface ApiJobDetailResponse {
+  status: number
+  code: string
+  message: string
+  data: {
+    id: number
+    title: string
+    role: string
+    experience: string
+    employmentType: string
+    daysLeft: number
+    postedAt: {
+      year: number
+      month: number
+      day: number
+      hour: number
+      minute: number
+      second: number
+    }
+    closeAt: {
+      year: number
+      month: number
+      day: number
+      hour: number
+      minute: number
+      second: number
+    }
+    applyUrl: string
+    screenShotUrl: string
+    skills: string[]
+    metaData: {
+      '공통 요건'?: string
+      '직무분야'?: string
+      '우대사항'?: string[]
+      '전형절차'?: string
+      [key: string]: any
+    }
+    company: {
+      id: number
+      name: string
+      location: string
+    }
+  }
+}
+
+// API 응답을 기존 형식으로 변환
+function transformApiJobToLocalFormat(apiJob: ApiJobPosting, companyName?: string): any {
+  const crawledDate = new Date(apiJob.crawledAt.year, apiJob.crawledAt.month - 1, apiJob.crawledAt.day)
+  
+  return {
+    id: apiJob.id.toString(),
+    title: apiJob.title,
+    company: companyName || '알 수 없음',
+    employment_type: apiJob.employmentType,
+    posted_date: crawledDate.toISOString(),
+    location: '',
+    experience: '',
+    description: '',
+    meta_data: {
+      tech_stack: [],
+      job_category: '',
+      benefits: [],
+    },
+  }
+}
 
 interface CompanyStats {
   company: string
@@ -69,396 +159,134 @@ export default function CompaniesPage() {
   const [selectedJobYear, setSelectedJobYear] = useState<string>('') // 년 필터
   const [selectedJobMonth, setSelectedJobMonth] = useState<string>('') // 월 필터
 
+  // API 관련 상태
+  const [apiJobs, setApiJobs] = useState<any[]>([])
+  const [isLoadingApi, setIsLoadingApi] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalItems, setTotalItems] = useState(0)
+  const pageSize = 20
 
-  // 회사별 공고 통계 계산
-  const companyStats = useMemo(() => {
-    const companyMap = new Map<string, { count: number; jobs: any[]; oldestDate: Date; newestDate: Date }>()
-    const now = new Date()
+  // API 호출 함수
+  const fetchJobPostings = useCallback(async () => {
+    try {
+      setIsLoadingApi(true)
+      setApiError(null)
 
-    jobPostingsData.forEach((job) => {
-      const postedDate = new Date(job.posted_date)
-
-      // 직무 필터 적용
+      const params = new URLSearchParams()
+      
+      // 정렬 설정
+      params.append('sort', 'POST_AT')
+      params.append('isAscending', sortOrder === 'date-asc' ? 'true' : 'false')
+      
+      // 회사명 필터
+      if (selectedCompany || searchQuery.trim()) {
+        const companyName = selectedCompany || searchQuery.trim()
+        // 회사명을 소문자로 변환 (API는 소문자로 받는 것으로 보임)
+        params.append('companyNames', companyName.toLowerCase())
+      }
+      
+      // 연도 필터
+      if (selectedJobYear) {
+        params.append('year', selectedJobYear)
+      }
+      
+      // 월 필터 (API는 1-12 형식을 받음)
+      if (selectedJobMonth) {
+        const monthNum = parseInt(selectedJobMonth, 10)
+        if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+          params.append('month', monthNum.toString())
+        }
+      }
+      
+      // 공고 제목 검색 (부분 일치)
+      if (jobListFilter.trim()) {
+        params.append('postTitle', jobListFilter.trim())
+      }
+      
+      // 포지션명 필터 (정확히 일치) - 직군 필터 사용
       if (selectedJobRole !== '전체') {
-        const title = job.title.toLowerCase()
-        const normalizedJobRole = selectedJobRole.toLowerCase()
-        const jobCategory = job.meta_data?.job_category?.toLowerCase() || ''
-        
-        let jobRoleMatch = false
-        
-        // 1. 제목에 직무명이 직접 포함되어 있는지 확인 (대소문자 무시)
-        if (title.includes(normalizedJobRole) || job.title.includes(selectedJobRole)) {
-          jobRoleMatch = true
-        }
-        // 2. job_category와 직무명 매칭
-        else if (jobCategory && (
-          jobCategory.includes(normalizedJobRole) ||
-          normalizedJobRole.includes(jobCategory)
-        )) {
-          jobRoleMatch = true
-        }
-        // 3. 각 직무별 세부 매칭 로직
-        else if (selectedJobRole === 'Software Development') {
-          jobRoleMatch = 
-            title.includes('개발') || 
-            title.includes('developer') ||
-            title.includes('engineer') ||
-            jobCategory === '개발' ||
-            jobCategory.includes('software') ||
-            jobCategory.includes('development')
-        }
-        else if (selectedJobRole === 'Factory AX Engineering') {
-          jobRoleMatch = 
-            title.includes('factory') ||
-            title.includes('ax') ||
-            title.includes('제조') ||
-            title.includes('공장') ||
-            title.includes('simulation') ||
-            title.includes('기구설계') ||
-            title.includes('전장') ||
-            jobCategory.includes('factory')
-        }
-        else if (selectedJobRole === 'Solution Development') {
-          jobRoleMatch = 
-            title.includes('solution') ||
-            title.includes('erp') ||
-            title.includes('시스템') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('solution')
-        }
-        else if (selectedJobRole === 'Cloud/Infra Engineering') {
-          jobRoleMatch = 
-            title.includes('cloud') ||
-            title.includes('클라우드') ||
-            title.includes('infra') ||
-            title.includes('인프라') ||
-            title.includes('devops') ||
-            jobCategory === '인프라' ||
-            jobCategory.includes('cloud') ||
-            jobCategory.includes('infra')
-        }
-        else if (selectedJobRole === 'Architect') {
-          jobRoleMatch = 
-            title.includes('architect') ||
-            title.includes('아키텍트') ||
-            title.includes('설계') ||
-            jobCategory.includes('architect')
-        }
-        else if (selectedJobRole === 'Project Management') {
-          jobRoleMatch = 
-            title.includes('pm') ||
-            title.includes('project') ||
-            title.includes('프로젝트') ||
-            title.includes('관리') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('project') ||
-            jobCategory.includes('management')
-        }
-        else if (selectedJobRole === 'Quality Management') {
-          jobRoleMatch = 
-            title.includes('quality') ||
-            title.includes('품질') ||
-            title.includes('qa') ||
-            title.includes('테스트') ||
-            jobCategory.includes('quality')
-        }
-        else if (selectedJobRole === 'AI') {
-          jobRoleMatch = 
-            title.includes('ai') ||
-            title.includes('ml') ||
-            title.includes('머신러닝') ||
-            title.includes('인공지능') ||
-            jobCategory === 'ai/ml' ||
-            jobCategory.includes('ai')
-        }
-        else if (selectedJobRole === '정보보호') {
-          jobRoleMatch = 
-            title.includes('보안') ||
-            title.includes('security') ||
-            title.includes('정보보호') ||
-            jobCategory === '보안' ||
-            jobCategory.includes('보안')
-        }
-        else if (selectedJobRole === 'Sales') {
-          jobRoleMatch = 
-            title.includes('sales') ||
-            title.includes('영업') ||
-            title.includes('세일즈') ||
-            jobCategory === '마케팅' ||
-            jobCategory.includes('sales')
-        }
-        else if (selectedJobRole === 'Domain Expert') {
-          jobRoleMatch = 
-            title.includes('domain') ||
-            title.includes('도메인') ||
-            title.includes('전문가') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('domain') ||
-            jobCategory.includes('expert')
-        }
-        else if (selectedJobRole === 'Consulting') {
-          jobRoleMatch = 
-            title.includes('consulting') ||
-            title.includes('컨설팅') ||
-            title.includes('esg') ||
-            title.includes('crm') ||
-            title.includes('scm') ||
-            jobCategory.includes('consulting')
-        }
-        else if (selectedJobRole === 'Biz. Supporting') {
-          jobRoleMatch = 
-            title.includes('supporting') ||
-            title.includes('지원') ||
-            title.includes('strategy') ||
-            title.includes('전략') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('supporting') ||
-            jobCategory.includes('biz')
-        }
-        
-        if (!jobRoleMatch) {
-          return
-        }
+        params.append('positionName', selectedJobRole)
+      }
+      
+      // 페이지네이션
+      params.append('page', currentPage.toString())
+      params.append('size', pageSize.toString())
+
+      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        mode: 'cors',
+        credentials: 'omit',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const companyName = job.company.replace('(주)', '').trim()
-      const existing = companyMap.get(companyName) || {
-        count: 0,
-        jobs: [],
-        oldestDate: postedDate,
-        newestDate: postedDate,
+      const result: ApiPostsResponse = await response.json()
+
+      if (result.status === 200 && result.data) {
+        // API 응답을 기존 형식으로 변환
+        const transformedJobs = result.data.content.map((job) => 
+          transformApiJobToLocalFormat(job, selectedCompany || searchQuery.trim() || undefined)
+        )
+        
+        setApiJobs(transformedJobs)
+        setTotalPages(result.data.totalPages)
+        setTotalItems(result.data.content.length)
+      } else {
+        throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
       }
+    } catch (error: any) {
+      setApiError(error.message || '공고 데이터를 불러오는데 실패했습니다.')
+      setApiJobs([])
+      console.error('API 호출 에러:', error)
+    } finally {
+      setIsLoadingApi(false)
+    }
+  }, [selectedCompany, searchQuery, selectedJobYear, selectedJobMonth, jobListFilter, selectedJobRole, sortOrder, currentPage])
 
-      companyMap.set(companyName, {
-        count: existing.count + 1,
-        jobs: [...existing.jobs, job],
-        oldestDate: postedDate < existing.oldestDate ? postedDate : existing.oldestDate,
-        newestDate: postedDate > existing.newestDate ? postedDate : existing.newestDate,
-      })
-    })
+  // API 호출 트리거 (필터 또는 페이지 변경 시)
+  useEffect(() => {
+    const hasFilters = selectedCompany || searchQuery.trim() || selectedJobYear || selectedJobMonth || jobListFilter.trim() || selectedJobRole !== '전체'
+    
+    if (hasFilters) {
+      fetchJobPostings()
+    } else {
+      // 필터가 없으면 API 데이터 초기화
+      setApiJobs([])
+      setTotalPages(0)
+      setTotalItems(0)
+    }
+  }, [selectedCompany, searchQuery, selectedJobYear, selectedJobMonth, jobListFilter, selectedJobRole, sortOrder, currentPage])
 
-    const total = Array.from(companyMap.values()).reduce((sum, data) => sum + data.count, 0)
-    const now30DaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  // 필터 변경 시 페이지 리셋
+  useEffect(() => {
+    const hasFilters = selectedCompany || searchQuery.trim() || selectedJobYear || selectedJobMonth || jobListFilter.trim() || selectedJobRole !== '전체'
+    if (hasFilters && currentPage !== 0) {
+      setCurrentPage(0)
+    }
+  }, [selectedCompany, searchQuery, selectedJobYear, selectedJobMonth, jobListFilter, selectedJobRole, sortOrder])
 
-    return Array.from(companyMap.entries())
-      .map(([company, data]) => {
-        const recentJobs = data.jobs.filter(
-          (job) => new Date(job.posted_date).getTime() >= now30DaysAgo.getTime()
-        ).length
 
-        // 증감률 계산 (간단한 예시 - 실제로는 전월 대비 계산 필요)
-        const oldJobs = data.jobs.filter(
-          (job) => new Date(job.posted_date).getTime() < now30DaysAgo.getTime()
-        ).length
-        const trend = oldJobs > 0 ? ((recentJobs - oldJobs) / oldJobs) * 100 : 0
+  // 회사별 공고 통계 계산 (API 데이터만 사용)
+  const companyStats = useMemo(() => {
+    // API 데이터만 사용하므로 빈 배열 반환
+    return []
+  }, [])
 
-        return {
-          company,
-          count: data.count,
-          percentage: (data.count / total) * 100,
-          trend,
-          recentJobs,
-          oldestDate: data.oldestDate,
-          newestDate: data.newestDate,
-          jobs: data.jobs,
-        }
-      })
-  }, [selectedJobRole])
-
-  // 전체 공고 목록 (필터링 및 정렬 적용) - 회사명과 직무 필터도 포함
+  // 전체 공고 목록 (필터링 및 정렬 적용) - API 데이터만 사용
   const filteredJobs = useMemo(() => {
-    // 전체 공고에서 시작
-    let jobs = jobPostingsData
-    
-    // 회사명 필터 적용
-    if (selectedCompany) {
-      jobs = jobs.filter((job) => {
-        const companyName = job.company.replace('(주)', '').trim()
-        return companyName === selectedCompany
-      })
-    } else if (searchQuery.trim()) {
-      // 회사명 검색어가 있으면 필터링
-      jobs = jobs.filter((job) => {
-        const companyName = job.company.replace('(주)', '').trim()
-        return companyName.toLowerCase().includes(searchQuery.toLowerCase())
-      })
-    }
-    
-    // 직무 필터 적용
-    if (selectedJobRole !== '전체') {
-      jobs = jobs.filter((job) => {
-        const title = job.title.toLowerCase()
-        const normalizedJobRole = selectedJobRole.toLowerCase()
-        const jobCategory = job.meta_data?.job_category?.toLowerCase() || ''
-        
-        // 1. 제목에 직무명이 직접 포함되어 있는지 확인
-        if (title.includes(normalizedJobRole) || job.title.includes(selectedJobRole)) {
-          return true
-        }
-        // 2. job_category와 직무명 매칭
-        if (jobCategory && (
-          jobCategory.includes(normalizedJobRole) ||
-          normalizedJobRole.includes(jobCategory)
-        )) {
-          return true
-        }
-        // 3. 각 직무별 세부 매칭 로직
-        if (selectedJobRole === 'Software Development') {
-          return title.includes('개발') || 
-            title.includes('developer') ||
-            title.includes('engineer') ||
-            jobCategory === '개발' ||
-            jobCategory.includes('software') ||
-            jobCategory.includes('development')
-        }
-        else if (selectedJobRole === 'Factory AX Engineering') {
-          return title.includes('factory') ||
-            title.includes('ax') ||
-            title.includes('제조') ||
-            title.includes('공장') ||
-            title.includes('simulation') ||
-            title.includes('기구설계') ||
-            title.includes('전장') ||
-            jobCategory.includes('factory')
-        }
-        else if (selectedJobRole === 'Solution Development') {
-          return title.includes('solution') ||
-            title.includes('erp') ||
-            title.includes('시스템') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('solution')
-        }
-        else if (selectedJobRole === 'Cloud/Infra Engineering') {
-          return title.includes('cloud') ||
-            title.includes('클라우드') ||
-            title.includes('infra') ||
-            title.includes('인프라') ||
-            title.includes('devops') ||
-            jobCategory === '인프라' ||
-            jobCategory.includes('cloud') ||
-            jobCategory.includes('infra')
-        }
-        else if (selectedJobRole === 'Architect') {
-          return title.includes('architect') ||
-            title.includes('아키텍트') ||
-            title.includes('설계') ||
-            jobCategory.includes('architect')
-        }
-        else if (selectedJobRole === 'Project Management') {
-          return title.includes('pm') ||
-            title.includes('project') ||
-            title.includes('프로젝트') ||
-            title.includes('관리') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('project') ||
-            jobCategory.includes('management')
-        }
-        else if (selectedJobRole === 'Quality Management') {
-          return title.includes('quality') ||
-            title.includes('품질') ||
-            title.includes('qa') ||
-            title.includes('테스트') ||
-            jobCategory.includes('quality')
-        }
-        else if (selectedJobRole === 'AI') {
-          return title.includes('ai') ||
-            title.includes('ml') ||
-            title.includes('머신러닝') ||
-            title.includes('인공지능') ||
-            jobCategory === 'ai/ml' ||
-            jobCategory.includes('ai')
-        }
-        else if (selectedJobRole === '정보보호') {
-          return title.includes('보안') ||
-            title.includes('security') ||
-            title.includes('정보보호') ||
-            jobCategory === '보안' ||
-            jobCategory.includes('보안')
-        }
-        else if (selectedJobRole === 'Sales') {
-          return title.includes('sales') ||
-            title.includes('영업') ||
-            title.includes('세일즈') ||
-            jobCategory === '마케팅' ||
-            jobCategory.includes('sales')
-        }
-        else if (selectedJobRole === 'Domain Expert') {
-          return title.includes('domain') ||
-            title.includes('도메인') ||
-            title.includes('전문가') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('domain') ||
-            jobCategory.includes('expert')
-        }
-        else if (selectedJobRole === 'Consulting') {
-          return title.includes('consulting') ||
-            title.includes('컨설팅') ||
-            title.includes('esg') ||
-            title.includes('crm') ||
-            title.includes('scm') ||
-            jobCategory.includes('consulting')
-        }
-        else if (selectedJobRole === 'Biz. Supporting') {
-          return title.includes('supporting') ||
-            title.includes('지원') ||
-            title.includes('strategy') ||
-            title.includes('전략') ||
-            jobCategory === '기획' ||
-            jobCategory.includes('supporting') ||
-            jobCategory.includes('biz')
-        }
-        
-        return false
-      })
-    }
-    
-    // 공고 이름/날짜 검색 필터 적용
-    if (jobListFilter.trim()) {
-      const filterLower = jobListFilter.toLowerCase()
-      jobs = jobs.filter((job) => 
-        job.title.toLowerCase().includes(filterLower) ||
-        job.company.toLowerCase().includes(filterLower) ||
-        new Date(job.posted_date).toLocaleDateString('ko-KR').includes(filterLower)
-      )
-    }
-    
-    // 년/월 필터 적용
-    if (selectedJobYear || selectedJobMonth) {
-      jobs = jobs.filter((job) => {
-        if (!job.posted_date) {
-          return false
-        }
-        
-        try {
-          const jobDate = new Date(job.posted_date)
-          
-          // 유효한 날짜인지 확인
-          if (isNaN(jobDate.getTime())) {
-            return false
-          }
-          
-          const jobYear = jobDate.getFullYear().toString()
-          const jobMonth = String(jobDate.getMonth() + 1).padStart(2, '0')
-          
-          // 연도 필터: 선택된 연도가 있으면 매칭 확인
-          if (selectedJobYear && jobYear !== selectedJobYear) {
-            return false
-          }
-          
-          // 월 필터: 선택된 월이 있으면 매칭 확인
-          if (selectedJobMonth && jobMonth !== selectedJobMonth) {
-            return false
-          }
-          
-          return true
-        } catch (error) {
-          return false
-        }
-      })
-    }
-    
-    // 정렬
-    const sorted = [...jobs].sort((a, b) => {
+    // API 데이터만 사용 (로컬 데이터 제거)
+    if (apiJobs.length > 0) {
+      // API 데이터는 이미 필터링되어 있으므로 정렬만 적용
+      const sorted = [...apiJobs].sort((a, b) => {
       if (sortOrder === 'job-name') {
         return a.title.localeCompare(b.title, 'ko')
       } else if (sortOrder === 'company-name') {
@@ -475,9 +303,12 @@ export default function CompaniesPage() {
         return dateB - dateA
       }
     })
-    
     return sorted
-  }, [selectedCompany, searchQuery, selectedJobRole, jobListFilter, sortOrder, selectedJobYear, selectedJobMonth])
+    }
+    
+    // API 데이터가 없으면 빈 배열 반환
+    return []
+  }, [apiJobs, sortOrder])
 
   // 선택된 회사의 공고 목록 (하위 호환성을 위해 유지)
   const selectedCompanyJobs = filteredJobs
@@ -490,35 +321,8 @@ export default function CompaniesPage() {
       return
     }
     
-    // 먼저 companyStats에서 검색 (직무 필터가 적용된 결과)
-    let filtered = companyStats.filter((stat) => 
-      stat.company.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    
-    // companyStats에서 찾지 못하면 원본 데이터에서 모든 회사 검색
-    if (filtered.length === 0) {
-      const allCompanies = new Set<string>()
-      jobPostingsData.forEach((job) => {
-        const companyName = job.company.replace('(주)', '').trim()
-        if (companyName.toLowerCase().includes(searchQuery.toLowerCase())) {
-          allCompanies.add(companyName)
-        }
-      })
-      
-      if (allCompanies.size > 0) {
-        // 첫 번째 매칭되는 회사 선택
-        const matchedCompany = Array.from(allCompanies)[0]
-        setSelectedCompany(matchedCompany)
-        return
-      }
-    }
-    
-    if (filtered.length > 0) {
-      setSelectedCompany(filtered[0].company)
-    } else {
-      // 검색 결과가 없어도 필터는 계속 적용됨
-      setSelectedCompany(null)
-    }
+    // 검색어를 회사명으로 설정 (API 호출 트리거)
+    setSelectedCompany(searchQuery.trim())
   }
 
   // AI 챗봇 메시지 전송 핸들러
@@ -530,20 +334,19 @@ export default function CompaniesPage() {
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setIsChatbotLoading(true)
 
-    // 공고 검색 로직
+    // API 데이터에서 검색
     const searchKeywords = userMessage.toLowerCase()
     const matchedJobs: any[] = []
 
-    // 전체 공고 데이터에서 검색
-    jobPostingsData.forEach((job) => {
+    // 현재 로드된 API 데이터에서 검색
+    apiJobs.forEach((job) => {
       const titleMatch = job.title.toLowerCase().includes(searchKeywords)
-      const descriptionMatch = job.description.toLowerCase().includes(searchKeywords)
       const companyMatch = job.company.toLowerCase().includes(searchKeywords)
       const techStackMatch = job.meta_data?.tech_stack?.some((tech: string) => 
         tech.toLowerCase().includes(searchKeywords)
       ) || false
 
-      if (titleMatch || descriptionMatch || companyMatch || techStackMatch) {
+      if (titleMatch || companyMatch || techStackMatch) {
         matchedJobs.push(job)
       }
     })
@@ -556,7 +359,7 @@ export default function CompaniesPage() {
     if (topJobs.length > 0) {
       assistantMessage = `검색 결과 ${matchedJobs.length}개의 공고를 찾았습니다. 관련 공고 ${topJobs.length}개를 추천드립니다:`
     } else {
-      assistantMessage = `죄송합니다. "${userMessage}"와 관련된 공고를 찾지 못했습니다. 다른 키워드로 검색해보시겠어요?\n\n예: "React 개발자", "카카오", "백엔드", "Python" 등`
+      assistantMessage = `죄송합니다. "${userMessage}"와 관련된 공고를 찾지 못했습니다. 다른 키워드로 검색해보시겠어요?\n\n예: "React 개발자", "카카오", "백엔드", "Python" 등\n\n또는 상단 검색창에서 필터를 설정하여 공고를 검색해보세요.`
     }
 
     setTimeout(() => {
@@ -571,6 +374,101 @@ export default function CompaniesPage() {
 
   // 선택된 공고 상세 정보 상태
   const [selectedJobDetail, setSelectedJobDetail] = useState<any>(null)
+  const [isLoadingJobDetail, setIsLoadingJobDetail] = useState(false)
+  const [jobDetailError, setJobDetailError] = useState<string | null>(null)
+
+  // 공고 상세 정보 API 호출 함수
+  const fetchJobDetail = useCallback(async (jobId: string | number, fallbackJob?: any) => {
+    try {
+      setIsLoadingJobDetail(true)
+      setJobDetailError(null)
+      
+      // 먼저 모달을 열어서 로딩 상태를 표시
+      if (fallbackJob) {
+        setSelectedJobDetail(fallbackJob)
+      }
+
+      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
+      
+      console.log('공고 상세 정보 API 호출:', apiUrl)
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': '*/*',
+        },
+        mode: 'cors',
+        credentials: 'omit',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result: ApiJobDetailResponse = await response.json()
+      console.log('공고 상세 정보 API 응답:', result)
+
+      if (result.status === 200 && result.data) {
+        // API 응답을 기존 형식으로 변환
+        const postedDate = result.data.postedAt ? new Date(
+          result.data.postedAt.year,
+          result.data.postedAt.month - 1,
+          result.data.postedAt.day,
+          result.data.postedAt.hour || 0,
+          result.data.postedAt.minute || 0,
+          result.data.postedAt.second || 0
+        ) : new Date()
+        
+        const closeDate = result.data.closeAt ? new Date(
+          result.data.closeAt.year,
+          result.data.closeAt.month - 1,
+          result.data.closeAt.day,
+          result.data.closeAt.hour || 0,
+          result.data.closeAt.minute || 0,
+          result.data.closeAt.second || 0
+        ) : null
+
+        const transformedDetail = {
+          id: result.data.id.toString(),
+          title: result.data.title,
+          company: result.data.company?.name || '알 수 없음',
+          location: result.data.company?.location || '',
+          employment_type: result.data.employmentType || '알 수 없음',
+          experience: result.data.experience || '알 수 없음',
+          role: result.data.role || '',
+          posted_date: postedDate.toISOString(),
+          expired_date: closeDate ? closeDate.toISOString() : undefined,
+          daysLeft: result.data.daysLeft,
+          applyUrl: result.data.applyUrl,
+          screenShotUrl: result.data.screenShotUrl,
+          description: result.data.metaData?.['공통 요건'] || result.data.metaData?.['직무분야'] || '',
+          meta_data: {
+            tech_stack: result.data.skills || [],
+            job_category: result.data.metaData?.['직무분야'] || result.data.role || '',
+            benefits: result.data.metaData?.['우대사항'] || [],
+            commonRequirements: result.data.metaData?.['공통 요건'],
+            process: result.data.metaData?.['전형절차'],
+            ...(result.data.metaData || {}),
+          },
+        }
+
+        setSelectedJobDetail(transformedDetail)
+        setJobDetailError(null)
+      } else {
+        throw new Error(result.message || '공고 상세 정보를 불러오는데 실패했습니다.')
+      }
+    } catch (error: any) {
+      console.error('공고 상세 정보 API 호출 에러:', error)
+      setJobDetailError(error.message || '공고 상세 정보를 불러오는데 실패했습니다.')
+      // 에러 발생 시에도 모달은 유지 (fallbackJob이 있으면)
+      if (!fallbackJob) {
+        // fallbackJob이 없으면 모달 닫기
+        setSelectedJobDetail(null)
+      }
+    } finally {
+      setIsLoadingJobDetail(false)
+    }
+  }, [])
 
   // 챗봇 드래그 핸들러
   const handleChatbotMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -666,13 +564,20 @@ export default function CompaniesPage() {
               {/* 직군 선택 */}
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-3">직군</label>
-                <select
-                  value={selectedJobRole}
-                  onChange={(e) => {
-                    setSelectedJobRole(e.target.value)
-                  }}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
-                >
+                <div className="relative">
+                  <select
+                    value={selectedJobRole}
+                    onChange={(e) => {
+                      setSelectedJobRole(e.target.value)
+                    }}
+                    className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base appearance-none bg-white"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'left 0.75rem center',
+                      paddingLeft: '2.5rem'
+                    }}
+                  >
                   <option value="전체">전체 직군</option>
                   <option value="Software Development">Software Development</option>
                   <option value="Factory AX Engineering">Factory AX Engineering</option>
@@ -688,6 +593,7 @@ export default function CompaniesPage() {
                   <option value="Consulting">Consulting</option>
                   <option value="Biz. Supporting">Biz. Supporting</option>
                 </select>
+                </div>
               </div>
 
               {/* 공고 이름 검색 */}
@@ -727,7 +633,13 @@ export default function CompaniesPage() {
                         setSelectedJobMonth('')
                       }
                     }}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700"
+                    className="flex-1 px-4 py-3 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700 appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'left 0.75rem center',
+                      paddingLeft: '2.5rem'
+                    }}
                   >
                     <option value="">전체 연도</option>
                     <option value="2021">2021</option>
@@ -740,18 +652,24 @@ export default function CompaniesPage() {
                     value={selectedJobMonth}
                     onChange={(e) => setSelectedJobMonth(e.target.value)}
                     disabled={!selectedJobYear}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-3 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base bg-white text-gray-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'left 0.75rem center',
+                      paddingLeft: '2.5rem'
+                    }}
                   >
                     <option value="">전체 월</option>
-                    <option value="01">1월</option>
-                    <option value="02">2월</option>
-                    <option value="03">3월</option>
-                    <option value="04">4월</option>
-                    <option value="05">5월</option>
-                    <option value="06">6월</option>
-                    <option value="07">7월</option>
-                    <option value="08">8월</option>
-                    <option value="09">9월</option>
+                    <option value="1">1월</option>
+                    <option value="2">2월</option>
+                    <option value="3">3월</option>
+                    <option value="4">4월</option>
+                    <option value="5">5월</option>
+                    <option value="6">6월</option>
+                    <option value="7">7월</option>
+                    <option value="8">8월</option>
+                    <option value="9">9월</option>
                     <option value="10">10월</option>
                     <option value="11">11월</option>
                     <option value="12">12월</option>
@@ -765,7 +683,13 @@ export default function CompaniesPage() {
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as 'date-desc' | 'date-asc' | 'company-name' | 'job-name')}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base"
+                  className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-gray-900 text-base appearance-none bg-white"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'left 0.75rem center',
+                    paddingLeft: '2.5rem'
+                  }}
                 >
                   <option value="date-desc">최신순</option>
                   <option value="date-asc">오래된순</option>
@@ -804,7 +728,8 @@ export default function CompaniesPage() {
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {filteredJobs.length}개의 공고를 확인할 수 있습니다
+                      {isLoadingApi ? '로딩 중...' : `${apiJobs.length > 0 ? totalItems : filteredJobs.length}개의 공고를 확인할 수 있습니다`}
+                      {apiJobs.length > 0 && totalPages > 1 && ` (페이지 ${currentPage + 1}/${totalPages})`}
                     </p>
                   </div>
                 </div>
@@ -829,7 +754,23 @@ export default function CompaniesPage() {
 
         {/* 검색 안내 및 공고 목록 */}
         <div className="bg-white p-8 rounded-xl border-2 border-gray-200 shadow-sm">
-          {filteredJobs.length > 0 ? (
+          {/* 로딩 상태 */}
+          {isLoadingApi && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-gray-900 mb-4"></div>
+              <p className="text-gray-600">공고를 불러오는 중...</p>
+            </div>
+          )}
+
+          {/* 에러 메시지 */}
+          {apiError && !isLoadingApi && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">⚠️ {apiError}</p>
+            </div>
+          )}
+
+          {/* 공고 목록 */}
+          {!isLoadingApi && filteredJobs.length > 0 ? (
             <>
               <div className="mb-6 pb-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
@@ -842,7 +783,8 @@ export default function CompaniesPage() {
                         <div>
                           <h2 className="text-xl font-bold text-gray-900">{selectedCompany}</h2>
                           <p className="text-sm text-gray-600 mt-1">
-                            총 {filteredJobs.length}개의 공고
+                            총 {apiJobs.length > 0 ? `${totalItems}개 (현재 페이지: ${apiJobs.length}개)` : filteredJobs.length}개의 공고
+                            {apiJobs.length > 0 && totalPages > 1 && ` · 페이지 ${currentPage + 1}/${totalPages}`}
                           </p>
                         </div>
                       </>
@@ -851,7 +793,8 @@ export default function CompaniesPage() {
                       <div>
                         <h2 className="text-xl font-bold text-gray-900">전체 공고</h2>
                         <p className="text-sm text-gray-600 mt-1">
-                          총 {filteredJobs.length}개의 공고
+                          총 {apiJobs.length > 0 ? `${totalItems}개 (현재 페이지: ${apiJobs.length}개)` : filteredJobs.length}개의 공고
+                          {apiJobs.length > 0 && totalPages > 1 && ` · 페이지 ${currentPage + 1}/${totalPages}`}
                         </p>
                       </div>
                     )}
@@ -866,6 +809,8 @@ export default function CompaniesPage() {
                       setSelectedJobYear('')
                       setSelectedJobMonth('')
                       setSortOrder('date-desc')
+                      setCurrentPage(0)
+                      setApiJobs([])
                     }}
                     className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                   >
@@ -894,7 +839,22 @@ export default function CompaniesPage() {
                         <div
                           key={job.id}
                           className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 items-center group"
-                          onClick={() => setSelectedJobDetail(job)}
+                          onClick={() => {
+                            // API에서 상세 정보 가져오기
+                            if (job.id) {
+                              // 숫자 ID인 경우 API 호출
+                              const jobId = typeof job.id === 'string' ? parseInt(job.id, 10) : job.id
+                              if (!isNaN(jobId) && jobId > 0) {
+                                fetchJobDetail(jobId, job) // fallback으로 현재 job 전달
+                              } else {
+                                // ID가 유효하지 않으면 로컬 데이터 사용
+                                setSelectedJobDetail(job)
+                              }
+                            } else {
+                              // 로컬 데이터인 경우 기존 방식 사용
+                              setSelectedJobDetail(job)
+                            }
+                          }}
                         >
                           {/* 파일 아이콘 */}
                           <div className="flex items-center justify-center">
@@ -942,8 +902,76 @@ export default function CompaniesPage() {
                   )}
                 </div>
               </div>
+
+              {/* 페이지네이션 */}
+              {apiJobs.length > 0 && totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(0)}
+                    disabled={currentPage === 0}
+                  >
+                    처음
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                  >
+                    이전
+                  </Button>
+                  
+                  {/* 페이지 번호 표시 */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i
+                      } else if (currentPage < 3) {
+                        pageNum = i
+                      } else if (currentPage > totalPages - 4) {
+                        pageNum = totalPages - 5 + i
+                      } else {
+                        pageNum = currentPage - 2 + i
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="min-w-[40px]"
+                        >
+                          {pageNum + 1}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                  >
+                    다음
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages - 1)}
+                    disabled={currentPage >= totalPages - 1}
+                  >
+                    마지막
+                  </Button>
+                </div>
+              )}
             </>
-          ) : (
+          ) : !isLoadingApi ? (
+            // 로딩이 완료되었고 공고가 없을 때만 표시
             <div className="text-center py-12">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -953,12 +981,24 @@ export default function CompaniesPage() {
                 {selectedCompany ? `${selectedCompany}의 ` : ''}{selectedJobRole !== '전체' ? selectedJobRole + ' ' : ''}공고가 없습니다.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
         
         {/* 공고 상세 정보 모달 */}
         {selectedJobDetail && (() => {
-          // 회사명을 파일명으로 변환하는 매핑
+          // API에서 가져온 이미지 URL 생성
+          let imagePath = ''
+          const jobId = selectedJobDetail.id
+          
+          // API에서 가져온 공고인 경우 (ID가 숫자이고 API 응답에 screenShotUrl이 있음)
+          if (jobId && !isNaN(Number(jobId)) && selectedJobDetail.screenShotUrl) {
+            // 스크린샷 API 엔드포인트 사용
+            imagePath = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
+          } else if (jobId && !isNaN(Number(jobId))) {
+            // API에서 가져온 공고지만 screenShotUrl이 없는 경우에도 API 엔드포인트 시도
+            imagePath = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
+          } else {
+            // 기존 방식: 회사명을 파일명으로 변환하는 매핑
           const companyNameMap: Record<string, string> = {
             '토스': 'toss',
             '(주)토스': 'toss',
@@ -986,6 +1026,8 @@ export default function CompaniesPage() {
             '한화 시스템': 'hanwha-system',
             'KT': 'kt',
             'KPMG': 'kpmg',
+              'SK주식회사(AX)': 'skax',
+              'SK': 'skax',
           }
           
           const normalizedCompany = selectedJobDetail.company.replace('(주)', '').trim()
@@ -1001,12 +1043,16 @@ export default function CompaniesPage() {
           // 공고의 인덱스 찾기
           const jobIndex = filteredJobs.findIndex(job => job.id === selectedJobDetail.id)
           const imageId = jobIndex >= 0 ? jobIndex + 1 : 1
-          const imagePath = `/job-postings/${companySlug}/${imageId}.png`
+            imagePath = `/job-postings/${companySlug}/${imageId}.png`
+          }
           
           return (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-              onClick={() => setSelectedJobDetail(null)}
+              onClick={() => {
+                setSelectedJobDetail(null)
+                setJobDetailError(null)
+              }}
             >
               <div 
                 className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
@@ -1014,17 +1060,41 @@ export default function CompaniesPage() {
               >
                 <div className="sticky top-0 bg-white border-b-2 border-gray-200 px-6 py-4 flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900">공고 상세 정보</h2>
+                  <div className="flex items-center gap-2">
+                    {isLoadingJobDetail && (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-200 border-t-gray-900"></div>
+                    )}
                   <button
-                    onClick={() => setSelectedJobDetail(null)}
+                      onClick={() => {
+                        setSelectedJobDetail(null)
+                        setJobDetailError(null)
+                      }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
+                  </div>
                 </div>
                 
                 <div className="p-6">
+                  {/* 에러 메시지 */}
+                  {jobDetailError && (
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-800 text-sm">⚠️ {jobDetailError}</p>
+                    </div>
+                  )}
+                  
+                  {/* 로딩 상태 */}
+                  {isLoadingJobDetail && (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-gray-900 mb-4"></div>
+                      <p className="text-gray-600">공고 상세 정보를 불러오는 중...</p>
+                    </div>
+                  )}
+                  
+                  {!isLoadingJobDetail && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* 공고 이미지 */}
                     <div className="space-y-4">
@@ -1033,6 +1103,7 @@ export default function CompaniesPage() {
                           src={imagePath}
                           alt={selectedJobDetail.title}
                           className="w-full h-full object-contain"
+                          crossOrigin="anonymous"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
                             target.style.display = 'none'
@@ -1094,18 +1165,48 @@ export default function CompaniesPage() {
                       })}
                     </span>
                     {selectedJobDetail.expired_date && (
-                      <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-sm">
+                      <span className={`px-3 py-1 rounded-lg text-sm ${
+                        selectedJobDetail.daysLeft !== undefined && selectedJobDetail.daysLeft < 0
+                          ? 'bg-gray-100 text-gray-500'
+                          : selectedJobDetail.daysLeft !== undefined && selectedJobDetail.daysLeft <= 7
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
                         마감일: {new Date(selectedJobDetail.expired_date).toLocaleDateString('ko-KR', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
                         })}
+                        {selectedJobDetail.daysLeft !== undefined && (
+                          <span className="ml-2">
+                            ({selectedJobDetail.daysLeft >= 0 ? `D-${selectedJobDetail.daysLeft}` : '마감됨'})
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {selectedJobDetail.role && (
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm">
+                        {selectedJobDetail.role}
                       </span>
                     )}
                   </div>
+                  
+                  {/* 지원하기 버튼 */}
+                  {selectedJobDetail.applyUrl && (
+                    <div className="mt-4">
+                      <a
+                        href={selectedJobDetail.applyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-center"
+                      >
+                        지원하기
+                      </a>
+                    </div>
+                  )}
                 </div>
 
-                {/* 기술 스택 */}
+                {/* 기술 스택 (Skills) */}
                 {selectedJobDetail.meta_data?.tech_stack && selectedJobDetail.meta_data.tech_stack.length > 0 && (
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-3">기술 스택</h4>
@@ -1119,20 +1220,30 @@ export default function CompaniesPage() {
                   </div>
                 )}
 
-                {/* 공고 내용 */}
+                {/* 공통 요건 */}
+                {selectedJobDetail.meta_data?.commonRequirements && (
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-3">공고 내용</h4>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">공통 요건</h4>
                   <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
-                      {selectedJobDetail.description}
-                    </pre>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {selectedJobDetail.meta_data.commonRequirements}
+                      </p>
                   </div>
                 </div>
+                )}
 
-                {/* 복리후생 */}
+                {/* 직무분야 */}
+                {selectedJobDetail.meta_data?.job_category && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">직무분야</h4>
+                    <p className="text-gray-700">{selectedJobDetail.meta_data.job_category}</p>
+                  </div>
+                )}
+
+                {/* 우대사항 */}
                 {selectedJobDetail.meta_data?.benefits && selectedJobDetail.meta_data.benefits.length > 0 && (
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">복리후생</h4>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">우대사항</h4>
                     <ul className="space-y-2">
                       {selectedJobDetail.meta_data.benefits.map((benefit: string, idx: number) => (
                         <li key={idx} className="flex items-start gap-2">
@@ -1144,6 +1255,74 @@ export default function CompaniesPage() {
                   </div>
                 )}
 
+                {/* 전형절차 */}
+                {selectedJobDetail.meta_data?.process && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">전형절차</h4>
+                    <div className="relative">
+                      {/* 프로세스 단계 파싱 및 표시 */}
+                      {(() => {
+                        const processText = selectedJobDetail.meta_data.process
+                        // ">" 또는 "→" 또는 ">" 기호로 단계 구분
+                        const steps = processText
+                          .split(/>|→|>/)
+                          .map(step => step.trim())
+                          .filter(step => step.length > 0)
+                        
+                        if (steps.length === 0) {
+                          // 구분자가 없으면 원본 텍스트 표시
+                          return (
+                            <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                {processText}
+                              </p>
+                            </div>
+                          )
+                        }
+                        
+                        return (
+                          <div className="space-y-3">
+                            {steps.map((step, index) => (
+                              <div key={index} className="flex items-center gap-3">
+                                {/* 단계 번호 */}
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm">
+                                  {index + 1}
+                                </div>
+                                
+                                {/* 단계 내용 */}
+                                <div className="flex-1 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg px-4 py-3">
+                                  <p className="text-sm font-medium text-gray-900">{step}</p>
+                                </div>
+                                
+                                {/* 화살표 (마지막 단계 제외) */}
+                                {index < steps.length - 1 && (
+                                  <div className="flex-shrink-0 text-blue-400">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* 공고 내용 (기존 description이 있는 경우) */}
+                {selectedJobDetail.description && !selectedJobDetail.meta_data?.commonRequirements && (
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">공고 내용</h4>
+                    <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-sans">
+                        {selectedJobDetail.description}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
                       {/* 급여 정보 */}
                       {selectedJobDetail.meta_data?.salary && (
                         <div>
@@ -1151,8 +1330,102 @@ export default function CompaniesPage() {
                           <p className="text-gray-700">{selectedJobDetail.meta_data.salary}</p>
                         </div>
                       )}
+
+                      {/* metaData의 나머지 필드들 동적 표시 */}
+                      {selectedJobDetail.meta_data && (() => {
+                        // 이미 표시된 필드들 제외 (영어 키와 한글 키 모두 포함)
+                        const displayedFields = [
+                          'tech_stack',
+                          'commonRequirements',
+                          'job_category',
+                          'benefits',
+                          'process',
+                          'salary',
+                          '공통 요건',
+                          '직무분야',
+                          '우대사항',
+                          '전형절차'
+                        ]
+                        
+                        // 나머지 필드들 찾기
+                        const remainingFields = Object.entries(selectedJobDetail.meta_data)
+                          .filter(([key, value]) => {
+                            // 이미 표시된 필드 제외
+                            if (displayedFields.includes(key)) return false
+                            
+                            // null, undefined, 빈 문자열 제외
+                            if (value === null || value === undefined || value === '') return false
+                            
+                            // 배열인 경우: 길이가 0보다 큰 경우만 포함
+                            if (Array.isArray(value)) {
+                              return value.length > 0
+                            }
+                            
+                            // 문자열인 경우: 공백 제거 후 길이가 0보다 큰 경우만 포함
+                            if (typeof value === 'string') {
+                              return value.trim().length > 0
+                            }
+                            
+                            // 기타 타입도 포함
+                            return true
+                          })
+                        
+                        console.log('metaData remainingFields:', remainingFields)
+                        
+                        if (remainingFields.length === 0) return null
+                        
+                        return (
+                          <>
+                            {remainingFields.map(([key, value]) => {
+                              // 배열인 경우
+                              if (Array.isArray(value) && value.length > 0) {
+                                return (
+                                  <div key={key}>
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">{key}</h4>
+                                    <ul className="space-y-2">
+                                      {value.map((item: string, idx: number) => (
+                                        <li key={idx} className="flex items-start gap-2">
+                                          <span className="text-blue-500 mt-1">•</span>
+                                          <span className="text-gray-700">{item}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )
+                              }
+                              
+                              // 문자열인 경우
+                              if (typeof value === 'string' && value.trim()) {
+                                return (
+                                  <div key={key}>
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-3">{key}</h4>
+                                    <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                        {value}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )
+                              }
+                              
+                              // 숫자나 기타 타입인 경우
+                              return (
+                                <div key={key}>
+                                  <h4 className="text-lg font-semibold text-gray-900 mb-3">{key}</h4>
+                                  <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                      {String(value)}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1246,6 +1519,7 @@ export default function CompaniesPage() {
                     src={selectedImage.src}
                     alt={selectedImage.title}
                     className="object-contain"
+                    crossOrigin="anonymous"
                     style={{ 
                       maxWidth: '100%',
                       width: 'auto',
@@ -1422,7 +1696,22 @@ export default function CompaniesPage() {
                                     <Card
                                       key={jobIdx}
                                       className="p-3 hover:bg-gray-50 cursor-pointer transition-all border border-gray-200 hover:border-gray-300 hover:shadow-md"
-                                      onClick={() => setSelectedJobDetail(job)}
+                                      onClick={() => {
+                                        // API에서 상세 정보 가져오기
+                                        if (job.id) {
+                                          // 숫자 ID인 경우 API 호출
+                                          const jobId = typeof job.id === 'string' ? parseInt(job.id, 10) : job.id
+                                          if (!isNaN(jobId) && jobId > 0) {
+                                            fetchJobDetail(jobId, job) // fallback으로 현재 job 전달
+                                          } else {
+                                            // ID가 유효하지 않으면 로컬 데이터 사용
+                                            setSelectedJobDetail(job)
+                                          }
+                                        } else {
+                                          // 로컬 데이터인 경우 기존 방식 사용
+                                          setSelectedJobDetail(job)
+                                        }
+                                      }}
                                     >
                                       <div className="flex items-start gap-3">
                                         <div className="flex-1 min-w-0">

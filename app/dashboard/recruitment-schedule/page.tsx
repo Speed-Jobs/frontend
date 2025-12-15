@@ -484,7 +484,6 @@ export default function RecruitmentSchedulePage() {
         if (dataFilter === 'all') {
           return true // 모든 데이터 표시
         }
-        // 실제 공고만 표시
         if (dataFilter === 'actual') {
           return schedule.dataType === 'actual'
         }
@@ -675,7 +674,7 @@ export default function RecruitmentSchedulePage() {
             {isLoadingSchedules && (
               <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-200 border-t-blue-600"></div>
                   <div className="text-center">
                     <p className="text-lg font-semibold text-gray-900">데이터를 불러오는 중...</p>
                     <p className="text-sm text-gray-600 mt-1">잠시만 기다려주세요</p>

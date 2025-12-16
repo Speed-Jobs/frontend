@@ -288,10 +288,14 @@ export default function RecruitmentSchedulePage() {
           console.log(`API 응답 성공: ${result.data.schedules.length}개 스케줄`)
           // 각 스케줄의 data_type 확인
           result.data.schedules.forEach((schedule: ApiCompanySchedule) => {
-            console.log(`  - ${schedule.company_name}: data_type=${schedule.data_type || 'N/A'}`)
+            console.log(`  - ${schedule.company_name}: data_type=${schedule.data_type || 'N/A'}, stages=${schedule.stages.length}개`)
+            schedule.stages.forEach((stage) => {
+              console.log(`    - ${stage.stage}: ${stage.start_date} ~ ${stage.end_date}`)
+            })
           })
           allSchedules.push(...result.data.schedules)
         } else {
+          console.warn('⚠️ API 응답 형식 오류:', result)
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
         
@@ -300,11 +304,14 @@ export default function RecruitmentSchedulePage() {
           console.log('변환된 스케줄:', transformedSchedules.length, '개')
           transformedSchedules.forEach((schedule) => {
             console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}, stages=${schedule.stages.length}개`)
+            schedule.stages.forEach((stage) => {
+              console.log(`    - ${stage.stage}: ${stage.startDate.toISOString().split('T')[0]} ~ ${stage.endDate.toISOString().split('T')[0]}`)
+            })
           })
           setServerSchedules(transformedSchedules)
         } else {
           // 데이터가 없어도 빈 배열로 설정 (에러 아님)
-          console.log('불러온 스케줄이 없습니다.')
+          console.warn('⚠️ 불러온 스케줄이 없습니다. API 응답:', result)
           setServerSchedules([])
         }
       } catch (error: any) {
@@ -404,8 +411,10 @@ export default function RecruitmentSchedulePage() {
     },
   ]
   
-  // API 데이터가 없으면 더미 데이터 사용
-  const finalServerSchedules = serverSchedules.length > 0 ? serverSchedules : fallbackSchedules
+  // API 데이터가 없으면 더미 데이터 사용 (하지만 예측치 필터일 때는 fallback 사용 안 함)
+  const finalServerSchedules = serverSchedules.length > 0 
+    ? serverSchedules 
+    : (dataFilter === 'predicted' ? [] : fallbackSchedules) // 예측치 필터일 때는 빈 배열 사용
   
   // 사용자가 직접 추가한 데이터
   const [userSchedules, setUserSchedules] = useState<CompanySchedule[]>([])
@@ -528,11 +537,13 @@ export default function RecruitmentSchedulePage() {
         }
         // 예측치만 표시
         if (dataFilter === 'predicted') {
+          // dataType이 정확히 'predicted'인지 확인 (문자열 비교)
           const matches = schedule.dataType === 'predicted'
+          console.log(`  체크: ${schedule.name}, dataType="${schedule.dataType}", 타입=${typeof schedule.dataType}, 매칭=${matches}`)
           if (!matches) {
-            console.log(`  필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=predicted)`)
+            console.log(`  ❌ 필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=predicted)`)
           } else {
-            console.log(`  표시됨: ${schedule.name} (dataType=${schedule.dataType})`)
+            console.log(`  ✅ 표시됨: ${schedule.name} (dataType=${schedule.dataType})`)
           }
           return matches
         }
@@ -717,6 +728,13 @@ export default function RecruitmentSchedulePage() {
             <div>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
                 <TabsContent value="신입" className="mt-0">
+                  {(() => {
+                    console.log('📅 Calendar에 전달되는 데이터:', finalFilteredSchedules.length, '개')
+                    finalFilteredSchedules.forEach((schedule) => {
+                      console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}, stages=${schedule.stages.length}개`)
+                    })
+                    return null
+                  })()}
                   <Calendar
                     currentDate={currentDate}
                     companySchedules={finalFilteredSchedules}

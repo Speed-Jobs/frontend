@@ -417,7 +417,7 @@ export function CalendarCell({
                       <div key={stageName} className="mb-2 last:mb-0">
                         <div className="text-xs text-slate-500 mb-1">{stageName}</div>
                         {sortedCompanies.map((cs, idx) => (
-                          <div key={`${cs.company.id}-${cs.stage.id}-${idx}`} className="flex items-center gap-2 text-sm ml-2">
+                          <div key={`${cs.company.id}-${cs.stage.stage}-${cs.stage.startDate.getTime()}-${cs.stage.endDate.getTime()}-${idx}`} className="flex items-center gap-2 text-sm ml-2">
                             <span>
                               {cs.company.name}
                               {cs.company.dataType === 'predicted' && (

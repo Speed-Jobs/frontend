@@ -33,6 +33,7 @@ interface JobRoleStatisticsChartProps {
   previousPeriodStart?: Date
   previousPeriodEnd?: Date
   isLoading?: boolean
+  isLoadingInsights?: boolean // 인사이트 로딩 상태 (별도 관리)
   error?: string | null
   selectedCompanyFilter?: string
   onCompanyFilterChange?: (company: string) => void
@@ -172,6 +173,7 @@ export default function JobRoleStatisticsChart({
   previousPeriodStart,
   previousPeriodEnd,
   isLoading, 
+  isLoadingInsights = false, // 인사이트 로딩 상태
   error,
   selectedCompanyFilter = '전체',
   onCompanyFilterChange,
@@ -674,130 +676,115 @@ export default function JobRoleStatisticsChart({
         return null
       })()}
       
-      {/* 인사이트 섹션 */}
-      <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
-        {selectedRole ? (
-          // 선택된 직군의 인사이트 표시
-          selectedRoleInsight ? (
-            <>
-              <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
-                <span className="text-base sm:text-lg">💡</span>
-                <span className="break-words">
-                  {selectedRole} 인사이트
-                </span>
-              </h4>
-              <div className="space-y-2 sm:space-y-3">
-                <div className="text-xs sm:text-sm text-blue-800">
-                  <div className="font-medium mb-1">인사이트:</div>
-                  <div className="text-blue-700">{selectedRoleInsight.insight}</div>
-                </div>
-                <div className="text-xs sm:text-sm text-blue-800">
-                  <div className="font-medium mb-1">변화 설명:</div>
-                  <div className="text-blue-700">{selectedRoleInsight.change_description}</div>
-                </div>
-                {selectedRoleInsight.external_factors && (
-                  <div className="text-xs sm:text-sm text-blue-800">
-                    <div className="font-medium mb-1">외부 요인:</div>
-                    <div className="text-blue-700">{selectedRoleInsight.external_factors}</div>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => onRoleClick(null)}
-                className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-              >
-                전체 인사이트 보기
-              </button>
-            </>
-          ) : (
-            // 선택된 직군이 있지만 해당 직군의 인사이트가 없는 경우
-            <>
-              <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
-                <span className="text-base sm:text-lg">💡</span>
-                <span className="break-words">
-                  {selectedRole} 인사이트
-                </span>
-              </h4>
-              <div className="text-xs sm:text-sm text-blue-600">
-                해당 직군에 대한 인사이트 정보가 없습니다.
-              </div>
-              <button
-                onClick={() => onRoleClick(null)}
-                className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-              >
-                전체 인사이트 보기
-              </button>
-            </>
-          )
-        ) : (
-          // 전체 인사이트 표시 (summary) - selectedRole이 null일 때
-          <>
-            <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
-              <span className="text-base sm:text-lg">💡</span>
-              <span className="break-words">
-                {getDetailedPeriodLabel()}
-              </span>
-            </h4>
-            {(() => {
-              // insights가 없거나 로딩 중이면 "인사이트 생성 중" 표시 (가장 먼저 체크)
-              if (isLoading || insights === null || insights === undefined) {
-                return (
-                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
-                    <span className="animate-pulse">⏳</span>
-                    <span>인사이트 생성 중...</span>
-                  </div>
-                )
-              }
-              
-              // insights가 빈 객체인 경우
-              if (insights && typeof insights === 'object' && Object.keys(insights).length === 0) {
-                return (
-                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
-                    <span className="animate-pulse">⏳</span>
-                    <span>인사이트 생성 중...</span>
-                  </div>
-                )
-              }
-              
-              // summary가 있으면 표시
-              if (hasSummary && summaryInsight) {
-                return (
-                  <>
+      {/* 인사이트 섹션 - 인사이트가 준비되었을 때만 표시 */}
+      {(() => {
+        // 인사이트가 준비되었는지 확인하는 함수
+        const hasInsightsReady = () => {
+          // 인사이트가 로딩 중이면 false
+          if (isLoadingInsights) return false
+          
+          // insights가 없으면 false
+          if (!insights || insights === null || insights === undefined) return false
+          
+          // insights가 빈 객체면 false
+          if (typeof insights === 'object' && Object.keys(insights).length === 0) return false
+          
+          // 선택된 직군이 있는 경우
+          if (selectedRole) {
+            // 선택된 직군의 인사이트가 있으면 true
+            return selectedRoleInsight !== null
+          }
+          
+          // 선택된 직군이 없는 경우: summary나 job_role_insights가 있으면 true
+          return hasSummary || hasJobRoleInsights
+        }
+        
+        // 인사이트가 준비되지 않았으면 아무것도 렌더링하지 않음
+        if (!hasInsightsReady()) {
+          return null
+        }
+        
+        // 인사이트가 준비되었으면 표시
+        return (
+          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+            {selectedRole ? (
+              // 선택된 직군의 인사이트 표시
+              selectedRoleInsight ? (
+                <>
+                  <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+                    <span className="text-base sm:text-lg">💡</span>
+                    <span className="break-words">
+                      {selectedRole} 인사이트
+                    </span>
+                  </h4>
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="text-xs sm:text-sm text-blue-800">
-                      <div className="break-words">{summaryInsight}</div>
+                      <div className="font-medium mb-1">인사이트:</div>
+                      <div className="text-blue-700">{selectedRoleInsight.insight}</div>
                     </div>
-                    {hasJobRoleInsights && (
-                      <div className="mt-3 text-xs text-blue-600">
-                        💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
+                    <div className="text-xs sm:text-sm text-blue-800">
+                      <div className="font-medium mb-1">변화 설명:</div>
+                      <div className="text-blue-700">{selectedRoleInsight.change_description}</div>
+                    </div>
+                    {selectedRoleInsight.external_factors && (
+                      <div className="text-xs sm:text-sm text-blue-800">
+                        <div className="font-medium mb-1">외부 요인:</div>
+                        <div className="text-blue-700">{selectedRoleInsight.external_factors}</div>
                       </div>
                     )}
-                  </>
-                )
-              } else if (hasJobRoleInsights) {
-                // summary가 없지만 job_role_insights가 있는 경우
-                return (
-                  <>
-                    <div className="text-xs sm:text-sm text-blue-800">
-                      <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
-                    </div>
-                    <div className="mt-3 text-xs text-blue-600">
-                      💡 {(insights?.job_role_insights?.length ?? 0)}개의 직군에 대한 인사이트가 준비되어 있습니다.
-                    </div>
-                  </>
-                )
-              } else {
-                // summary도 없고 job_role_insights도 없는 경우
-                return (
-                  <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
-                    <span className="animate-pulse">⏳</span>
-                    <span>인사이트 생성 중...</span>
                   </div>
-                )
-              }
-            })()}
-          </>
-        )}
-      </div>
+                  <button
+                    onClick={() => onRoleClick(null)}
+                    className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    전체 인사이트 보기
+                  </button>
+                </>
+              ) : null
+            ) : (
+              // 전체 인사이트 표시 (summary) - selectedRole이 null일 때
+              <>
+                <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center gap-2">
+                  <span className="text-base sm:text-lg">💡</span>
+                  <span className="break-words">
+                    {getDetailedPeriodLabel()}
+                  </span>
+                </h4>
+                {(() => {
+                  // summary가 있으면 표시
+                  if (hasSummary && summaryInsight) {
+                    return (
+                      <>
+                        <div className="text-xs sm:text-sm text-blue-800">
+                          <div className="break-words">{summaryInsight}</div>
+                        </div>
+                        {hasJobRoleInsights && (
+                          <div className="mt-3 text-xs text-blue-600">
+                            💡 차트의 직군을 클릭하면 해당 직군의 상세 인사이트를 확인할 수 있습니다.
+                          </div>
+                        )}
+                      </>
+                    )
+                  } else if (hasJobRoleInsights) {
+                    // summary가 없지만 job_role_insights가 있는 경우
+                    return (
+                      <>
+                        <div className="text-xs sm:text-sm text-blue-800">
+                          <div className="mb-2">직군별 상세 인사이트를 확인하려면 차트의 직군을 클릭하세요.</div>
+                        </div>
+                        <div className="mt-3 text-xs text-blue-600">
+                          💡 {(insights?.job_role_insights?.length ?? 0)}개의 직군에 대한 인사이트가 준비되어 있습니다.
+                        </div>
+                      </>
+                    )
+                  }
+                  return null
+                })()}
+              </>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -499,6 +499,7 @@ export default function Dashboard() {
   const [selectedJobRoleCompanyFilter, setSelectedJobRoleCompanyFilter] = useState<string>('전체') // 직군별 통계 경쟁사 필터
   const [jobRoleStatisticsApiData, setJobRoleStatisticsApiData] = useState<any>(null)
   const [isLoadingJobRoleStatistics, setIsLoadingJobRoleStatistics] = useState(false)
+  const [isLoadingJobRoleInsights, setIsLoadingJobRoleInsights] = useState(false) // 인사이트 로딩 상태 (별도 관리)
   const [jobRoleStatisticsError, setJobRoleStatisticsError] = useState<string | null>(null)
 
   // 직무 인재 수급 난이도 지수 API 상태
@@ -2662,7 +2663,7 @@ export default function Dashboard() {
     fetchSkillTrend()
   }, [selectedSkillCompany])
 
-  // 직군별 통계 API 호출
+  // 직군별 통계 API 호출 - 차트 데이터만 먼저 가져오기 (인사이트 제외)
   useEffect(() => {
     const fetchJobRoleStatistics = async () => {
       try {
@@ -2675,11 +2676,11 @@ export default function Dashboard() {
         // category 매핑
         const category = selectedExpertCategory
         
-        // API 파라미터 구성
+        // API 파라미터 구성 - 인사이트 제외하여 빠르게 차트 데이터만 가져오기
         const params = new URLSearchParams()
         params.append('timeframe', timeframe)
         params.append('category', category)
-        params.append('include_insights', 'true') // 인사이트 포함 요청
+        params.append('include_insights', 'false') // 인사이트 제외하여 빠르게 로드
         
         // 경쟁사 필터가 있으면 추가
         if (selectedJobRoleCompanyFilter && selectedJobRoleCompanyFilter !== '전체') {
@@ -2702,52 +2703,16 @@ export default function Dashboard() {
         const result = await response.json()
         
         if (result.status === 200 && result.data) {
-          // API 응답 구조: result.data.statistics.statistics (배열)
-          // result.data.statistics.current_period, previous_period (기간 정보)
-          // result.data.insights (인사이트 정보) - 이 부분에 summary와 job_role_insights가 있음
-          
-          // insights는 statistics와 독립적으로 존재할 수 있으므로 별도로 확인
-          // 여러 경로에서 insights 찾기 (우선순위: result.data.insights > result.data.statistics.insights > result.insights)
-          let insightsData = result.data.insights || 
-                            result.data.statistics?.insights || 
-                            result.insights || 
-                            null
-          
-          // insightsData가 객체인 경우, summary나 job_role_insights가 있는지 확인
-          if (insightsData && typeof insightsData === 'object' && insightsData !== null) {
-            // summary가 있거나 job_role_insights가 있으면 유지
-            const hasSummary = insightsData.summary !== undefined && 
-                              insightsData.summary !== null && 
-                              String(insightsData.summary).trim().length > 0
-            const hasJobRoleInsights = Array.isArray(insightsData.job_role_insights) && 
-                                      insightsData.job_role_insights.length > 0
-            
-            // summary나 job_role_insights가 없으면 null로 처리
-            if (!hasSummary && !hasJobRoleInsights) {
-              insightsData = null
-            }
-          }
-          
           if (result.data.statistics) {
-            // statistics 배열이 비어있어도 기간 정보는 있으므로 데이터로 저장
+            // 차트 데이터만 먼저 저장 (insights는 null로 설정)
             const apiData = {
               statistics: result.data.statistics.statistics || [],
               current_period: result.data.statistics.current_period,
               previous_period: result.data.statistics.previous_period,
-              insights: insightsData, // insightsData가 null이어도 저장 (나중에 확인 가능하도록)
-            }
-            setJobRoleStatisticsApiData(apiData)
-          } else if (insightsData) {
-            // statistics가 없어도 insights가 있으면 저장
-            const apiData = {
-              statistics: [],
-              current_period: null,
-              previous_period: null,
-              insights: insightsData,
+              insights: null, // 인사이트는 별도로 로드
             }
             setJobRoleStatisticsApiData(apiData)
           } else {
-            // 데이터 구조가 맞지 않으면 null로 설정
             setJobRoleStatisticsApiData(null)
           }
         } else {
@@ -2763,6 +2728,106 @@ export default function Dashboard() {
     
     fetchJobRoleStatistics()
   }, [jobRoleStatisticsViewMode, selectedExpertCategory, selectedJobRoleCompanyFilter])
+
+  // 직군별 통계 인사이트 API 호출 - 차트 데이터 로드 후 별도로 인사이트 가져오기
+  useEffect(() => {
+    const fetchJobRoleInsights = async () => {
+      // 차트 데이터가 없으면 인사이트를 가져올 필요 없음
+      if (!jobRoleStatisticsApiData || !jobRoleStatisticsApiData.statistics) {
+        return
+      }
+      
+      // 이미 인사이트가 있으면 다시 가져올 필요 없음 (필터 변경 시 제외)
+      if (jobRoleStatisticsApiData.insights !== null && jobRoleStatisticsApiData.insights !== undefined) {
+        return
+      }
+      
+      // 이미 로딩 중이면 중복 호출 방지
+      if (isLoadingJobRoleInsights) {
+        return
+      }
+      
+      try {
+        setIsLoadingJobRoleInsights(true)
+        
+        // timeframe 매핑: Weekly -> quarterly_same_period, Monthly -> monthly_same_period
+        const timeframe = jobRoleStatisticsViewMode === 'Weekly' ? 'quarterly_same_period' : 'monthly_same_period'
+        
+        // category 매핑
+        const category = selectedExpertCategory
+        
+        // API 파라미터 구성 - 인사이트만 가져오기
+        const params = new URLSearchParams()
+        params.append('timeframe', timeframe)
+        params.append('category', category)
+        params.append('include_insights', 'true') // 인사이트 포함 요청
+        
+        // 경쟁사 필터가 있으면 추가
+        if (selectedJobRoleCompanyFilter && selectedJobRoleCompanyFilter !== '전체') {
+          params.append('company', selectedJobRoleCompanyFilter)
+        }
+        
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/dashboard/job-role-statistics?${params.toString()}`
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          // 인사이트 로딩 실패는 무시 (차트는 이미 표시됨)
+          return
+        }
+        
+        const result = await response.json()
+        
+        if (result.status === 200 && result.data) {
+          // 여러 경로에서 insights 찾기
+          let insightsData = result.data.insights || 
+                            result.data.statistics?.insights || 
+                            result.insights || 
+                            null
+          
+          // insightsData가 객체인 경우, summary나 job_role_insights가 있는지 확인
+          if (insightsData && typeof insightsData === 'object' && insightsData !== null) {
+            const hasSummary = insightsData.summary !== undefined && 
+                              insightsData.summary !== null && 
+                              String(insightsData.summary).trim().length > 0
+            const hasJobRoleInsights = Array.isArray(insightsData.job_role_insights) && 
+                                      insightsData.job_role_insights.length > 0
+            
+            // summary나 job_role_insights가 없으면 null로 처리
+            if (!hasSummary && !hasJobRoleInsights) {
+              insightsData = null
+            }
+          }
+          
+          // 기존 차트 데이터에 인사이트만 업데이트
+          setJobRoleStatisticsApiData((prev: any) => {
+            if (prev) {
+              return {
+                ...prev,
+                insights: insightsData,
+              }
+            }
+            return prev
+          })
+        }
+      } catch (error: any) {
+        // 인사이트 로딩 실패는 무시 (차트는 이미 표시됨)
+      } finally {
+        setIsLoadingJobRoleInsights(false)
+      }
+    }
+    
+    // 차트 데이터가 로드된 후 인사이트 가져오기
+    if (jobRoleStatisticsApiData && !isLoadingJobRoleStatistics) {
+      fetchJobRoleInsights()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobRoleStatisticsApiData?.statistics, jobRoleStatisticsViewMode, selectedExpertCategory, selectedJobRoleCompanyFilter])
 
   // 직무 인재 수급 난이도 지수 API 호출
   useEffect(() => {
@@ -3888,6 +3953,7 @@ export default function Dashboard() {
                 previousPeriodStart={jobRoleStatisticsPeriods.previousPeriodStart}
                 previousPeriodEnd={jobRoleStatisticsPeriods.previousPeriodEnd}
                 isLoading={isLoadingJobRoleStatistics}
+                isLoadingInsights={isLoadingJobRoleInsights}
                 error={jobRoleStatisticsError}
                 selectedCompanyFilter={selectedJobRoleCompanyFilter}
                 onCompanyFilterChange={setSelectedJobRoleCompanyFilter}

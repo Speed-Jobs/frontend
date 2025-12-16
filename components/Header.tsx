@@ -26,6 +26,10 @@ export default function Header() {
     setLogoError(true)
   }
 
+  const handleLogout = async () => {
+    await logout()
+  }
+
   // 로그인/회원가입 페이지에서는 헤더를 표시하지 않음
   if (pathname === '/login' || pathname === '/signup') {
     return null
@@ -89,7 +93,7 @@ export default function Header() {
             ))}
             <span className="text-sm text-gray-600">{user?.email}</span>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all duration-300"
             >
               로그아웃

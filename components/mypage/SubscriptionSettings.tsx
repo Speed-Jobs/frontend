@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, ChevronDown, Save } from 'lucide-react'
+import { X, Search, ChevronDown, Save, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import {
   getSubscriptionSettings,
   saveSubscriptionSettings,
+  deleteSubscriptionSettings,
   getSubscriptionOptions,
   getMajorSkills,
   getPositions,
@@ -202,6 +203,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
   const [companies, setCompanies] = useState<Option[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // 구독 설정 폼 상태
@@ -378,6 +380,61 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     }
   }
 
+  // 구독 취소
+  const handleDelete = async () => {
+    // 확인 대화상자
+    if (!confirm('정말 구독을 취소하시겠습니까? 모든 구독 설정이 삭제됩니다.')) {
+      return
+    }
+
+    setIsDeleting(true)
+    setSaveMessage(null)
+
+    try {
+      // 백엔드 API에서 구독 취소 시도
+      try {
+        await deleteSubscriptionSettings()
+        setSaveMessage({ type: 'success', text: '구독이 취소되었습니다.' })
+        
+        // 폼 데이터 초기화
+        setFormData({
+          technologies: [],
+          jobRoles: [],
+          companies: [],
+          emailNotification: {
+            enabled: true,
+            time: '08:00',
+          },
+        })
+        
+        // localStorage에서도 삭제
+        localStorage.removeItem('subscriptionSettings')
+        
+        if (onSave) {
+          onSave({
+            technologies: [],
+            jobRoles: [],
+            companies: [],
+          })
+        }
+      } catch (apiError: any) {
+        console.warn('API 구독 취소 실패:', apiError)
+        setSaveMessage({
+          type: 'error',
+          text: apiError.message || '구독 취소 중 오류가 발생했습니다.',
+        })
+      }
+
+      // 3초 후 메시지 제거
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (error) {
+      console.error('구독 취소 실패:', error)
+      setSaveMessage({ type: 'error', text: '구독 취소 중 오류가 발생했습니다.' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // 구독 미리보기 텍스트 생성
   const getPreviewText = () => {
     const parts: string[] = []
@@ -523,11 +580,29 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           <p className="text-sm text-gray-600">{getPreviewText()}</p>
         </div>
 
-        {/* 저장 버튼 */}
-        <div className="flex justify-end pt-4 border-t border-gray-200">
+        {/* 저장 및 취소 버튼 */}
+        <div className="flex justify-between pt-4 border-t border-gray-200">
+          <Button
+            onClick={handleDelete}
+            disabled={isDeleting || isSaving}
+            variant="outline"
+            className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+          >
+            {isDeleting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                취소 중...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                구독 취소
+              </>
+            )}
+          </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isDeleting}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {isSaving ? (

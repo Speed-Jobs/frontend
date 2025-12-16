@@ -46,7 +46,12 @@ export default function MyPage() {
       try {
         // 구독 옵션 로드 (이름 매핑용)
         try {
-          const { getMajorSkills, getPositions, getCompetitorCompanies } = await import('@/lib/api/subscription')
+          const { 
+            getMajorSkills, 
+            getPositions, 
+            getCompetitorCompanies,
+            getSubscriptionSettings 
+          } = await import('@/lib/api/subscription')
           
           // 기술 스택 목록을 새로운 API로 가져오기
           let technologies: Array<{ id: number; name: string }> = []
@@ -79,53 +84,99 @@ export default function MyPage() {
             companies,
           })
 
-          // localStorage에 저장된 구독 설정 로드 및 기술/직군 ID 필터링
-          const saved = localStorage.getItem('subscriptionSettings')
-          if (saved) {
-            try {
-              const data = JSON.parse(saved)
-              
-              // 기술 목록이 로드되었고 저장된 기술 ID가 있으면 유효한 ID만 필터링
-              let validTechIds = data.technologies || []
-              if (technologies.length > 0 && Array.isArray(data.technologies)) {
-                validTechIds = data.technologies.filter((id: number) => 
-                  technologies.some(tech => tech.id === id)
-                )
-              }
+          // 구독 설정을 API에서 가져오기
+          try {
+            const subscriptionDataFromApi = await getSubscriptionSettings()
+            
+            // 기술 목록이 로드되었고 API에서 가져온 기술 ID가 있으면 유효한 ID만 필터링
+            let validTechIds = subscriptionDataFromApi.technologies || []
+            if (technologies.length > 0 && Array.isArray(subscriptionDataFromApi.technologies)) {
+              validTechIds = subscriptionDataFromApi.technologies.filter((id: number) => 
+                technologies.some(tech => tech.id === id)
+              )
+            }
 
-              // 직군 목록이 로드되었고 저장된 직군 ID가 있으면 유효한 ID만 필터링
-              let validJobRoleIds = data.jobRoles || []
-              if (jobRoles.length > 0 && Array.isArray(data.jobRoles)) {
-                validJobRoleIds = data.jobRoles.filter((id: number) => 
-                  jobRoles.some(role => role.id === id)
-                )
-              }
+            // 직군 목록이 로드되었고 API에서 가져온 직군 ID가 있으면 유효한 ID만 필터링
+            let validJobRoleIds = subscriptionDataFromApi.jobRoles || []
+            if (jobRoles.length > 0 && Array.isArray(subscriptionDataFromApi.jobRoles)) {
+              validJobRoleIds = subscriptionDataFromApi.jobRoles.filter((id: number) => 
+                jobRoles.some(role => role.id === id)
+              )
+            }
 
-              // 경쟁사 목록이 로드되었고 저장된 경쟁사 ID가 있으면 유효한 ID만 필터링
-              let validCompanyIds = data.companies || []
-              if (companies.length > 0 && Array.isArray(data.companies)) {
-                validCompanyIds = data.companies.filter((id: number) => 
-                  companies.some(company => company.id === id)
-                )
-              }
-              
-              // 유효하지 않은 ID가 있으면 localStorage 업데이트
-              if (validTechIds.length !== (data.technologies || []).length ||
-                  validJobRoleIds.length !== (data.jobRoles || []).length ||
-                  validCompanyIds.length !== (data.companies || []).length) {
-                const updatedData = {
-                  ...data,
-                  technologies: validTechIds,
-                  jobRoles: validJobRoleIds,
-                  companies: validCompanyIds,
+            // 경쟁사 목록이 로드되었고 API에서 가져온 경쟁사 ID가 있으면 유효한 ID만 필터링
+            let validCompanyIds = subscriptionDataFromApi.companies || []
+            if (companies.length > 0 && Array.isArray(subscriptionDataFromApi.companies)) {
+              validCompanyIds = subscriptionDataFromApi.companies.filter((id: number) => 
+                companies.some(company => company.id === id)
+              )
+            }
+
+            // API에서 가져온 구독 데이터 설정
+            const apiData = {
+              technologies: validTechIds,
+              jobRoles: validJobRoleIds,
+              companies: validCompanyIds,
+              emailNotification: {
+                enabled: false,
+                time: '09:00',
+              },
+            }
+            
+            // localStorage에도 저장 (백업용)
+            localStorage.setItem('subscriptionSettings', JSON.stringify(apiData))
+            setSubscriptionData(apiData)
+          } catch (error: any) {
+            console.warn('구독 설정 API 호출 실패:', error)
+            
+            // API 호출 실패 시 localStorage에서 로드 시도
+            const saved = localStorage.getItem('subscriptionSettings')
+            if (saved) {
+              try {
+                const data = JSON.parse(saved)
+                
+                // 기술 목록이 로드되었고 저장된 기술 ID가 있으면 유효한 ID만 필터링
+                let validTechIds = data.technologies || []
+                if (technologies.length > 0 && Array.isArray(data.technologies)) {
+                  validTechIds = data.technologies.filter((id: number) => 
+                    technologies.some(tech => tech.id === id)
+                  )
                 }
-                localStorage.setItem('subscriptionSettings', JSON.stringify(updatedData))
-                setSubscriptionData(updatedData)
-              } else {
-                setSubscriptionData(data)
+
+                // 직군 목록이 로드되었고 저장된 직군 ID가 있으면 유효한 ID만 필터링
+                let validJobRoleIds = data.jobRoles || []
+                if (jobRoles.length > 0 && Array.isArray(data.jobRoles)) {
+                  validJobRoleIds = data.jobRoles.filter((id: number) => 
+                    jobRoles.some(role => role.id === id)
+                  )
+                }
+
+                // 경쟁사 목록이 로드되었고 저장된 경쟁사 ID가 있으면 유효한 ID만 필터링
+                let validCompanyIds = data.companies || []
+                if (companies.length > 0 && Array.isArray(data.companies)) {
+                  validCompanyIds = data.companies.filter((id: number) => 
+                    companies.some(company => company.id === id)
+                  )
+                }
+                
+                // 유효하지 않은 ID가 있으면 localStorage 업데이트
+                if (validTechIds.length !== (data.technologies || []).length ||
+                    validJobRoleIds.length !== (data.jobRoles || []).length ||
+                    validCompanyIds.length !== (data.companies || []).length) {
+                  const updatedData = {
+                    ...data,
+                    technologies: validTechIds,
+                    jobRoles: validJobRoleIds,
+                    companies: validCompanyIds,
+                  }
+                  localStorage.setItem('subscriptionSettings', JSON.stringify(updatedData))
+                  setSubscriptionData(updatedData)
+                } else {
+                  setSubscriptionData(data)
+                }
+              } catch (parseError) {
+                console.warn('저장된 설정 로드 실패:', parseError)
               }
-            } catch (error) {
-              console.warn('저장된 설정 로드 실패:', error)
             }
           }
         } catch (error) {

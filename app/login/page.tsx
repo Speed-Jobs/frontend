@@ -38,7 +38,8 @@ export default function LoginPage() {
         setError('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
       }
     } catch (err) {
-      setError('로그인 중 오류가 발생했습니다.')
+      const errorMessage = err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다.'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

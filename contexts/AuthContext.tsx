@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<boolean>
   signup: (email: string, password: string, name?: string, passwordConfirm?: string) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,14 +34,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // 실제로는 API 호출을 해야 하지만, 여기서는 간단하게 localStorage 사용
-    // 데모용: 모든 이메일/비밀번호 조합 허용
-    const userData: User = { email }
-    setUser(userData)
-    setIsAuthenticated(true)
-    localStorage.setItem('user', JSON.stringify(userData))
-    localStorage.setItem('isAuthenticated', 'true')
-    return true
+    try {
+      const response = await fetch('https://speedjobs-spring.skala25a.project.skala-ai.com/login', {
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.status !== 200) {
+        // 에러 응답 처리
+        throw new Error(data.message || '로그인에 실패했습니다.')
+      }
+
+      // 성공 시 사용자 정보 저장
+      const userData: User = { email }
+      setUser(userData)
+      setIsAuthenticated(true)
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('isAuthenticated', 'true')
+      return true
+    } catch (error) {
+      console.error('로그인 오류:', error)
+      throw error
+    }
   }
 
   const signup = async (email: string, password: string, name?: string, passwordConfirm?: string): Promise<boolean> => {
@@ -80,12 +103,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem('user')
-    localStorage.removeItem('isAuthenticated')
-    router.push('/')
+  const logout = async (): Promise<void> => {
+    try {
+      const response = await fetch('https://speedjobs-spring.skala25a.project.skala-ai.com/logout', {
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.status !== 200) {
+        // 에러 응답 처리
+        throw new Error(data.message || '로그아웃에 실패했습니다.')
+      }
+
+      // 성공 시 로컬 상태 정리
+      setUser(null)
+      setIsAuthenticated(false)
+      localStorage.removeItem('user')
+      localStorage.removeItem('isAuthenticated')
+      router.push('/')
+    } catch (error) {
+      console.error('로그아웃 오류:', error)
+      // API 호출 실패해도 로컬 상태는 정리
+      setUser(null)
+      setIsAuthenticated(false)
+      localStorage.removeItem('user')
+      localStorage.removeItem('isAuthenticated')
+      router.push('/')
+    }
   }
 
   return (

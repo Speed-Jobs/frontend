@@ -13,23 +13,40 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
  */
 export async function getSubscriptionSettings(): Promise<SubscriptionData> {
   try {
-    const response = await fetch(`${API_BASE_URL}/subscription`, {
+    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
+    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
       method: 'GET',
       headers: {
+        'accept': '*/*',
         'Content-Type': 'application/json',
       },
       credentials: 'include', // 쿠키 포함
     })
 
     if (!response.ok) {
-      throw new Error(`구독 설정 조회 실패: ${response.statusText}`)
+      const errorData = await response.json().catch(() => ({}))
+      if (response.status === 401) {
+        throw new Error(errorData.message || '로그인이 필요한 서비스입니다.')
+      }
+      throw new Error(errorData.message || `구독 설정 조회 실패: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const result = await response.json()
+    
+    // API 응답 형식에 맞게 파싱
+    if (result.status === 200 && result.data) {
+      return {
+        technologies: result.data.skillIds || result.data.technologies || [],
+        jobRoles: result.data.positionIds || result.data.jobRoles || [],
+        companies: result.data.companyIds || result.data.companies || [],
+      }
+    }
+    
+    // 응답 형식이 다른 경우 직접 파싱 시도
     return {
-      technologies: data.technologies || [],
-      jobRoles: data.jobRoles || [],
-      companies: data.companies || [],
+      technologies: result.skillIds || result.technologies || [],
+      jobRoles: result.positionIds || result.jobRoles || [],
+      companies: result.companyIds || result.companies || [],
     }
   } catch (error) {
     console.error('구독 설정 조회 중 오류:', error)
@@ -44,27 +61,61 @@ export async function saveSubscriptionSettings(
   subscriptionData: SubscriptionData
 ): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/subscription`, {
+    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
+    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
       method: 'POST',
       headers: {
+        'accept': '*/*',
         'Content-Type': 'application/json',
       },
       credentials: 'include', // 쿠키 포함
       body: JSON.stringify({
-        technologies: subscriptionData.technologies,
-        jobRoles: subscriptionData.jobRoles,
-        companies: subscriptionData.companies,
+        companyIds: subscriptionData.companies,
+        skillIds: subscriptionData.technologies,
+        positionIds: subscriptionData.jobRoles,
       }),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
+      if (response.status === 401) {
+        throw new Error(errorData.message || '로그인이 필요한 서비스입니다.')
+      }
       throw new Error(
         errorData.message || `구독 설정 저장 실패: ${response.statusText}`
       )
     }
   } catch (error) {
     console.error('구독 설정 저장 중 오류:', error)
+    throw error
+  }
+}
+
+/**
+ * 구독 취소
+ */
+export async function deleteSubscriptionSettings(): Promise<void> {
+  try {
+    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
+    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
+      method: 'DELETE',
+      headers: {
+        'accept': '*/*',
+      },
+      credentials: 'include', // 쿠키 포함
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      if (response.status === 401) {
+        throw new Error(errorData.message || '로그인이 필요한 서비스입니다.')
+      }
+      throw new Error(
+        errorData.message || `구독 취소 실패: ${response.statusText}`
+      )
+    }
+  } catch (error) {
+    console.error('구독 취소 중 오류:', error)
     throw error
   }
 }

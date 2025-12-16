@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -182,12 +182,18 @@ function generateAIResponse(query: string): { content: string; components?: Chat
 
 export default function AIChatbot() {
   const router = useRouter()
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
+  
+  // 페이지 변경 시 위치를 초기화하여 모든 페이지에서 동일한 위치에 표시
+  useEffect(() => {
+    setPosition(null)
+  }, [pathname])
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  const [size, setSize] = useState<{ width: number; height: number }>({ width: 384, height: 600 })
+  const [size, setSize] = useState<{ width: number; height: number }>({ width: 480, height: 700 })
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState<string | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; left: number; top: number } | null>(null)
@@ -513,16 +519,22 @@ export default function AIChatbot() {
 
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 z-[9999]"
-        aria-label="챗봇 열기"
-      >
-        <Bot className="w-6 h-6" />
-      </button>
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-center gap-2">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50"
+          aria-label="챗봇 열기"
+          style={{ boxShadow: '0 10px 40px rgba(59, 130, 246, 0.5)' }}
+        >
+          <Bot className="w-10 h-10" />
+        </button>
+        <span className="text-xs font-semibold text-gray-800 bg-white px-3 py-1 rounded-lg shadow-lg whitespace-nowrap">
+          Speed Jobs AI Chatbot
+        </span>
+      </div>
     )
   }
-
+  
   const chatbotStyle: React.CSSProperties = {
     ...(position
       ? {
@@ -642,17 +654,22 @@ export default function AIChatbot() {
           </div>
 
           {/* 기본 메뉴 영역 */}
-          <div className="border-t border-gray-200 bg-gray-50 overflow-hidden">
+          <div className="border-t-2 border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
             {/* 빠른 시작 토글 버튼 */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+              className="w-full px-5 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors bg-gradient-to-r from-blue-100 to-purple-100"
             >
-              <span className="text-xs font-medium text-gray-700">질문 가이드</span>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-bold text-gray-800">질문 가이드</span>
+              </div>
               {isMenuOpen ? (
-                <ChevronUp className="w-4 h-4 text-gray-600 transition-transform" />
+                <ChevronUp className="w-5 h-5 text-blue-600 transition-transform font-bold" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-gray-600 transition-transform" />
+                <ChevronDown className="w-5 h-5 text-blue-600 transition-transform font-bold" />
               )}
             </button>
             
@@ -662,21 +679,22 @@ export default function AIChatbot() {
                 isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
               }`}
             >
-              <div className="px-4 pt-2 pb-3">
+              <div className="px-4 pt-3 pb-4">
                 {/* 페이지 이동 메뉴 */}
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-600 mb-2">페이지 이동</p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="mb-4">
+                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4 text-blue-600" />
+                    페이지 이동
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     {pageMenus.map((menu) => {
-                      const IconComponent = menu.icon
                       return (
                         <button
                           key={menu.route}
                           onClick={() => handleComponentClick(menu.route)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-blue-200 rounded-xl hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transition-all"
                           title={menu.description}
                         >
-                          <IconComponent className="w-3.5 h-3.5" />
                           <span>{menu.title}</span>
                         </button>
                       )
@@ -686,14 +704,17 @@ export default function AIChatbot() {
                 
                 {/* 자주 묻는 질문 */}
                 <div>
-                  <p className="text-xs font-medium text-gray-600 mb-2">자주 묻는 질문</p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <Star className="w-4 h-4 text-purple-600" />
+                    자주 묻는 질문
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     {quickQuestions.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => handleQuickQuestion(item.text)}
                         disabled={isLoading}
-                        className="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="line-clamp-1">{item.text}</span>
                       </button>
@@ -705,22 +726,21 @@ export default function AIChatbot() {
           </div>
 
           {/* 입력 영역 */}
-          <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex gap-2">
+          <div className="px-5 pt-5 pb-5 border-t border-gray-200 bg-gray-50">
+            <div className="flex gap-3">
               <Input
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="메시지를 입력하세요..."
-                className="flex-1 text-sm"
+                className="flex-1 text-base py-3 h-12"
                 disabled={isLoading}
               />
               <Button
                 onClick={handleSend}
                 disabled={!inputValue.trim() || isLoading}
-                className="bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                size="sm"
+                className="bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed h-12 px-6"
               >
                 {isLoading ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

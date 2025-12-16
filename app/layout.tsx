@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import AIChatbot from '@/components/dashboard/AIChatbot'
 
 export const metadata: Metadata = {
   title: 'Speed Jobs - AI 기반 채용 인텔리전스',
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
+          <AIChatbot />
         </AuthProvider>
       </body>
     </html>

@@ -12,7 +12,7 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<boolean>
-  signup: (email: string, password: string, name?: string) => Promise<boolean>
+  signup: (email: string, password: string, name?: string, passwordConfirm?: string) => Promise<boolean>
   logout: () => void
 }
 
@@ -44,14 +44,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }
 
-  const signup = async (email: string, password: string, name?: string): Promise<boolean> => {
-    // 실제로는 API 호출을 해야 하지만, 여기서는 간단하게 localStorage 사용
-    const userData: User = { email, name }
-    setUser(userData)
-    setIsAuthenticated(true)
-    localStorage.setItem('user', JSON.stringify(userData))
-    localStorage.setItem('isAuthenticated', 'true')
-    return true
+  const signup = async (email: string, password: string, name?: string, passwordConfirm?: string): Promise<boolean> => {
+    try {
+      const response = await fetch('https://speedjobs-spring.skala25a.project.skala-ai.com/members', {
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name || '',
+          email,
+          password,
+          passwordConfirm: passwordConfirm || password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        // 에러 응답 처리
+        throw new Error(data.message || '회원가입에 실패했습니다.')
+      }
+
+      // 성공 시 사용자 정보 저장
+      const userData: User = { email, name }
+      setUser(userData)
+      setIsAuthenticated(true)
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('isAuthenticated', 'true')
+      return true
+    } catch (error) {
+      console.error('회원가입 오류:', error)
+      throw error
+    }
   }
 
   const logout = () => {

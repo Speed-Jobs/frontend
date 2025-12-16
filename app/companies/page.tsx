@@ -1179,29 +1179,29 @@ export default function CompaniesPage() {
                         }
                         
                         return (
-                          <div className="space-y-3">
-                            {steps.map((step: string, index: number) => (
-                              <div key={index} className="flex items-center gap-3">
-                                {/* 단계 번호 */}
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm">
-                                  {index + 1}
-                                </div>
-                                
-                                {/* 단계 내용 */}
-                                <div className="flex-1 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg px-4 py-3">
+                          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex flex-wrap items-center gap-3">
+                              {steps.map((step: string, index: number) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  {/* 단계 번호 */}
+                                  <span className="text-xs text-gray-600">
+                                    {index + 1}.
+                                  </span>
+                                  
+                                  {/* 단계 내용 */}
                                   <p className="text-sm font-medium text-gray-900">{step}</p>
+                                  
+                                  {/* 화살표 (마지막 단계 제외) */}
+                                  {index < steps.length - 1 && (
+                                    <div className="flex-shrink-0 text-blue-400 mx-1">
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                    </div>
+                                  )}
                                 </div>
-                                
-                                {/* 화살표 (마지막 단계 제외) */}
-                                {index < steps.length - 1 && (
-                                  <div className="flex-shrink-0 text-blue-400">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )
                       })()}

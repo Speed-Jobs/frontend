@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import SubscriptionSettings from '@/components/mypage/SubscriptionSettings'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SubscriptionData {
   technologies: number[]
@@ -16,6 +17,7 @@ interface SubscriptionData {
 }
 
 export default function MyPage() {
+  const { user } = useAuth()
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null)
   const [subscriptionOptions, setSubscriptionOptions] = useState<{
     technologies: Array<{ id: number; name: string }>
@@ -251,6 +253,11 @@ export default function MyPage() {
                   <p className="text-xs text-gray-500 mb-1.5">이메일 알림</p>
                   {subscriptionData?.emailNotification ? (
                     <div className="space-y-1">
+                      {user?.email && (
+                        <p className="text-gray-900 font-medium text-xs mb-1 break-all">
+                          {user.email}
+                        </p>
+                      )}
                       <p className="text-gray-900 font-medium text-xs">
                         {subscriptionData.emailNotification.enabled
                           ? `매일 ${subscriptionData.emailNotification.time}에 알림`
@@ -263,7 +270,14 @@ export default function MyPage() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-gray-900 font-medium text-xs">설정되지 않음</p>
+                    <div className="space-y-1">
+                      {user?.email && (
+                        <p className="text-gray-900 font-medium text-xs break-all">
+                          {user.email}
+                        </p>
+                      )}
+                      <p className="text-gray-900 font-medium text-xs">설정되지 않음</p>
+                    </div>
                   )}
                 </div>
 

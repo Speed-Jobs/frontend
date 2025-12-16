@@ -107,6 +107,7 @@ function SearchableMultiSelect({
   placeholder,
   searchPlaceholder = '검색...',
   closeOnSelect = false, // 선택 시 드롭다운 닫기 옵션
+  showCompleteButton = false, // 완료 버튼 표시 옵션
 }: {
   options: Option[]
   selectedIds: number[]
@@ -114,6 +115,7 @@ function SearchableMultiSelect({
   placeholder: string
   searchPlaceholder?: string
   closeOnSelect?: boolean
+  showCompleteButton?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -169,8 +171,8 @@ function SearchableMultiSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[9999] w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-hidden">
-          <div className="p-2 border-b border-gray-200">
+        <div className="absolute z-[9999] w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col max-h-80">
+          <div className="p-2 border-b border-gray-200 flex-shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -183,7 +185,7 @@ function SearchableMultiSelect({
               />
             </div>
           </div>
-          <div className="overflow-y-auto max-h-64">
+          <div className="overflow-y-auto flex-1 min-h-0">
             {filteredOptions.length === 0 ? (
               <div className="p-4 text-center text-sm text-gray-500">검색 결과가 없습니다</div>
             ) : (
@@ -215,6 +217,20 @@ function SearchableMultiSelect({
               </div>
             )}
           </div>
+          {showCompleteButton && (
+            <div className="p-2 border-t border-gray-200 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false)
+                  setSearchQuery('')
+                }}
+                className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors"
+              >
+                선택 완료
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -559,6 +575,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
             selectedIds={formData.companies}
             onSelectionChange={(ids) => setFormData({ ...formData, companies: ids })}
             placeholder="경쟁사를 검색하여 선택하세요"
+            showCompleteButton={true}
           />
         </div>
 

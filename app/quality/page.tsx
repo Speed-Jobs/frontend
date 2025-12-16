@@ -420,26 +420,50 @@ export default function QualityPage() {
     fetchCompetitorJobs(0)
   }
 
-  // Step 3로 이동했을 때 평가가 완료되지 않았다면 자동으로 평가 API 호출
+  // Step 3로 이동했을 때 평가 상태 확인 및 AI 추천 공고 가져오기
   useEffect(() => {
     if (currentStep === 3 && selectedOurJob && (selectedCompetitorJob || competitorJobImage)) {
-      // 평가가 완료되지 않았다면 평가 API 호출
+      // 평가가 완료되지 않았다면 평가 API 호출 (자동으로 AI 추천 공고도 가져오기)
       if (!evaluationCompleted || !evaluationData || evaluationError) {
         console.log('Step 3: 평가가 완료되지 않아 자동으로 평가 API 호출')
-        fetchEvaluationData()
+        fetchEvaluationData(true) // autoFetchImprovedPosting = true
+      } else {
+        // 평가가 완료되어 있고, AI 추천 공고가 없거나 에러가 있으면 다시 가져오기
+        if (!isLoadingImprovedPosting && (!improvedPosting || improvedPostingError)) {
+          console.log('Step 3: 평가 완료됨, AI 추천 공고 가져오기 (재시도)')
+          // 이전 에러 초기화
+          if (improvedPostingError) {
+            setImprovedPostingError(null)
+          }
+          fetchImprovedPosting(selectedOurJob.id)
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, selectedOurJob, selectedCompetitorJob, competitorJobImage])
+  }, [currentStep, selectedOurJob, selectedCompetitorJob, competitorJobImage, evaluationCompleted, evaluationData, evaluationError])
 
-  // 평가 완료 후 AI 추천 공고 자동 가져오기
+  // 평가 완료 후 AI 추천 공고 자동 가져오기 (평가가 새로 완료되었을 때)
   useEffect(() => {
     if (currentStep === 3 && evaluationCompleted && evaluationData && !evaluationError && selectedOurJob && !isLoadingImprovedPosting && !improvedPosting && !improvedPostingError) {
       console.log('평가 완료 후 AI 추천 공고 가져오기')
       fetchImprovedPosting(selectedOurJob.id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, evaluationCompleted, evaluationData, evaluationError, selectedOurJob, isLoadingImprovedPosting, improvedPosting, improvedPostingError])
+  }, [evaluationCompleted, evaluationData, evaluationError])
+
+  // Step 3에서 평가 완료 후 AI 추천 공고 재시도
+  const handleRetryImprovedPosting = async () => {
+    if (selectedOurJob) {
+      // 먼저 평가가 완료되었는지 확인
+      if (!evaluationCompleted || !evaluationData || evaluationError) {
+        // 평가가 완료되지 않았다면 평가를 먼저 실행 (자동으로 AI 추천 공고도 가져오기)
+        await fetchEvaluationData(true)
+      } else {
+        // 평가가 완료되었다면 바로 AI 추천 공고 가져오기
+        await fetchImprovedPosting(selectedOurJob.id)
+      }
+    }
+  }
 
   // 경쟁사 공고 페이지네이션
   const competitorJobTotalPages = Math.ceil(searchResults.length / displayItemsPerPage)
@@ -490,7 +514,7 @@ export default function QualityPage() {
    *   "competitor": EvaluationResponse
    * }
    */
-  const fetchEvaluationData = async () => {
+  const fetchEvaluationData = async (autoFetchImprovedPosting = false) => {
     if (!selectedOurJob && !ourJobImage) return
     if (!selectedCompetitorJob && !competitorJobImage) return
 
@@ -536,6 +560,12 @@ export default function QualityPage() {
       setEvaluationData(data)
       setEvaluationCompleted(true) // 평가 완료 표시
       setEvaluationError(null) // 성공 시 에러 초기화
+
+      // 평가 완료 후 자동으로 AI 추천 공고 가져오기
+      if (autoFetchImprovedPosting && selectedOurJob && !improvedPosting && !improvedPostingError) {
+        console.log('평가 완료 후 자동으로 AI 추천 공고 가져오기')
+        await fetchImprovedPosting(selectedOurJob.id)
+      }
     } catch (error) {
       console.error('평가 데이터 가져오기 실패:', error)
       setEvaluationError(error instanceof Error ? error.message : '평가 데이터를 가져오는데 실패했습니다.')
@@ -588,35 +618,33 @@ export default function QualityPage() {
       if (!response.ok) {
         // 404 에러인 경우 평가 데이터가 없는 것으로 판단
         if (response.status === 404) {
-          const errorText = await response.text().catch(() => '')
-          let errorMessage = '평가 데이터를 찾을 수 없습니다.'
-          try {
-            const errorJson = JSON.parse(errorText)
-            if (errorJson.detail) {
-              errorMessage = errorJson.detail
-            } else if (errorJson.message) {
-              errorMessage = errorJson.message
-            }
-          } catch {
-            if (errorText) {
-              errorMessage = errorText
-            }
-          }
-          // 더 명확한 에러 메시지
-          throw new Error(`${errorMessage}\n\n해결 방법:\n1. Step 2로 돌아가서 평가를 완료해주세요.\n2. 평가가 완료되면 Step 3에서 AI 추천 공고를 확인할 수 있습니다.`)
+          // 사용자 친화적인 메시지로 통일
+          throw new Error('EVALUATION_NOT_FOUND')
         }
+        // 500 에러인 경우 서버 오류
+        if (response.status === 500) {
+          throw new Error('SERVER_ERROR')
+        }
+        // 기타 에러
         const errorText = await response.text().catch(() => '')
-        let errorMessage = `HTTP error! status: ${response.status}`
+        let errorMessage = 'UNKNOWN_ERROR'
         try {
           const errorJson = JSON.parse(errorText)
-          if (errorJson.message) {
-            errorMessage = errorJson.message
+          // 기술적인 에러 메시지가 포함되어 있는지 확인
+          if (errorJson.detail && (errorJson.detail.includes('디렉토리') || errorJson.detail.includes('data/report'))) {
+            errorMessage = 'EVALUATION_NOT_FOUND'
+          } else if (errorJson.message && (errorJson.message.includes('디렉토리') || errorJson.message.includes('data/report'))) {
+            errorMessage = 'EVALUATION_NOT_FOUND'
           } else if (errorJson.detail) {
+            // 기술적인 메시지가 아닌 경우에만 사용
             errorMessage = errorJson.detail
+          } else if (errorJson.message) {
+            errorMessage = errorJson.message
           }
         } catch {
-          if (errorText) {
-            errorMessage = errorText
+          // 텍스트에 기술적인 내용이 포함되어 있으면 평가 데이터 없음으로 처리
+          if (errorText && (errorText.includes('디렉토리') || errorText.includes('data/report'))) {
+            errorMessage = 'EVALUATION_NOT_FOUND'
           }
         }
         throw new Error(errorMessage)
@@ -637,7 +665,21 @@ export default function QualityPage() {
       setImprovedPosting(result.data)
     } catch (error) {
       console.error('AI 추천 공고 가져오기 실패:', error)
-      setImprovedPostingError(error instanceof Error ? error.message : 'AI 추천 공고를 가져오는데 실패했습니다.')
+      // 사용자 친화적인 에러 메시지로 변환
+      let userFriendlyMessage = 'AI 추천 공고를 가져오는데 실패했습니다.'
+      if (error instanceof Error) {
+        if (error.message === 'EVALUATION_NOT_FOUND') {
+          userFriendlyMessage = '평가가 완료되지 않았습니다. 먼저 평가를 완료해주세요.'
+        } else if (error.message === 'SERVER_ERROR') {
+          userFriendlyMessage = '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        } else if (error.message.includes('디렉토리') || error.message.includes('data/report')) {
+          userFriendlyMessage = '평가가 완료되지 않았습니다. 먼저 평가를 완료해주세요.'
+        } else if (error.message !== 'UNKNOWN_ERROR') {
+          // 기술적인 메시지가 아닌 경우에만 사용
+          userFriendlyMessage = error.message
+        }
+      }
+      setImprovedPostingError(userFriendlyMessage)
     } finally {
       setIsLoadingImprovedPosting(false)
     }
@@ -654,18 +696,17 @@ export default function QualityPage() {
       }
       // Step 3로 이동할 때 AI 추천 공고 가져오기
       else if (currentStep === 2) {
-        // 평가가 완료되지 않았다면 먼저 평가 API 호출
+        // Step 3로 이동
+        setCurrentStep(currentStep + 1)
+        // 이전 에러 초기화
+        if (improvedPostingError) {
+          setImprovedPostingError(null)
+        }
+        // 평가가 완료되지 않았다면 먼저 평가 API 호출 (자동으로 AI 추천 공고도 가져오기)
         if (!evaluationCompleted || !evaluationData || evaluationError) {
-          // Step 3로 이동하고 평가 API 호출
-          setCurrentStep(currentStep + 1)
-          await fetchEvaluationData()
-          // 평가 완료 후 AI 추천 공고 가져오기
-          if (selectedOurJob && evaluationCompleted) {
-            await fetchImprovedPosting(selectedOurJob.id)
-          }
+          await fetchEvaluationData(true) // autoFetchImprovedPosting = true
         } else {
           // 평가가 이미 완료되었다면 바로 AI 추천 공고 가져오기
-          setCurrentStep(currentStep + 1)
           if (selectedOurJob) {
             await fetchImprovedPosting(selectedOurJob.id)
           }
@@ -1989,14 +2030,73 @@ export default function QualityPage() {
                   </p>
                 </div>
 
-                {/* 로딩 및 에러 상태 */}
-                {isLoadingImprovedPosting && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
-                    <p className="text-blue-700">AI 추천 공고를 생성하는 중...</p>
+                {/* 평가 상태 확인 - AI 추천 공고가 없을 때만 표시 */}
+                {currentStep === 3 && (!evaluationCompleted || evaluationError) && !isLoadingEvaluation && !improvedPosting && (
+                  <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-yellow-900 mb-2">평가가 완료되지 않았습니다</h3>
+                        <p className="text-yellow-800 mb-4">
+                          AI 추천 공고를 보려면 먼저 평가를 완료해야 합니다.
+                          {evaluationError && (
+                            <span className="block mt-2 text-sm text-yellow-700">{evaluationError}</span>
+                          )}
+                        </p>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => fetchEvaluationData(true)}
+                            disabled={isLoadingEvaluation}
+                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                          >
+                            {isLoadingEvaluation ? (
+                              <>
+                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>평가 중...</span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span>지금 평가하기</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setCurrentStep(2)}
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                          >
+                            Step 2로 돌아가기
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {improvedPostingError && (
+                {/* 로딩 상태 */}
+                {isLoadingImprovedPosting && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+                    <div className="flex items-center justify-center gap-3">
+                      <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p className="text-blue-700 font-medium">AI 추천 공고를 생성하는 중...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 에러 상태 - AI 추천 공고가 없을 때만 표시 */}
+                {improvedPostingError && !isLoadingImprovedPosting && !improvedPosting && (
                   <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0">
@@ -2006,15 +2106,81 @@ export default function QualityPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-red-900 mb-2">AI 추천 공고를 불러올 수 없습니다</h3>
-                        <p className="text-red-700 whitespace-pre-line mb-4">{improvedPostingError}</p>
-                        {improvedPostingError.includes('평가 데이터를 찾을 수 없습니다') && (
-                          <button
-                            onClick={() => setCurrentStep(2)}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-                          >
-                            Step 2로 돌아가서 평가 완료하기
-                          </button>
-                        )}
+                        <p className="text-red-700 mb-4">
+                          {improvedPostingError.includes('평가가 완료되지 않았습니다') || improvedPostingError.includes('평가 데이터') ? (
+                            <>
+                              평가가 완료되지 않았습니다. 먼저 평가를 완료해주세요.
+                              <br />
+                              <span className="text-sm text-red-600 mt-2 block">평가가 완료되면 AI 추천 공고를 확인할 수 있습니다.</span>
+                            </>
+                          ) : improvedPostingError.includes('서버') ? (
+                            <>
+                              서버에 일시적인 문제가 발생했습니다.
+                              <br />
+                              <span className="text-sm text-red-600 mt-2 block">잠시 후 다시 시도해주세요.</span>
+                            </>
+                          ) : (
+                            improvedPostingError
+                          )}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {(improvedPostingError.includes('평가가 완료되지 않았습니다') || improvedPostingError.includes('평가 데이터')) && (
+                            <>
+                              <button
+                                onClick={handleRetryImprovedPosting}
+                                disabled={isLoadingEvaluation || isLoadingImprovedPosting}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                              >
+                                {isLoadingEvaluation || isLoadingImprovedPosting ? (
+                                  <>
+                                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>처리 중...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    <span>평가 후 다시 시도</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setCurrentStep(2)}
+                                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                              >
+                                Step 2로 돌아가기
+                              </button>
+                            </>
+                          )}
+                          {!improvedPostingError.includes('평가가 완료되지 않았습니다') && !improvedPostingError.includes('평가 데이터') && (
+                            <button
+                              onClick={handleRetryImprovedPosting}
+                              disabled={isLoadingImprovedPosting}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                            >
+                              {isLoadingImprovedPosting ? (
+                                <>
+                                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  <span>처리 중...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  <span>다시 시도</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2530,47 +2696,6 @@ export default function QualityPage() {
             </div>
             
             <div className="p-6 space-y-6">
-              {/* 평가 항목 정보 */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                    selectedDetailItem.company === 'our' 
-                      ? 'bg-gray-900 text-white' 
-                      : 'bg-blue-500 text-white'
-                  }`}>
-                    {selectedDetailItem.company === 'our' ? '우리 회사 공고' : '경쟁사 공고'}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    {selectedDetailItem.category === 'readability' && '가독성 분석'}
-                    {selectedDetailItem.category === 'specificity' && '구체성 분석'}
-                    {selectedDetailItem.category === 'attractiveness' && '매력도 분석'}
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {(() => {
-                    const itemNames: Record<string, Record<string, string>> = {
-                      'readability': {
-                        'jargon': '사내 전문 용어 빈도수',
-                        'consistency': '문단 일관성',
-                        'grammar': '문법 정확성'
-                      },
-                      'specificity': {
-                        'responsibility': '담당 업무 구체성',
-                        'qualification': '자격요건 구체성',
-                        'keyword_relevance': '직군 키워드 적합성',
-                        'required_fields': '필수 항목 포함 여부'
-                      },
-                      'attractiveness': {
-                        'content_count': '특별 콘텐츠 포함 여부',
-                        'content_quality': '특별 콘텐츠 충실도'
-                      }
-                    }
-                    return itemNames[selectedDetailItem.category]?.[selectedDetailItem.item] || selectedDetailItem.item
-                  })()}
-                </h3>
-              </div>
-
-              {/* 점수 명확한 이유 제시 */}
               {evaluationData && (() => {
                 const getEvaluationResult = () => {
                   const data = selectedDetailItem.company === 'our' ? evaluationData.sk_ax : evaluationData.competitor
@@ -2594,25 +2719,74 @@ export default function QualityPage() {
                 const result = getEvaluationResult()
                 if (!result) return null
 
+                const getItemName = () => {
+                  const itemNames: Record<string, Record<string, string>> = {
+                    'readability': {
+                      'jargon': '사내 전문 용어 빈도수',
+                      'consistency': '문단 일관성',
+                      'grammar': '문법 정확성'
+                    },
+                    'specificity': {
+                      'responsibility': '담당 업무 구체성',
+                      'qualification': '자격요건 구체성',
+                      'keyword_relevance': '직군 키워드 적합성',
+                      'required_fields': '필수 항목 포함 여부'
+                    },
+                    'attractiveness': {
+                      'content_count': '특별 콘텐츠 포함 여부',
+                      'content_quality': '특별 콘텐츠 충실도'
+                    }
+                  }
+                  return itemNames[selectedDetailItem.category]?.[selectedDetailItem.item] || selectedDetailItem.item
+                }
+
                 return (
                   <>
-                    <div className="space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                        평가 근거
-                      </h4>
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {/* 평가 항목 정보 */}
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                          selectedDetailItem.company === 'our' 
+                            ? 'bg-gray-900 text-white' 
+                            : 'bg-blue-500 text-white'
+                        }`}>
+                          {selectedDetailItem.company === 'our' ? '우리 회사 공고' : '경쟁사 공고'}
+                        </span>
+                        <span className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-sm font-medium border border-gray-300">
+                          {selectedDetailItem.category === 'readability' && '가독성 분석'}
+                          {selectedDetailItem.category === 'specificity' && '구체성 분석'}
+                          {selectedDetailItem.category === 'attractiveness' && '매력도 분석'}
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {getItemName()}
+                      </h3>
+                    </div>
+
+                    {/* 평가 근거 */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-6 bg-blue-500 rounded-full"></div>
+                        <h4 className="text-lg font-bold text-gray-900">
+                          평가 근거
+                        </h4>
+                      </div>
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-lg">
+                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
                           {result.reasoning}
                         </p>
                       </div>
                     </div>
 
                     {/* 원문 텍스트 */}
-                    <div className="space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                        원문 텍스트
-                      </h4>
-                      <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-6 bg-gray-500 rounded-full"></div>
+                        <h4 className="text-lg font-bold text-gray-900">
+                          원문 텍스트
+                        </h4>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-300 rounded-lg p-5 max-h-60 overflow-y-auto">
                         <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                           {result.original_text || (selectedDetailItem.company === 'our' && selectedOurJob 
                             ? selectedOurJob.description.substring(0, 500) + '...'
@@ -2623,38 +2797,30 @@ export default function QualityPage() {
                       </div>
                     </div>
 
-                    {/* 발견된 키워드 */}
-                    <div className="space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                        발견된 키워드
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {result.keywords && result.keywords.length > 0 ? (
-                          result.keywords.map((keyword: string, idx: number) => (
-                            <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+                    {/* 키워드 정보 */}
+                    {result.keywords && result.keywords.length > 0 && (
+                      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1 h-6 bg-purple-500 rounded-full"></div>
+                            <h4 className="text-lg font-bold text-gray-900">
+                              발견된 키워드
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-lg border border-purple-200">
+                            <span className="text-2xl font-bold text-purple-600">{result.keyword_count || result.keywords.length}</span>
+                            <span className="text-sm text-purple-700 font-medium">개</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {result.keywords.map((keyword: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 rounded-lg text-sm font-medium border border-purple-200 hover:shadow-md transition-shadow">
                               {keyword}
                             </span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-gray-500">키워드가 없습니다.</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 키워드 개수 */}
-                    <div className="space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 border-b-2 border-gray-200 pb-2">
-                        키워드 개수
-                      </h4>
-                      <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-3xl font-bold text-blue-600">
-                            {result.keyword_count}
-                          </div>
-                          <span className="text-lg text-gray-600">개</span>
+                          ))}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </>
                 )
               })()}

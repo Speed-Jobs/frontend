@@ -62,7 +62,7 @@ export default function JobDetailPage() {
         const jobId = params.id as string
         
         // 상세 공고 API 호출 시도
-        const detailApiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
+        const detailApiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
         
         console.log('=== 상세 공고 API 호출 ===')
         console.log('호출 URL:', detailApiUrl)
@@ -120,7 +120,7 @@ export default function JobDetailPage() {
           if (fetchError.message === 'NOT_FOUND' || fetchError.message.includes('404')) {
             try {
               console.log('대시보드 API에서 공고 찾기 시도...')
-              const dashboardApiUrl = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=100'
+              const dashboardApiUrl = 'https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=100'
               const dashboardResponse = await fetch(dashboardApiUrl, {
                 method: 'GET',
                 headers: {

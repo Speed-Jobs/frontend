@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SPRING_API_BASE_URL = 'http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1'
+const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1'
 
 export async function GET(request: NextRequest) {
   try {

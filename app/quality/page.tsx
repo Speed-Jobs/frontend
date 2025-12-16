@@ -295,7 +295,7 @@ export default function QualityPage() {
         params.append('postTitle', jobRoleInput.trim())
       }
 
-      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
       
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -377,7 +377,7 @@ export default function QualityPage() {
         params.append('positionName', selectedJobRole)
       }
 
-      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
       
       console.log('경쟁사 공고 API 호출:', apiUrl) // 디버깅용
       

@@ -215,7 +215,7 @@ export default function CompaniesPage() {
       params.append('page', currentPage.toString())
       params.append('size', pageSize.toString())
 
-      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+      const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
       
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -389,7 +389,7 @@ export default function CompaniesPage() {
         setSelectedJobDetail(fallbackJob)
       }
 
-      const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
+      const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
       
       console.log('공고 상세 정보 API 호출:', apiUrl)
       
@@ -994,10 +994,10 @@ export default function CompaniesPage() {
           // API에서 가져온 공고인 경우 (ID가 숫자이고 API 응답에 screenShotUrl이 있음)
           if (jobId && !isNaN(Number(jobId)) && selectedJobDetail.screenShotUrl) {
             // 스크린샷 API 엔드포인트 사용
-            imagePath = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
+            imagePath = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
           } else if (jobId && !isNaN(Number(jobId))) {
             // API에서 가져온 공고지만 screenShotUrl이 없는 경우에도 API 엔드포인트 시도
-            imagePath = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
+            imagePath = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}/screenshot?width=800&useWebp=false`
           } else {
             // 기존 방식: 회사명을 파일명으로 변환하는 매핑
           const companyNameMap: Record<string, string> = {

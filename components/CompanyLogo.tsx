@@ -77,7 +77,7 @@ function getCompanyId(companyName: string): number | null {
 
 // API 로고 URL 생성
 function getCompanyLogoUrl(companyId: number): string {
-  return `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/companies/${companyId}/logo?useWebp=false`
+  return `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/companies/${companyId}/logo?useWebp=false`
 }
 
 export default function CompanyLogo({ name, className = '' }: CompanyLogoProps) {

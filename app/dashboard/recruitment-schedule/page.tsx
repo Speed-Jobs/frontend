@@ -218,14 +218,16 @@ export default function RecruitmentSchedulePage() {
     const params = new URLSearchParams()
     params.append('type', typeMapping[activeTab])
     
-    // 날짜 범위 설정 (현재 연도 전체)
-    const currentYear = new Date().getFullYear()
-    params.append('start_date', `${currentYear}-01-01`)
-    params.append('end_date', `${currentYear}-12-31`)
+    // 날짜 범위를 매우 넓게 설정하여 API의 모든 데이터 요청
+    // 과거 데이터와 미래 예측 데이터를 모두 포함하기 위해 넓은 범위 사용
+    params.append('start_date', '2000-01-01')
+    params.append('end_date', '2100-12-31')
     
     // 신입 공고일 때 data_type 파라미터 전달
-    if (activeTab === '신입') {
-      params.append('data_type', dataFilter === 'all' ? 'all' : dataFilter)
+    // 'all'일 때는 actual과 predicted를 각각 요청해야 하므로 여기서는 파라미터를 추가하지 않음
+    // 대신 useEffect 내에서 두 번 요청하도록 처리
+    if (activeTab === '신입' && dataFilter !== 'all') {
+      params.append('data_type', dataFilter)
     }
     // 경력 공고일 때 직군 필터 추가
     if (activeTab === '경력' && selectedJobRoles.length > 0) {
@@ -248,29 +250,77 @@ export default function RecruitmentSchedulePage() {
         setIsLoadingSchedules(true)
         setSchedulesError(null)
         
-        // 올바른 API 경로 사용 (앞에 /api/v1/ 없음)
-        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${requestKey}`
+        const allSchedules: ApiCompanySchedule[] = []
         
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          },
-          mode: 'cors',
-          credentials: 'omit',
-        })
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        // 신입 공고이고 'all'일 때는 actual과 predicted를 각각 요청
+        if (activeTab === '신입' && dataFilter === 'all') {
+          const dataTypesToFetch = ['actual', 'predicted']
+          
+          for (const dataType of dataTypesToFetch) {
+            try {
+              const fetchParams = new URLSearchParams(params)
+              fetchParams.set('data_type', dataType)
+              
+              const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${fetchParams.toString()}`
+              
+              const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'application/json',
+                },
+                mode: 'cors',
+                credentials: 'omit',
+              })
+              
+              if (!response.ok) {
+                console.warn(`API 호출 실패 (${dataType}):`, response.status, response.statusText)
+                continue
+              }
+              
+              const result: ApiResponse = await response.json()
+              
+              if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
+                allSchedules.push(...result.data.schedules)
+              } else {
+                console.warn(`API 응답 형식 오류 (${dataType}):`, result)
+              }
+            } catch (error: any) {
+              console.error(`API 호출 중 오류 발생 (${dataType}):`, error)
+              continue
+            }
+          }
+        } else {
+          // 'all'이 아닐 때는 params에 이미 data_type이 포함되어 있음 (또는 경력 공고)
+          const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
+          
+          const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+            mode: 'cors',
+            credentials: 'omit',
+          })
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          
+          const result: ApiResponse = await response.json()
+          
+          if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
+            allSchedules.push(...result.data.schedules)
+          } else {
+            throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+          }
         }
         
-        const result: ApiResponse = await response.json()
-        
-        if (result.status === 200 && result.data && result.data.schedules) {
-          const transformedSchedules = transformApiResponse(result.data.schedules)
+        if (allSchedules.length > 0) {
+          const transformedSchedules = transformApiResponse(allSchedules)
           setServerSchedules(transformedSchedules)
         } else {
-          throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
+          // 데이터가 없어도 빈 배열로 설정 (에러 아님)
+          setServerSchedules([])
         }
       } catch (error: any) {
         setSchedulesError(error.message || '채용 일정 데이터를 불러오는데 실패했습니다.')

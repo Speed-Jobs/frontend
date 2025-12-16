@@ -762,13 +762,10 @@ export default function Dashboard() {
         setIsLoadingRecruitmentSchedule(true)
         setRecruitmentScheduleError(null)
         
-        const currentYear = new Date().getFullYear()
-        const startDate = `${currentYear}-01-01`
-        const endDate = `${currentYear}-12-31`
-        
-        // COMPANY_GROUPS의 모든 회사 키워드 수집
-        const companyKeys = Object.keys(COMPANY_GROUPS)
-        const companyKeywords = companyKeys.join(',')
+        // 날짜 범위를 매우 넓게 설정하여 API의 모든 데이터 요청
+        // 과거 데이터와 미래 예측 데이터를 모두 포함하기 위해 넓은 범위 사용
+        const startDate = `2000-01-01`
+        const endDate = `2100-12-31`
         
         const allEvents: Array<{
           date: string
@@ -786,66 +783,80 @@ export default function Dashboard() {
           return apiType === '신입' ? '신입공채' : '공개채용'
         }
         
-        // 각 타입(Entry-level/Experienced)에 대해 API 호출 (전체 회사 한 번에 조회)
+        // 각 타입(Entry-level/Experienced)과 각 data_type(actual/predicted)에 대해 API 호출
         // API 스펙에 따르면 type은 영어("Entry-level", "Experienced")를 받습니다.
-        // encodeURIComponent를 사용하여 URL 인코딩 문제를 방지합니다.
         const typeMapping = [
           { apiType: 'Entry-level', responseType: '신입' },
           { apiType: 'Experienced', responseType: '경력' }
         ]
         
+        // actual과 predicted를 모두 요청하여 전체 데이터 가져오기
+        const dataTypes = ['actual', 'predicted']
+        
         for (const { apiType, responseType } of typeMapping) {
-          try {
-            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=actual&start_date=${startDate}&end_date=${endDate}&company_keywords=${encodeURIComponent(companyKeywords)}`
-            
-            const response = await fetch(apiUrl, {
-              method: 'GET',
-              headers: {
-                'Accept': 'application/json',
-              },
-              mode: 'cors',
-              credentials: 'omit',
-            })
-            
-            if (!response.ok) {
-              continue // 해당 타입에 대한 데이터가 없으면 건너뛰기
-            }
-            
-            const result = await response.json()
-            
-            if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+          for (const dataType of dataTypes) {
+            try {
+              // API URL 구성: actual과 predicted를 각각 요청
+              const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=${dataType}&start_date=${startDate}&end_date=${endDate}`
               
-              // 각 스케줄의 각 스테이지에 대해 이벤트 생성
-              result.data.schedules.forEach((schedule: any) => {
-                const scheduleCompanyName = schedule.company_name || ''
-                
-                if (!schedule.stages || schedule.stages.length === 0) {
-                  return
-                }
-                
-                schedule.stages.forEach((stage: any) => {
-                  // type 변환: API 응답의 type(한글)을 UI 타입으로 변환
-                  const eventType: '신입공채' | '인턴십' | '공개채용' = 
-                    convertApiTypeToEventType(schedule.type || responseType)
-                  
-                  // start_date와 end_date를 모두 사용하여 기간 설정
-                  if (stage.start_date && stage.end_date) {
-                    allEvents.push({
-                      date: stage.start_date, // 호환성을 위해 유지
-                      startDate: stage.start_date,
-                      endDate: stage.end_date,
-                      company: scheduleCompanyName,
-                      type: eventType,
-                      title: `${scheduleCompanyName} ${stage.stage}`,
-                      stage: stage.stage
-                    })
-                  }
-                })
+              const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'application/json',
+                },
+                mode: 'cors',
+                credentials: 'omit',
               })
+              
+              if (!response.ok) {
+                console.warn(`API 호출 실패 (${apiType}, ${dataType}):`, response.status, response.statusText)
+                continue // 해당 타입/데이터 타입에 대한 데이터가 없으면 건너뛰기
+              }
+              
+              const result = await response.json()
+              
+              // 응답 구조 확인: status, code, message, data.schedules
+              if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+                console.log(`API 응답 성공 (${apiType}, ${dataType}):`, result.data.schedules.length, '개 스케줄')
+                
+                // 각 스케줄의 각 스테이지에 대해 이벤트 생성
+                result.data.schedules.forEach((schedule: any) => {
+                  const scheduleCompanyName = schedule.company_name || ''
+                  
+                  if (!schedule.stages || schedule.stages.length === 0) {
+                    console.warn(`스테이지 없음: ${scheduleCompanyName}`)
+                    return
+                  }
+                  
+                  schedule.stages.forEach((stage: any) => {
+                    // type 변환: API 응답의 type(한글)을 UI 타입으로 변환
+                    const eventType: '신입공채' | '인턴십' | '공개채용' = 
+                      convertApiTypeToEventType(schedule.type || responseType)
+                    
+                    // start_date와 end_date를 모두 사용하여 기간 설정
+                    if (stage.start_date && stage.end_date) {
+                      allEvents.push({
+                        date: stage.start_date, // 호환성을 위해 유지
+                        startDate: stage.start_date,
+                        endDate: stage.end_date,
+                        company: scheduleCompanyName,
+                        type: eventType,
+                        title: `${scheduleCompanyName} ${stage.stage}`,
+                        stage: stage.stage
+                      })
+                    } else {
+                      console.warn(`날짜 정보 없음: ${scheduleCompanyName} - ${stage.stage}`, stage)
+                    }
+                  })
+                })
+              } else {
+                console.warn(`API 응답 형식 오류 (${apiType}, ${dataType}):`, result)
+              }
+            } catch (error) {
+              // 개별 API 호출 실패는 무시하고 계속 진행
+              console.error(`API 호출 중 오류 발생 (${apiType}, ${dataType}):`, error)
+              continue
             }
-          } catch (error) {
-            // 개별 API 호출 실패는 무시하고 계속 진행
-            continue
           }
         }
         
@@ -855,6 +866,10 @@ export default function Dashboard() {
           const dateB = new Date(b.startDate).getTime()
           return dateA - dateB
         })
+        
+        console.log('총 이벤트 수:', allEvents.length)
+        console.log('이벤트 샘플:', allEvents.slice(0, 5))
+        
         setRecruitmentScheduleData(allEvents)
       } catch (error) {
         setRecruitmentScheduleError(error instanceof Error ? error.message : '채용 일정 데이터를 불러오는 중 오류가 발생했습니다.')

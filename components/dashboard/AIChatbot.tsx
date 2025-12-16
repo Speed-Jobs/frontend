@@ -5,13 +5,33 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Send, X, Minimize2, Maximize2, Bot, LayoutDashboard, Calendar, Star, Building2, TrendingUp, Users, Briefcase, ChevronUp, ChevronDown } from 'lucide-react'
+import { Send, X, Minimize2, Maximize2, Bot, LayoutDashboard, Calendar, Star, Building2, TrendingUp, Users, Briefcase, ChevronUp, ChevronDown, ExternalLink } from 'lucide-react'
+
+interface JobPosting {
+  id: number
+  title: string
+  companyName?: string
+  role?: string
+  experience?: string
+  skills?: string[]
+  postedAt?: {
+    year: number
+    month: number
+    day: number
+  }
+  closeAt?: {
+    year: number
+    month: number
+    day: number
+  }
+}
 
 interface Message {
   id: string
   type: 'user' | 'assistant'
   content: string
   components?: ChatComponent[]
+  jobPostings?: JobPosting[]
 }
 
 interface ChatComponent {
@@ -219,6 +239,51 @@ export default function AIChatbot() {
     scrollToBottom()
   }, [messages])
 
+  // 공고 상세 정보 가져오기 함수
+  const fetchJobPostings = async (postIds: number[]): Promise<JobPosting[]> => {
+    const jobPostings: JobPosting[] = []
+    
+    // 각 post_id로 공고 정보 가져오기
+    const fetchPromises = postIds.map(async (postId) => {
+      try {
+        const response = await fetch(`https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${postId}`, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        if (!response.ok) {
+          console.warn(`공고 ${postId} 정보를 가져올 수 없습니다.`)
+          return null
+        }
+        const result = await response.json()
+        
+        if (result.status === 200 && result.data) {
+          const job = result.data
+          return {
+            id: job.id || postId,
+            title: job.title || '',
+            companyName: job.companyName || job.company?.name || '',
+            role: job.role || '',
+            experience: job.experience || '',
+            skills: Array.isArray(job.skills) ? job.skills : [],
+            postedAt: job.postedAt || job.registeredAt || null,
+            closeAt: job.closeAt || null,
+          } as JobPosting
+        }
+        return null
+      } catch (error) {
+        console.error(`공고 ${postId} 정보 가져오기 실패:`, error)
+        return null
+      }
+    })
+    
+    const results = await Promise.all(fetchPromises)
+    return results.filter((job): job is JobPosting => job !== null)
+  }
+
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return
 
@@ -261,13 +326,35 @@ export default function AIChatbot() {
 
       const result = await response.json()
 
+      // sources에서 post_id 추출
+      const postIds: number[] = []
+      if (result.sources && Array.isArray(result.sources)) {
+        result.sources.forEach((source: any) => {
+          if (source.post_id && typeof source.post_id === 'number') {
+            postIds.push(source.post_id)
+          } else if (source.metadata?.post_id && typeof source.metadata.post_id === 'number') {
+            postIds.push(source.metadata.post_id)
+          }
+        })
+      }
+
+      // 중복 제거
+      const uniquePostIds = [...new Set(postIds)]
+
+      // 공고 정보 가져오기
+      let jobPostings: JobPosting[] = []
+      if (uniquePostIds.length > 0) {
+        jobPostings = await fetchJobPostings(uniquePostIds)
+      }
+
       // 로딩 메시지 제거하고 실제 응답 추가
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== loadingMessageId)
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: result.answer || '답변을 생성할 수 없습니다.'
+          content: result.answer || '답변을 생성할 수 없습니다.',
+          jobPostings: jobPostings.length > 0 ? jobPostings : undefined
         }
         return [...filtered, assistantMessage]
       })
@@ -347,13 +434,35 @@ export default function AIChatbot() {
 
       const result = await response.json()
 
+      // sources에서 post_id 추출
+      const postIds: number[] = []
+      if (result.sources && Array.isArray(result.sources)) {
+        result.sources.forEach((source: any) => {
+          if (source.post_id && typeof source.post_id === 'number') {
+            postIds.push(source.post_id)
+          } else if (source.metadata?.post_id && typeof source.metadata.post_id === 'number') {
+            postIds.push(source.metadata.post_id)
+          }
+        })
+      }
+
+      // 중복 제거
+      const uniquePostIds = [...new Set(postIds)]
+
+      // 공고 정보 가져오기
+      let jobPostings: JobPosting[] = []
+      if (uniquePostIds.length > 0) {
+        jobPostings = await fetchJobPostings(uniquePostIds)
+      }
+
       // 로딩 메시지 제거하고 실제 응답 추가
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== loadingMessageId)
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: result.answer || '답변을 생성할 수 없습니다.'
+          content: result.answer || '답변을 생성할 수 없습니다.',
+          jobPostings: jobPostings.length > 0 ? jobPostings : undefined
         }
         return [...filtered, assistantMessage]
       })
@@ -641,6 +750,52 @@ export default function AIChatbot() {
                               <p className="text-xs text-gray-600 line-clamp-2">
                                 {component.description}
                               </p>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                  {message.jobPostings && message.jobPostings.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                        <Briefcase className="w-3 h-3" />
+                        관련 채용 공고 ({message.jobPostings.length}개)
+                      </div>
+                      {message.jobPostings.map((job) => (
+                        <Card
+                          key={job.id}
+                          className="p-3 border border-gray-200"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                  {job.title || '제목 없음'}
+                                </h4>
+                              </div>
+                              {job.companyName && (
+                                <p className="text-xs text-gray-600 mb-1">
+                                  {job.companyName}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {job.role && (
+                                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                    {job.role}
+                                  </span>
+                                )}
+                                {job.experience && (
+                                  <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                    {job.experience}
+                                  </span>
+                                )}
+                              </div>
+                              {job.postedAt && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                  등록일: {job.postedAt.year}.{String(job.postedAt.month).padStart(2, '0')}.{String(job.postedAt.day).padStart(2, '0')}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </Card>

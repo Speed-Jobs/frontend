@@ -274,7 +274,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     companies: [],
     emailNotification: {
       enabled: true,
-      time: '09:00', // 매일 오전 9시
+      time: '08:00', // 매일 오전 8시 (고정)
     },
   })
 
@@ -336,9 +336,12 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
               jobRoles: savedData.jobRoles || [],
               jobSkills: savedData.jobSkills || [],
               companies: savedData.companies || [],
-              emailNotification: savedData.emailNotification || {
+              emailNotification: savedData.emailNotification ? {
+                ...savedData.emailNotification,
+                time: '08:00', // 알림 시간은 오전 8:00로 고정
+              } : {
                 enabled: true,
-                time: '09:00',
+                time: '08:00',
               },
             })
           }
@@ -353,6 +356,19 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     }
     loadData()
   }, [])
+
+  // 알림 시간을 항상 08:00로 고정
+  useEffect(() => {
+    if (formData.emailNotification.time !== '08:00') {
+      setFormData((prev) => ({
+        ...prev,
+        emailNotification: {
+          ...prev.emailNotification,
+          time: '08:00',
+        },
+      }))
+    }
+  }, [formData.emailNotification.time])
 
   // 구독 설정 저장
   const handleSave = async () => {
@@ -372,8 +388,15 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
         setSaveMessage({ type: 'success', text: '구독 설정이 저장되었습니다.' })
       } catch (apiError) {
         console.warn('API 저장 실패, localStorage에 저장합니다.', apiError)
-        // API 실패 시 localStorage에 저장
-        localStorage.setItem('subscriptionSettings', JSON.stringify(formData))
+        // API 실패 시 localStorage에 저장 (알림 시간은 항상 08:00로 고정)
+        const dataToSave = {
+          ...formData,
+          emailNotification: {
+            ...formData.emailNotification,
+            time: '08:00', // 알림 시간은 오전 8:00로 고정
+          },
+        }
+        localStorage.setItem('subscriptionSettings', JSON.stringify(dataToSave))
         setSaveMessage({
           type: 'success',
           text: '구독 설정이 로컬에 저장되었습니다.',
@@ -421,7 +444,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     }
 
     const emailText = formData.emailNotification.enabled
-      ? `이메일 알림: 매일 ${formData.emailNotification.time}`
+      ? `이메일 알림: 매일 08:00`
       : '이메일 알림: 비활성화'
 
     return parts.length > 0 ? `${parts.join(' | ')} | ${emailText}` : '조건을 선택해주세요'
@@ -605,20 +628,12 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
                 </label>
                 <Input
                   type="time"
-                  value={formData.emailNotification.time}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      emailNotification: {
-                        ...formData.emailNotification,
-                        time: e.target.value,
-                      },
-                    })
-                  }
-                  className="w-full max-w-xs"
+                  value="08:00"
+                  disabled
+                  className="w-full max-w-xs bg-gray-100 cursor-not-allowed"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  매일 선택한 시간에 새로운 채용 공고 알림을 이메일로 받습니다.
+                  매일 오전 8:00에 새로운 채용 공고 알림을 이메일로 받습니다.
                 </p>
               </div>
             )}

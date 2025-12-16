@@ -224,10 +224,14 @@ export default function RecruitmentSchedulePage() {
     params.append('end_date', '2100-12-31')
     
     // 신입 공고일 때 data_type 파라미터 전달
-    // 'all'일 때는 actual과 predicted를 각각 요청해야 하므로 여기서는 파라미터를 추가하지 않음
-    // 대신 useEffect 내에서 두 번 요청하도록 처리
-    if (activeTab === '신입' && dataFilter !== 'all') {
-      params.append('data_type', dataFilter)
+    if (activeTab === '신입') {
+      if (dataFilter === 'all') {
+        // 'all'일 때는 data_type=all을 사용하여 한 번에 가져오기
+        params.append('data_type', 'all')
+      } else {
+        // 'actual' 또는 'predicted'일 때는 해당 값 사용
+        params.append('data_type', dataFilter)
+      }
     }
     // 경력 공고일 때 직군 필터 추가
     if (activeTab === '경력' && selectedJobRoles.length > 0) {
@@ -252,74 +256,55 @@ export default function RecruitmentSchedulePage() {
         
         const allSchedules: ApiCompanySchedule[] = []
         
-        // 신입 공고이고 'all'일 때는 actual과 predicted를 각각 요청
-        if (activeTab === '신입' && dataFilter === 'all') {
-          const dataTypesToFetch = ['actual', 'predicted']
-          
-          for (const dataType of dataTypesToFetch) {
-            try {
-              const fetchParams = new URLSearchParams(params)
-              fetchParams.set('data_type', dataType)
-              
-              const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${fetchParams.toString()}`
-              
-              const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                  'Accept': 'application/json',
-                },
-                mode: 'cors',
-                credentials: 'omit',
-              })
-              
-              if (!response.ok) {
-                console.warn(`API 호출 실패 (${dataType}):`, response.status, response.statusText)
-                continue
-              }
-              
-              const result: ApiResponse = await response.json()
-              
-              if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
-                allSchedules.push(...result.data.schedules)
-              } else {
-                console.warn(`API 응답 형식 오류 (${dataType}):`, result)
-              }
-            } catch (error: any) {
-              console.error(`API 호출 중 오류 발생 (${dataType}):`, error)
-              continue
-            }
-          }
-        } else {
-          // 'all'이 아닐 때는 params에 이미 data_type이 포함되어 있음 (또는 경력 공고)
-          const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
-          
-          const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-            },
-            mode: 'cors',
-            credentials: 'omit',
+        // API 호출 (params에 이미 data_type이 포함되어 있음)
+        const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
+        
+        // 디버깅: API URL 로깅
+        console.log('채용 일정 API 호출:', apiUrl)
+        console.log('파라미터:', {
+          type: params.get('type'),
+          data_type: params.get('data_type'),
+          start_date: params.get('start_date'),
+          end_date: params.get('end_date'),
+          job_role: params.get('job_role'),
+        })
+        
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const result: ApiResponse = await response.json()
+        
+        if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
+          console.log(`API 응답 성공: ${result.data.schedules.length}개 스케줄`)
+          // 각 스케줄의 data_type 확인
+          result.data.schedules.forEach((schedule: ApiCompanySchedule) => {
+            console.log(`  - ${schedule.company_name}: data_type=${schedule.data_type || 'N/A'}`)
           })
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          
-          const result: ApiResponse = await response.json()
-          
-          if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
-            allSchedules.push(...result.data.schedules)
-          } else {
-            throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
-          }
+          allSchedules.push(...result.data.schedules)
+        } else {
+          throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
         
         if (allSchedules.length > 0) {
           const transformedSchedules = transformApiResponse(allSchedules)
+          console.log('변환된 스케줄:', transformedSchedules.length, '개')
+          transformedSchedules.forEach((schedule) => {
+            console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}, stages=${schedule.stages.length}개`)
+          })
           setServerSchedules(transformedSchedules)
         } else {
           // 데이터가 없어도 빈 배열로 설정 (에러 아님)
+          console.log('불러온 스케줄이 없습니다.')
           setServerSchedules([])
         }
       } catch (error: any) {
@@ -523,20 +508,37 @@ export default function RecruitmentSchedulePage() {
 
     // 신입 공고: data_type 필터 적용
     if (activeTab === '신입') {
+      console.log('필터링 전:', result.length, '개 스케줄')
+      console.log('현재 필터:', dataFilter)
+      result.forEach((schedule) => {
+        console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}`)
+      })
+      
       result = result.filter((schedule) => {
         // 전체 보기: actual과 predicted 모두 표시 (dataType이 없는 경우도 포함)
         if (dataFilter === 'all') {
           return true // 모든 데이터 표시
         }
         if (dataFilter === 'actual') {
-          return schedule.dataType === 'actual'
+          const matches = schedule.dataType === 'actual'
+          if (!matches) {
+            console.log(`  필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=actual)`)
+          }
+          return matches
         }
         // 예측치만 표시
         if (dataFilter === 'predicted') {
-          return schedule.dataType === 'predicted'
+          const matches = schedule.dataType === 'predicted'
+          if (!matches) {
+            console.log(`  필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=predicted)`)
+          } else {
+            console.log(`  표시됨: ${schedule.name} (dataType=${schedule.dataType})`)
+          }
+          return matches
         }
         return true
       })
+      console.log('필터링 후:', result.length, '개 스케줄')
     }
     
     // 경력 공고: 직군 필터 적용 (선택된 직군만 표시)

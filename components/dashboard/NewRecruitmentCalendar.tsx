@@ -6,75 +6,18 @@ import { useRouter } from 'next/navigation'
 import { Calendar } from './calendar/Calendar'
 import { CompanySchedule, UserPin } from './calendar/types'
 
-interface RecruitmentEvent {
-  date: string // YYYY-MM-DD 형식 (호환성을 위해 유지)
-  startDate?: string // YYYY-MM-DD 형식
-  endDate?: string // YYYY-MM-DD 형식
-  company: string
-  type: '신입공채' | '인턴십' | '공개채용'
-  title?: string
-  stage?: string
-}
-
 interface NewRecruitmentCalendarProps {
-  events?: RecruitmentEvent[]
+  companySchedules?: CompanySchedule[]
   currentMonth?: Date
 }
 
 export default function NewRecruitmentCalendar({ 
-  events = [], 
+  companySchedules = [], 
   currentMonth = new Date() 
 }: NewRecruitmentCalendarProps) {
   const router = useRouter()
   const [viewMonth, setViewMonth] = useState<Date>(currentMonth)
   const [userPins, setUserPins] = useState<UserPin[]>([])
-
-  // 기존 데이터 형식을 새로운 형식으로 변환
-  const companySchedules = useMemo<CompanySchedule[]>(() => {
-    // 회사별로 그룹화
-    const companyMap = new Map<string, RecruitmentEvent[]>()
-    
-    events.forEach(event => {
-      if (!companyMap.has(event.company)) {
-        companyMap.set(event.company, [])
-      }
-      companyMap.get(event.company)!.push(event)
-    })
-
-    const schedules: CompanySchedule[] = []
-    const colors = ['#1e40af', '#dc2626', '#d97706', '#7c3aed', '#059669', '#0891b2', '#be185d', '#ea580c']
-    let colorIndex = 0
-
-    companyMap.forEach((companyEvents, companyName) => {
-      const stages = companyEvents.map((event, index) => {
-        // startDate와 endDate가 있으면 사용, 없으면 date를 사용
-        const startDateStr = event.startDate || event.date
-        const endDateStr = event.endDate || event.date
-        
-        const startDate = new Date(startDateStr)
-        const endDate = new Date(endDateStr)
-        
-        return {
-          id: `${companyName}-${index}`,
-          stage: event.stage || (event.type === '신입공채' ? '서류접수' : event.type === '인턴십' ? '서류접수' : '서류전형'),
-          startDate,
-          endDate,
-        }
-      })
-
-      schedules.push({
-        id: companyName,
-        name: companyName,
-        color: colors[colorIndex % colors.length],
-        type: '신입' as const,
-        dataType: 'actual' as const,
-        stages,
-      })
-      colorIndex++
-    })
-
-    return schedules
-  }, [events])
 
   const goToPreviousMonth = () => {
     setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))

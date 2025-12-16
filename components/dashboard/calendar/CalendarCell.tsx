@@ -71,6 +71,15 @@ export function CalendarCell({
     return normalized;
   };
 
+  // 회사명 정규화 함수 (중복 제거용)
+  const normalizeCompanyName = (name: string): string => {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/[/·\s\-_]/g, '') // 슬래시, 중간점, 공백, 하이픈, 언더스코어 제거
+      .replace(/ict/g, '') // ICT 제거
+  }
+
   // Get all company-stage combinations on this date
   const companyStagesOnThisDate: Array<{
     company: CompanySchedule;
@@ -79,7 +88,12 @@ export function CalendarCell({
 
   const normalizedCurrentDate = normalizeDateForComparison(date);
   
+  // 회사명별로 이미 추가된 스테이지 추적 (중복 방지)
+  const addedCompanyStages = new Map<string, Set<string>>();
+  
   companySchedules.forEach((company) => {
+    const normalizedCompanyName = normalizeCompanyName(company.name);
+    
     company.stages.forEach((stage) => {
       const normalizedStartDate = normalizeDateForComparison(stage.startDate);
       const normalizedEndDate = normalizeDateForComparison(stage.endDate);
@@ -87,7 +101,19 @@ export function CalendarCell({
       normalizedEndDate.setHours(23, 59, 59, 999);
       
       if (normalizedCurrentDate >= normalizedStartDate && normalizedCurrentDate <= normalizedEndDate) {
-        companyStagesOnThisDate.push({ company, stage });
+        // 스테이지 키 생성 (회사명-스테이지명-날짜범위)
+        const stageKey = `${stage.stage}-${stage.startDate.toISOString().split('T')[0]}-${stage.endDate.toISOString().split('T')[0]}`;
+        
+        // 같은 회사의 같은 스테이지가 이미 추가되지 않았는지 확인
+        if (!addedCompanyStages.has(normalizedCompanyName)) {
+          addedCompanyStages.set(normalizedCompanyName, new Set());
+        }
+        
+        const companyStages = addedCompanyStages.get(normalizedCompanyName)!;
+        if (!companyStages.has(stageKey)) {
+          companyStages.add(stageKey);
+          companyStagesOnThisDate.push({ company, stage });
+        }
       }
     });
   });
@@ -351,21 +377,58 @@ export function CalendarCell({
                     byStage[cs.stage.stage].push(cs);
                   });
 
-                  return Object.entries(byStage).map(([stageName, companyStages]) => (
-                    <div key={stageName} className="mb-2 last:mb-0">
-                      <div className="text-xs text-slate-500 mb-1">{stageName}</div>
-                      {companyStages.map((cs, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-sm ml-2">
-                          <span>
-                            {cs.company.name}
-                            {cs.company.dataType === 'predicted' && (
-                              <span className="text-xs text-slate-400 ml-1">(예측)</span>
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ));
+                  return Object.entries(byStage).map(([stageName, companyStages]) => {
+                    // 회사명 정규화 함수 (중복 제거용)
+                    const normalizeCompanyName = (name: string): string => {
+                      return name
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[/·\s\-_]/g, '') // 슬래시, 중간점, 공백, 하이픈, 언더스코어 제거
+                        .replace(/ict/g, '') // ICT 제거
+                    }
+                    
+                    // 같은 회사명을 가진 항목들을 중복 제거
+                    // 정규화된 회사명을 키로 사용하여 같은 회사는 한 번만 표시
+                    const uniqueCompanies = new Map<string, { company: CompanySchedule; stage: { stage: string; startDate: Date; endDate: Date } }>()
+                    
+                    companyStages.forEach((cs) => {
+                      // 정규화된 회사명을 키로 사용
+                      const normalizedName = normalizeCompanyName(cs.company.name)
+                      
+                      // 같은 회사가 이미 있으면, predicted를 우선 표시하거나 첫 번째 것을 유지
+                      if (!uniqueCompanies.has(normalizedName)) {
+                        uniqueCompanies.set(normalizedName, cs)
+                      } else {
+                        const existing = uniqueCompanies.get(normalizedName)!
+                        // predicted가 있으면 predicted를 우선 표시
+                        if (cs.company.dataType === 'predicted' && existing.company.dataType !== 'predicted') {
+                          uniqueCompanies.set(normalizedName, cs)
+                        }
+                        // 둘 다 predicted이거나 둘 다 actual이면 첫 번째 것을 유지 (이미 추가된 것)
+                      }
+                    })
+                    
+                    // 회사명으로 정렬하여 일관된 순서 유지
+                    const sortedCompanies = Array.from(uniqueCompanies.values()).sort((a, b) => 
+                      a.company.name.localeCompare(b.company.name, 'ko')
+                    )
+                    
+                    return (
+                      <div key={stageName} className="mb-2 last:mb-0">
+                        <div className="text-xs text-slate-500 mb-1">{stageName}</div>
+                        {sortedCompanies.map((cs, idx) => (
+                          <div key={`${cs.company.id}-${cs.stage.id}-${idx}`} className="flex items-center gap-2 text-sm ml-2">
+                            <span>
+                              {cs.company.name}
+                              {cs.company.dataType === 'predicted' && (
+                                <span className="text-xs text-slate-400 ml-1">(예측)</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  });
                 })()}
               </div>
             )}

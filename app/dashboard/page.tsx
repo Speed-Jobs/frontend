@@ -9,6 +9,7 @@ import { useJobNotifications } from '@/hooks/useJobNotifications'
 import DarkDashboardCard from '@/components/dashboard/DarkDashboardCard'
 import CombinedTrendChart from '@/components/dashboard/CombinedTrendChart'
 import CompanyInsightView from '@/components/dashboard/CompanyInsightView'
+import { CompanySchedule } from '@/components/dashboard/calendar/types'
 
 // 무거운 컴포넌트들을 지연 로딩
 const CompanyNetworkBubble = lazy(() => import('@/components/dashboard/CompanyNetworkBubble'))
@@ -742,18 +743,196 @@ export default function Dashboard() {
       .slice(0, 5)
   }, [])
 
-  // 채용 공채 일정 API 상태
-  const [recruitmentScheduleData, setRecruitmentScheduleData] = useState<Array<{
-    date: string
-    startDate: string
-    endDate: string
-    company: string
-    type: '신입공채' | '인턴십' | '공개채용'
-    title?: string
-    stage?: string
-  }>>([])
+  // 채용 공채 일정 API 상태 - CompanySchedule 형식으로 변경
+  const [recruitmentScheduleData, setRecruitmentScheduleData] = useState<CompanySchedule[]>([])
   const [isLoadingRecruitmentSchedule, setIsLoadingRecruitmentSchedule] = useState(false)
   const [recruitmentScheduleError, setRecruitmentScheduleError] = useState<string | null>(null)
+
+  // 프리셋 색상 목록
+  const PRESET_COLORS = [
+    '#1e40af',
+    '#dc2626',
+    '#d97706',
+    '#7c3aed',
+    '#059669',
+    '#0891b2',
+    '#be185d',
+    '#ea580c',
+  ]
+
+  // 회사명 기반 색상 매핑
+  const COMPANY_COLOR_MAP: Record<string, string> = {
+    '삼성전자': '#1e40af',
+    '삼성': '#1e40af',
+    '삼성SDS': '#1e40af',
+    'SAMSUNG': '#1e40af',
+    'LG전자': '#dc2626',
+    'LG': '#dc2626',
+    'LGCNS': '#dc2626',
+    'LG CNS': '#dc2626',
+    '네이버': '#03c75a',
+    'NAVER': '#03c75a',
+    '카카오': '#fee500',
+    'kakao': '#fee500',
+    '토스': '#0064ff',
+    'Toss': '#0064ff',
+    '라인': '#00c300',
+    'LINE': '#00c300',
+    'SK텔레콤': '#d97706',
+    'SK': '#d97706',
+    'SK AX': '#d97706',
+    '한화시스템': '#7c3aed',
+    '한화': '#7c3aed',
+    '우아한형제들': '#059669',
+    '배민': '#059669',
+    '배달의민족': '#059669',
+    '현대오토에버': '#0891b2',
+    '현대': '#0891b2',
+    '쿠팡': '#be185d',
+    '당근마켓': '#ea580c',
+  }
+
+  // 회사명을 정규화하는 함수 (중복 제거용)
+  const normalizeCompanyNameForDedup = (companyName: string): string => {
+    // 공백, 슬래시, 점 등을 제거하고 소문자로 변환하여 비교
+    const normalized = companyName
+      .trim()
+      .toLowerCase()
+      .replace(/[/·\s\-_]/g, '') // 슬래시, 중간점, 공백, 하이픈, 언더스코어 제거
+      .replace(/ict/g, '') // ICT 제거 (한화시스템/ICT -> 한화시스템)
+    
+    // 색상 매핑에 있는 회사명과 비교
+    for (const [key] of Object.entries(COMPANY_COLOR_MAP)) {
+      const normalizedKey = key.toLowerCase().replace(/[/·\s\-_]/g, '').replace(/ict/g, '')
+      if (normalized === normalizedKey || normalized.includes(normalizedKey) || normalizedKey.includes(normalized)) {
+        return key // 원본 키 반환
+      }
+    }
+    
+    // 매칭되지 않으면 정규화된 이름 반환
+    return normalized
+  }
+
+  // 회사명을 정규화하는 함수 (색상 매핑용)
+  const normalizeCompanyName = (companyName: string): string => {
+    const normalized = companyName.trim()
+    if (COMPANY_COLOR_MAP[normalized]) {
+      return normalized
+    }
+    for (const [key] of Object.entries(COMPANY_COLOR_MAP)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        return key
+      }
+    }
+    return normalized
+  }
+
+  // 회사명에 맞는 색상 가져오기
+  const getCompanyColor = (companyName: string, providedColor?: string): string => {
+    if (providedColor) {
+      return providedColor
+    }
+    const normalizedName = normalizeCompanyName(companyName)
+    return COMPANY_COLOR_MAP[normalizedName] || PRESET_COLORS[0]
+  }
+
+  // 백엔드 응답을 CompanySchedule 형식으로 변환하는 함수
+  const transformApiResponse = (apiData: any[]): CompanySchedule[] => {
+    // 먼저 각 스케줄을 변환
+    const transformedSchedules = apiData.map((schedule, index) => {
+      const color = getCompanyColor(schedule.company_name, schedule.color)
+      const uniqueId = schedule.data_type 
+        ? `${schedule.id}-${schedule.data_type}-${index}` 
+        : `${schedule.id}-${index}`
+      
+      return {
+        id: uniqueId,
+        name: schedule.company_name,
+        color: color,
+        type: schedule.type,
+        dataType: schedule.data_type,
+        jobRole: schedule.job_role,
+        stages: schedule.stages
+          .map((stage: any, stageIndex: number) => ({
+            id: `${uniqueId}-${stage.id}-${stageIndex}`,
+            stage: stage.stage,
+            startDate: new Date(stage.start_date),
+            endDate: new Date(stage.end_date),
+          }))
+          // 날짜 유효성 검사: startDate가 endDate보다 늦으면 제외
+          .filter((stage: any) => {
+            const start = stage.startDate.getTime()
+            const end = stage.endDate.getTime()
+            if (start > end) {
+              console.warn(`잘못된 날짜 범위: ${schedule.company_name} - ${stage.stage} (${stage.startDate.toISOString()} ~ ${stage.endDate.toISOString()})`)
+              return false
+            }
+            return true
+          }),
+      }
+    }).filter(schedule => schedule.stages.length > 0) // 스테이지가 없는 스케줄 제외
+
+    // 같은 회사명과 dataType을 가진 스케줄들을 하나로 합치기
+    // 회사명을 정규화하여 비교 (예: "한화시스템/ICT"와 "한화시스템"을 같은 회사로 인식)
+    // 하지만 actual과 predicted는 별도로 유지해야 함
+    const companyMap = new Map<string, CompanySchedule>()
+    
+    transformedSchedules.forEach((schedule) => {
+      // 회사명 정규화 (중복 제거용)
+      const normalizedName = normalizeCompanyNameForDedup(schedule.name)
+      // 회사명 + dataType을 키로 사용하여 actual과 predicted를 구분
+      const key = `${normalizedName}-${schedule.dataType || 'actual'}`
+      
+      if (companyMap.has(key)) {
+        // 이미 존재하는 회사+dataType 조합이면 스테이지를 합치기
+        const existing = companyMap.get(key)!
+        // 중복 스테이지 제거 (같은 스테이지명과 날짜 범위)
+        const existingStageKeys = new Set(
+          existing.stages.map(s => `${s.stage}-${s.startDate.toISOString().split('T')[0]}-${s.endDate.toISOString().split('T')[0]}`)
+        )
+        
+        schedule.stages.forEach((newStage: { id: string; stage: string; startDate: Date; endDate: Date }) => {
+          const stageKey = `${newStage.stage}-${newStage.startDate.toISOString().split('T')[0]}-${newStage.endDate.toISOString().split('T')[0]}`
+          if (!existingStageKeys.has(stageKey)) {
+            existing.stages.push(newStage)
+            existingStageKeys.add(stageKey)
+          }
+        })
+        
+        // jobRole이 있으면 유지
+        if (schedule.jobRole && !existing.jobRole) {
+          existing.jobRole = schedule.jobRole
+        }
+      } else {
+        // 새로운 회사+dataType 조합이면 추가 (정규화된 이름으로 저장하되 원본 이름 유지)
+        companyMap.set(key, { 
+          ...schedule,
+          name: schedule.name // 원본 이름 유지 (표시용)
+        })
+      }
+    })
+    
+    const mergedSchedules = Array.from(companyMap.values())
+    
+    // 최종 검증: 각 회사의 스테이지에서도 중복 제거
+    const finalSchedules = mergedSchedules.map(schedule => {
+      const uniqueStages = new Map<string, { id: string; stage: string; startDate: Date; endDate: Date }>()
+      
+      schedule.stages.forEach(stage => {
+        const stageKey = `${stage.stage}-${stage.startDate.toISOString().split('T')[0]}-${stage.endDate.toISOString().split('T')[0]}`
+        if (!uniqueStages.has(stageKey)) {
+          uniqueStages.set(stageKey, stage)
+        }
+      })
+      
+      return {
+        ...schedule,
+        stages: Array.from(uniqueStages.values())
+      }
+    })
+    
+    return finalSchedules
+  }
 
   // 채용 공채 일정 API 호출
   useEffect(() => {
@@ -763,114 +942,68 @@ export default function Dashboard() {
         setRecruitmentScheduleError(null)
         
         // 날짜 범위를 매우 넓게 설정하여 API의 모든 데이터 요청
-        // 과거 데이터와 미래 예측 데이터를 모두 포함하기 위해 넓은 범위 사용
         const startDate = `2000-01-01`
         const endDate = `2100-12-31`
         
-        const allEvents: Array<{
-          date: string
-          startDate: string
-          endDate: string
-          company: string
-          type: '신입공채' | '인턴십' | '공개채용'
-          title?: string
-          stage?: string
-        }> = []
+        const allSchedules: any[] = []
         
-        // API 응답의 type을 UI 타입으로 변환하는 함수
-        // API 응답은 한글("신입", "경력")을 반환하므로 이를 UI 타입으로 변환
-        const convertApiTypeToEventType = (apiType: string): '신입공채' | '공개채용' => {
-          return apiType === '신입' ? '신입공채' : '공개채용'
-        }
-        
-        // 각 타입(Entry-level/Experienced)과 각 data_type(actual/predicted)에 대해 API 호출
-        // API 스펙에 따르면 type은 영어("Entry-level", "Experienced")를 받습니다.
+        // 각 타입(Entry-level/Experienced)에 대해 API 호출
+        // data_type=all을 사용하여 actual과 predicted를 한 번에 가져오기
         const typeMapping = [
           { apiType: 'Entry-level', responseType: '신입' },
           { apiType: 'Experienced', responseType: '경력' }
         ]
         
-        // actual과 predicted를 모두 요청하여 전체 데이터 가져오기
-        const dataTypes = ['actual', 'predicted']
-        
-        for (const { apiType, responseType } of typeMapping) {
-          for (const dataType of dataTypes) {
-            try {
-              // API URL 구성: actual과 predicted를 각각 요청
-              const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=${dataType}&start_date=${startDate}&end_date=${endDate}`
-              
-              const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                  'Accept': 'application/json',
-                },
-                mode: 'cors',
-                credentials: 'omit',
-              })
-              
-              if (!response.ok) {
-                console.warn(`API 호출 실패 (${apiType}, ${dataType}):`, response.status, response.statusText)
-                continue // 해당 타입/데이터 타입에 대한 데이터가 없으면 건너뛰기
-              }
-              
-              const result = await response.json()
-              
-              // 응답 구조 확인: status, code, message, data.schedules
-              if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
-                console.log(`API 응답 성공 (${apiType}, ${dataType}):`, result.data.schedules.length, '개 스케줄')
-                
-                // 각 스케줄의 각 스테이지에 대해 이벤트 생성
-                result.data.schedules.forEach((schedule: any) => {
-                  const scheduleCompanyName = schedule.company_name || ''
-                  
-                  if (!schedule.stages || schedule.stages.length === 0) {
-                    console.warn(`스테이지 없음: ${scheduleCompanyName}`)
-                    return
-                  }
-                  
-                  schedule.stages.forEach((stage: any) => {
-                    // type 변환: API 응답의 type(한글)을 UI 타입으로 변환
-                    const eventType: '신입공채' | '인턴십' | '공개채용' = 
-                      convertApiTypeToEventType(schedule.type || responseType)
-                    
-                    // start_date와 end_date를 모두 사용하여 기간 설정
-                    if (stage.start_date && stage.end_date) {
-                      allEvents.push({
-                        date: stage.start_date, // 호환성을 위해 유지
-                        startDate: stage.start_date,
-                        endDate: stage.end_date,
-                        company: scheduleCompanyName,
-                        type: eventType,
-                        title: `${scheduleCompanyName} ${stage.stage}`,
-                        stage: stage.stage
-                      })
-                    } else {
-                      console.warn(`날짜 정보 없음: ${scheduleCompanyName} - ${stage.stage}`, stage)
-                    }
-                  })
-                })
-              } else {
-                console.warn(`API 응답 형식 오류 (${apiType}, ${dataType}):`, result)
-              }
-            } catch (error) {
-              // 개별 API 호출 실패는 무시하고 계속 진행
-              console.error(`API 호출 중 오류 발생 (${apiType}, ${dataType}):`, error)
+        for (const { apiType } of typeMapping) {
+          try {
+            // data_type=all을 사용하여 actual과 predicted를 모두 가져오기
+            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=all&start_date=${startDate}&end_date=${endDate}`
+            
+            const response = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+              },
+              mode: 'cors',
+              credentials: 'omit',
+            })
+            
+            if (!response.ok) {
+              console.warn(`API 호출 실패 (${apiType}):`, response.status, response.statusText)
               continue
             }
+            
+            const result = await response.json()
+            
+            if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+              console.log(`API 응답 성공 (${apiType}):`, result.data.schedules.length, '개 스케줄')
+              // 각 스케줄의 상세 정보 로깅
+              result.data.schedules.forEach((schedule: any) => {
+                console.log(`  - ${schedule.company_name} (${schedule.data_type || 'N/A'}):`, 
+                  schedule.stages.map((s: any) => `${s.stage} (${s.start_date} ~ ${s.end_date})`).join(', '))
+              })
+              allSchedules.push(...result.data.schedules)
+            } else {
+              console.warn(`API 응답 형식 오류 (${apiType}):`, result)
+            }
+          } catch (error) {
+            console.error(`API 호출 중 오류 발생 (${apiType}):`, error)
+            continue
           }
         }
         
-        // 날짜순으로 정렬 (startDate 기준)
-        allEvents.sort((a, b) => {
-          const dateA = new Date(a.startDate).getTime()
-          const dateB = new Date(b.startDate).getTime()
-          return dateA - dateB
-        })
-        
-        console.log('총 이벤트 수:', allEvents.length)
-        console.log('이벤트 샘플:', allEvents.slice(0, 5))
-        
-        setRecruitmentScheduleData(allEvents)
+        if (allSchedules.length > 0) {
+          const transformedSchedules = transformApiResponse(allSchedules)
+          console.log('총 스케줄 수:', transformedSchedules.length)
+          console.log('변환된 스케줄 상세:')
+          transformedSchedules.forEach((schedule) => {
+            console.log(`  - ${schedule.name} (${schedule.dataType || 'N/A'}):`, 
+              schedule.stages.map(s => `${s.stage} (${s.startDate.toISOString().split('T')[0]} ~ ${s.endDate.toISOString().split('T')[0]})`).join(', '))
+          })
+          setRecruitmentScheduleData(transformedSchedules)
+        } else {
+          setRecruitmentScheduleData([])
+        }
       } catch (error) {
         setRecruitmentScheduleError(error instanceof Error ? error.message : '채용 일정 데이터를 불러오는 중 오류가 발생했습니다.')
         setRecruitmentScheduleData([])
@@ -3472,7 +3605,7 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="text-gray-500">로딩 중...</div></div>}>
-                    <NewRecruitmentCalendar events={recruitmentScheduleData} />
+                    <NewRecruitmentCalendar companySchedules={recruitmentScheduleData} />
                   </Suspense>
                 )}
               </div>

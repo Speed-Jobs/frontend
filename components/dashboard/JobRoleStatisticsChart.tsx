@@ -676,13 +676,10 @@ export default function JobRoleStatisticsChart({
         return null
       })()}
       
-      {/* 인사이트 섹션 - 인사이트가 준비되었을 때만 표시 */}
+      {/* 인사이트 섹션 */}
       {(() => {
         // 인사이트가 준비되었는지 확인하는 함수
         const hasInsightsReady = () => {
-          // 인사이트가 로딩 중이면 false
-          if (isLoadingInsights) return false
-          
           // insights가 없으면 false
           if (!insights || insights === null || insights === undefined) return false
           
@@ -699,6 +696,18 @@ export default function JobRoleStatisticsChart({
           return hasSummary || hasJobRoleInsights
         }
         
+        // 인사이트가 로딩 중이면 "인사이트 생성 중" 메시지 표시
+        if (isLoadingInsights) {
+          return (
+            <div className="mt-8 sm:mt-10 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-xs sm:text-sm text-blue-600 flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span>인사이트 생성 중...</span>
+              </div>
+            </div>
+          )
+        }
+        
         // 인사이트가 준비되지 않았으면 아무것도 렌더링하지 않음
         if (!hasInsightsReady()) {
           return null
@@ -706,7 +715,7 @@ export default function JobRoleStatisticsChart({
         
         // 인사이트가 준비되었으면 표시
         return (
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mt-8 sm:mt-10 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
             {selectedRole ? (
               // 선택된 직군의 인사이트 표시
               selectedRoleInsight ? (

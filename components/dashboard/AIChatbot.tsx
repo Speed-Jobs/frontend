@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Send, X, Minimize2, Maximize2, Bot } from 'lucide-react'
+import { Send, X, Minimize2, Maximize2, Bot, LayoutDashboard, Calendar, Star, Building2, TrendingUp, Users, Briefcase, ChevronUp, ChevronDown } from 'lucide-react'
 
 interface Message {
   id: string
@@ -187,31 +187,21 @@ export default function AIChatbot() {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [size, setSize] = useState<{ width: number; height: number }>({ width: 384, height: 600 })
+  const [isResizing, setIsResizing] = useState(false)
+  const [resizeDirection, setResizeDirection] = useState<string | null>(null)
+  const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; left: number; top: number } | null>(null)
   const chatbotRef = useRef<HTMLDivElement>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
-      content: '안녕하세요! 무엇을 도와드릴까요? 채용 일정, 대시보드, 공고 품질 등에 대해 물어보실 수 있습니다.',
-      components: [
-        {
-          id: 'dashboard',
-          title: '대시보드',
-          description: '전체 통계 및 인사이트',
-          route: '/dashboard',
-          icon: '📊'
-        },
-        {
-          id: 'recruitment-schedule',
-          title: '채용 일정 분석',
-          description: '경쟁사 채용 일정 시각화',
-          route: '/dashboard/recruitment-schedule',
-          icon: '📅'
-        }
-      ]
+      content: '안녕하세요! 궁금한 것 무엇이든 물어보세요.'
     }
   ])
   const [inputValue, setInputValue] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -223,8 +213,8 @@ export default function AIChatbot() {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -233,23 +223,149 @@ export default function AIChatbot() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const question = inputValue.trim()
     setInputValue('')
+    setIsLoading(true)
 
-    // AI 응답 생성 (실제로는 API 호출)
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(inputValue.trim())
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: aiResponse.content,
-        components: aiResponse.components
+    // 로딩 메시지 추가
+    const loadingMessageId = (Date.now() + 1).toString()
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      type: 'assistant',
+      content: '답변을 생성하는 중...'
+    }
+    setMessages(prev => [...prev, loadingMessage])
+
+    try {
+      // API 호출
+      const response = await fetch('https://speedjobs-backend.skala25a.project.skala-ai.com/rag/search', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: question
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-      setMessages(prev => [...prev, assistantMessage])
-    }, 500)
+
+      const result = await response.json()
+
+      // 로딩 메시지 제거하고 실제 응답 추가
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== loadingMessageId)
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: result.answer || '답변을 생성할 수 없습니다.'
+        }
+        return [...filtered, assistantMessage]
+      })
+    } catch (error) {
+      // 에러 발생 시 로딩 메시지 제거하고 에러 메시지 추가
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== loadingMessageId)
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: '죄송합니다. 답변을 생성하는 중 오류가 발생했습니다. 다시 시도해주세요.'
+        }
+        return [...filtered, errorMessage]
+      })
+      console.error('API 호출 오류:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleComponentClick = (route: string) => {
     router.push(route)
+  }
+
+  // 빠른 질문 메뉴 항목들
+  const quickQuestions = [
+    { text: '최근 채용 트렌드를 알려줘' },
+    { text: '인기 있는 기술 스택은?' },
+    { text: '경쟁사 채용 일정을 보여줘' }
+  ]
+
+  // 페이지 이동 메뉴 항목들
+  const pageMenus = [
+    { title: '대시보드', route: '/dashboard', icon: LayoutDashboard, description: '전체 통계 및 인사이트' },
+    { title: '채용 일정', route: '/dashboard/recruitment-schedule', icon: Calendar, description: '경쟁사 채용 일정 분석' },
+    { title: '공고 품질', route: '/quality', icon: Star, description: '채용 공고 품질 평가' },
+    { title: '회사별 공고', route: '/companies', icon: Building2, description: '회사별 채용 공고 확인' }
+  ]
+
+  const handleQuickQuestion = async (question: string) => {
+    if (isLoading) return
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: question
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
+
+    // 로딩 메시지 추가
+    const loadingMessageId = (Date.now() + 1).toString()
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      type: 'assistant',
+      content: '답변을 생성하는 중...'
+    }
+    setMessages(prev => [...prev, loadingMessage])
+
+    try {
+      // API 호출
+      const response = await fetch('https://speedjobs-backend.skala25a.project.skala-ai.com/rag/search', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: question
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      // 로딩 메시지 제거하고 실제 응답 추가
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== loadingMessageId)
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: result.answer || '답변을 생성할 수 없습니다.'
+        }
+        return [...filtered, assistantMessage]
+      })
+    } catch (error) {
+      // 에러 발생 시 로딩 메시지 제거하고 에러 메시지 추가
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== loadingMessageId)
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: '죄송합니다. 답변을 생성하는 중 오류가 발생했습니다. 다시 시도해주세요.'
+        }
+        return [...filtered, errorMessage]
+      })
+      console.error('API 호출 오류:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -271,6 +387,25 @@ export default function AIChatbot() {
     }
   }
 
+  // 리사이즈 시작
+  const handleResizeStart = (direction: string) => (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (chatbotRef.current) {
+      setIsResizing(true)
+      setResizeDirection(direction)
+      const rect = chatbotRef.current.getBoundingClientRect()
+      setResizeStart({
+        x: e.clientX,
+        y: e.clientY,
+        width: size.width,
+        height: size.height,
+        left: position?.x ?? (window.innerWidth - rect.width - 24),
+        top: position?.y ?? (window.innerHeight - rect.height - 24)
+      })
+    }
+  }
+
   // 드래그 중
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -286,25 +421,95 @@ export default function AIChatbot() {
         const boundedY = Math.max(0, Math.min(newY, maxY))
         
         setPosition({ x: boundedX, y: boundedY })
+      } else if (isResizing && resizeStart && resizeDirection) {
+        const deltaX = e.clientX - resizeStart.x
+        const deltaY = e.clientY - resizeStart.y
+        
+        // 최소/최대 크기 제한
+        const minWidth = 300
+        const minHeight = 400
+        const maxWidth = window.innerWidth - 24
+        const maxHeight = window.innerHeight - 24
+        
+        let newWidth = resizeStart.width
+        let newHeight = resizeStart.height
+        let newLeft = resizeStart.left
+        let newTop = resizeStart.top
+        
+        // 방향에 따라 크기와 위치 조정
+        if (resizeDirection.includes('e')) {
+          // 우측
+          newWidth = Math.max(minWidth, Math.min(maxWidth - resizeStart.left, resizeStart.width + deltaX))
+        }
+        if (resizeDirection.includes('w')) {
+          // 좌측
+          const widthChange = resizeStart.width - deltaX
+          if (widthChange >= minWidth && resizeStart.left + deltaX >= 0) {
+            newWidth = widthChange
+            newLeft = resizeStart.left + deltaX
+          } else if (widthChange < minWidth) {
+            newWidth = minWidth
+            newLeft = resizeStart.left + resizeStart.width - minWidth
+          }
+        }
+        if (resizeDirection.includes('s')) {
+          // 하단
+          newHeight = Math.max(minHeight, Math.min(maxHeight - resizeStart.top, resizeStart.height + deltaY))
+        }
+        if (resizeDirection.includes('n')) {
+          // 상단
+          const heightChange = resizeStart.height - deltaY
+          if (heightChange >= minHeight && resizeStart.top + deltaY >= 0) {
+            newHeight = heightChange
+            newTop = resizeStart.top + deltaY
+          } else if (heightChange < minHeight) {
+            newHeight = minHeight
+            newTop = resizeStart.top + resizeStart.height - minHeight
+          }
+        }
+        
+        setSize({ width: newWidth, height: newHeight })
+        if (resizeDirection.includes('w') || resizeDirection.includes('n')) {
+          setPosition({ x: newLeft, y: newTop })
+        }
       }
     }
 
     const handleMouseUp = () => {
       setIsDragging(false)
+      setIsResizing(false)
+      setResizeDirection(null)
+      setResizeStart(null)
     }
 
-    if (isDragging) {
+    if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
       document.body.style.userSelect = 'none' // 드래그 중 텍스트 선택 방지
+      if (isResizing && resizeDirection) {
+        const cursorMap: Record<string, string> = {
+          'n': 'ns-resize',
+          's': 'ns-resize',
+          'e': 'ew-resize',
+          'w': 'ew-resize',
+          'ne': 'nesw-resize',
+          'nw': 'nwse-resize',
+          'se': 'nwse-resize',
+          'sw': 'nesw-resize'
+        }
+        document.body.style.cursor = cursorMap[resizeDirection] || 'nwse-resize'
+      } else {
+        document.body.style.cursor = isDragging ? 'move' : ''
+      }
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
       document.body.style.userSelect = ''
+      document.body.style.cursor = ''
     }
-  }, [isDragging, dragOffset])
+  }, [isDragging, isResizing, dragOffset, resizeStart, resizeDirection, position, size])
 
   if (!isOpen) {
     return (
@@ -318,25 +523,31 @@ export default function AIChatbot() {
     )
   }
 
-  const chatbotStyle: React.CSSProperties = position
-    ? {
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        right: 'auto',
-        bottom: 'auto',
-        transition: isDragging ? 'none' : 'all 0.3s'
-      }
-    : {
-        right: '1.5rem',
-        bottom: '1.5rem'
-      }
+  const chatbotStyle: React.CSSProperties = {
+    ...(position
+      ? {
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          right: 'auto',
+          bottom: 'auto',
+        }
+      : {
+          right: '1.5rem',
+          bottom: '1.5rem'
+        }),
+    width: `${size.width}px`,
+    height: isMinimized ? '64px' : `${size.height}px`,
+    maxWidth: 'calc(100vw - 3rem)',
+    maxHeight: 'calc(100vh - 3rem)',
+    transition: (isDragging || isResizing) ? 'none' : 'all 0.3s'
+  }
 
   return (
     <div
       ref={chatbotRef}
-      className={`fixed w-96 max-w-[calc(100vw-3rem)] bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-[9999] ${
-        isMinimized ? 'h-16' : 'h-[600px] max-h-[calc(100vh-3rem)]'
-      } ${isDragging ? 'cursor-move' : ''}`}
+      className={`fixed bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-[9999] ${
+        isDragging ? 'cursor-move' : ''
+      } ${isResizing ? 'cursor-nwse-resize' : ''}`}
       style={chatbotStyle}
     >
       {/* 헤더 */}
@@ -430,8 +641,71 @@ export default function AIChatbot() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* 기본 메뉴 영역 */}
+          <div className="border-t border-gray-200 bg-gray-50 overflow-hidden">
+            {/* 빠른 시작 토글 버튼 */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+            >
+              <span className="text-xs font-medium text-gray-700">질문 가이드</span>
+              {isMenuOpen ? (
+                <ChevronUp className="w-4 h-4 text-gray-600 transition-transform" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-600 transition-transform" />
+              )}
+            </button>
+            
+            {/* 슬라이드 메뉴 컨텐츠 */}
+            <div
+              className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="px-4 pt-2 pb-3">
+                {/* 페이지 이동 메뉴 */}
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">페이지 이동</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {pageMenus.map((menu) => {
+                      const IconComponent = menu.icon
+                      return (
+                        <button
+                          key={menu.route}
+                          onClick={() => handleComponentClick(menu.route)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors"
+                          title={menu.description}
+                        >
+                          <IconComponent className="w-3.5 h-3.5" />
+                          <span>{menu.title}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                
+                {/* 자주 묻는 질문 */}
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-2">자주 묻는 질문</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickQuestions.map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleQuickQuestion(item.text)}
+                        disabled={isLoading}
+                        className="px-2.5 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="line-clamp-1">{item.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 입력 영역 */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          <div className="px-4 pb-4 border-t border-gray-200 bg-gray-50">
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
@@ -440,16 +714,111 @@ export default function AIChatbot() {
                 onKeyPress={handleKeyPress}
                 placeholder="메시지를 입력하세요..."
                 className="flex-1 text-sm"
+                disabled={isLoading}
               />
               <Button
                 onClick={handleSend}
-                disabled={!inputValue.trim()}
-                className="bg-gray-900 hover:bg-gray-800 text-white"
+                disabled={!inputValue.trim() || isLoading}
+                className="bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 size="sm"
               >
-                <Send className="w-4 h-4" />
+                {isLoading ? (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
               </Button>
             </div>
+          </div>
+        </>
+      )}
+      
+      {/* 리사이즈 핸들들 */}
+      {!isMinimized && (
+        <>
+          {/* 모서리 핸들 */}
+          {/* 좌상 (nw) */}
+          <div
+            onMouseDown={handleResizeStart('nw')}
+            className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize group z-10"
+            style={{ marginTop: '-2px', marginLeft: '-2px' }}
+          >
+            <div className="absolute top-0 left-0 w-full h-full flex items-start justify-start">
+              <div className="w-3 h-3 border-l-2 border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-tl-lg bg-white"></div>
+            </div>
+          </div>
+          
+          {/* 우상 (ne) */}
+          <div
+            onMouseDown={handleResizeStart('ne')}
+            className="absolute top-0 right-0 w-4 h-4 cursor-nesw-resize group z-10"
+            style={{ marginTop: '-2px', marginRight: '-2px' }}
+          >
+            <div className="absolute top-0 right-0 w-full h-full flex items-start justify-end">
+              <div className="w-3 h-3 border-r-2 border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-tr-lg bg-white"></div>
+            </div>
+          </div>
+          
+          {/* 좌하 (sw) */}
+          <div
+            onMouseDown={handleResizeStart('sw')}
+            className="absolute bottom-0 left-0 w-4 h-4 cursor-nesw-resize group z-10"
+            style={{ marginBottom: '-2px', marginLeft: '-2px' }}
+          >
+            <div className="absolute bottom-0 left-0 w-full h-full flex items-end justify-start">
+              <div className="w-3 h-3 border-l-2 border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-bl-lg bg-white"></div>
+            </div>
+          </div>
+          
+          {/* 우하 (se) */}
+          <div
+            onMouseDown={handleResizeStart('se')}
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize group z-10"
+            style={{ marginBottom: '-2px', marginRight: '-2px' }}
+          >
+            <div className="absolute bottom-0 right-0 w-full h-full flex items-end justify-end">
+              <div className="w-3 h-3 border-r-2 border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-br-lg bg-white"></div>
+            </div>
+          </div>
+          
+          {/* 변 핸들 */}
+          {/* 상 (n) */}
+          <div
+            onMouseDown={handleResizeStart('n')}
+            className="absolute top-0 left-4 right-4 h-2 cursor-ns-resize group z-10"
+            style={{ marginTop: '-2px' }}
+          >
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-full border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-t"></div>
+          </div>
+          
+          {/* 하 (s) */}
+          <div
+            onMouseDown={handleResizeStart('s')}
+            className="absolute bottom-0 left-4 right-4 h-2 cursor-ns-resize group z-10"
+            style={{ marginBottom: '-2px' }}
+          >
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-full border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-b"></div>
+          </div>
+          
+          {/* 좌 (w) */}
+          <div
+            onMouseDown={handleResizeStart('w')}
+            className="absolute top-4 bottom-4 left-0 w-2 cursor-ew-resize group z-10"
+            style={{ marginLeft: '-2px' }}
+          >
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 h-12 w-full border-l-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-l"></div>
+          </div>
+          
+          {/* 우 (e) */}
+          <div
+            onMouseDown={handleResizeStart('e')}
+            className="absolute top-4 bottom-4 right-0 w-2 cursor-ew-resize group z-10"
+            style={{ marginRight: '-2px' }}
+          >
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 h-12 w-full border-r-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-r"></div>
           </div>
         </>
       )}

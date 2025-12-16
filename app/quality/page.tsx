@@ -957,9 +957,9 @@ export default function QualityPage() {
                         </select>
                       </div>
 
-                      {/* 직무 선택 */}
+                      {/* 직군 선택 */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">직무 선택</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">직군 선택</label>
                         <select
                           value={selectedJobRole}
                           onChange={(e) => setSelectedJobRole(e.target.value)}
@@ -1160,23 +1160,25 @@ export default function QualityPage() {
                           setSelectedJobType('our')
                           setShowJobDetailModal(true)
                         }}
-                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all min-h-[120px] flex flex-col ${
                           selectedOurJob?.id === job.id
                             ? 'border-gray-900 bg-gray-50'
                             : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
                         }`}
                       >
-                        <h4 className="font-bold text-gray-900 mb-1">{job.title}</h4>
-                        <p className="text-sm text-gray-600 mb-2">{job.company}</p>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.experience || '경력 무관'}
-                          </span>
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {job.employment_type}
-                          </span>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h4 className="font-bold text-gray-900 flex-1">{job.title}</h4>
+                          <div className="flex flex-wrap gap-1 justify-end flex-shrink-0">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs whitespace-nowrap">
+                              {job.experience || '경력 무관'}
+                            </span>
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs whitespace-nowrap">
+                              {job.employment_type}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm text-gray-600 mb-2">{job.company}</p>
+                        <p className="text-xs text-gray-500 mt-auto">
                           {formatDate(job.posted_date)} ~ {job.expired_date ? formatDate(job.expired_date) : '상시채용'}
                         </p>
                       </div>
@@ -1229,7 +1231,7 @@ export default function QualityPage() {
                     ) : searchResults.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">
                         {selectedCompany === '전체' && selectedJobRole === '전체'
-                          ? '회사와 직무를 선택한 후 검색 버튼을 클릭하세요.'
+                          ? '회사와 직군을 선택한 후 검색 버튼을 클릭하세요.'
                           : '공고가 없습니다.'}
                       </p>
                     ) : (
@@ -1244,7 +1246,7 @@ export default function QualityPage() {
                             setSelectedJobType('competitor')
                             setShowJobDetailModal(true)
                           }}
-                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all min-h-[120px] flex flex-col ${
                             selectedCompetitorJob?.id === job.id
                               ? 'border-gray-900 bg-gray-50'
                               : 'border-gray-200 hover:border-gray-400 hover:shadow-md'
@@ -1262,7 +1264,7 @@ export default function QualityPage() {
                               </span>
                             ))}
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 mt-auto">
                             {formatDate(job.posted_date)}
                           </p>
                         </div>

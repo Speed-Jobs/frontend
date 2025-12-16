@@ -35,12 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('https://speedjobs-spring.skala25a.project.skala-ai.com/login', {
+      // Next.js API Route를 통해 프록시 (쿠키가 같은 도메인에 저장되도록)
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'accept': '*/*',
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // 쿠키 포함
         body: JSON.stringify({
           email,
           password,

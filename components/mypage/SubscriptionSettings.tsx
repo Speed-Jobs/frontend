@@ -345,13 +345,11 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
         companies: formData.companies,
       }
 
-      // 백엔드 API에 저장 시도
+      // 백엔드 API에 저장
       try {
-        await saveSubscriptionSettings(subscriptionData)
-        setSaveMessage({ type: 'success', text: '구독 설정이 저장되었습니다.' })
-      } catch (apiError) {
-        console.warn('API 저장 실패, localStorage에 저장합니다.', apiError)
-        // API 실패 시 localStorage에 저장 (알림 시간은 항상 08:00로 고정)
+        const result = await saveSubscriptionSettings(subscriptionData)
+        
+        // API 저장 성공 시 localStorage에도 백업 저장
         const dataToSave = {
           ...formData,
           emailNotification: {
@@ -360,10 +358,20 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           },
         }
         localStorage.setItem('subscriptionSettings', JSON.stringify(dataToSave))
-        setSaveMessage({
-          type: 'success',
-          text: '구독 설정이 로컬에 저장되었습니다.',
+        
+        // API 성공 메시지 표시
+        setSaveMessage({ 
+          type: 'success', 
+          text: result.message || '구독 설정이 저장되었습니다.' 
         })
+      } catch (apiError: any) {
+        console.error('API 저장 실패:', apiError)
+        // API 실패 시 에러 메시지 표시
+        setSaveMessage({
+          type: 'error',
+          text: apiError.message || '구독 설정 저장에 실패했습니다. 다시 시도해주세요.',
+        })
+        return // API 실패 시 저장 중단
       }
 
       if (onSave) {
@@ -372,9 +380,12 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
 
       // 3초 후 메시지 제거
       setTimeout(() => setSaveMessage(null), 3000)
-    } catch (error) {
+    } catch (error: any) {
       console.error('구독 설정 저장 실패:', error)
-      setSaveMessage({ type: 'error', text: '저장 중 오류가 발생했습니다.' })
+      setSaveMessage({ 
+        type: 'error', 
+        text: error.message || '저장 중 오류가 발생했습니다.' 
+      })
     } finally {
       setIsSaving(false)
     }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import SubscriptionSettings from '@/components/mypage/SubscriptionSettings'
+import SubscriptionView from '@/components/mypage/SubscriptionView'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface SubscriptionData {
@@ -25,19 +26,84 @@ export default function MyPage() {
   } | null>(null)
 
   // 구독 설정 저장 시 콜백
-  const handleSubscriptionSave = () => {
-    // 구독 설정이 저장되었을 때 구독 정보 업데이트
-    setTimeout(() => {
-      const saved = localStorage.getItem('subscriptionSettings')
-      if (saved) {
-        try {
-          const data = JSON.parse(saved)
-          setSubscriptionData(data)
-        } catch (error) {
-          console.warn('구독 정보 업데이트 실패:', error)
+  const handleSubscriptionSave = async () => {
+    // 구독 설정이 저장되었을 때 구독 정보를 API에서 다시 조회
+    try {
+      const { 
+        getSubscriptionSettings 
+      } = await import('@/lib/api/subscription')
+      
+      // 옵션 목록이 필요하므로 현재 상태 사용
+      if (subscriptionOptions) {
+        const subscriptionDataFromApi = await getSubscriptionSettings(subscriptionOptions)
+        
+        // 기술 목록이 로드되었고 API에서 가져온 기술 ID가 있으면 유효한 ID만 필터링
+        let validTechIds = subscriptionDataFromApi.technologies || []
+        if (subscriptionOptions.technologies.length > 0 && Array.isArray(subscriptionDataFromApi.technologies)) {
+          validTechIds = subscriptionDataFromApi.technologies.filter((id: number) => 
+            subscriptionOptions.technologies.some(tech => tech.id === id)
+          )
         }
+
+        // 직군 목록이 로드되었고 API에서 가져온 직군 ID가 있으면 유효한 ID만 필터링
+        let validJobRoleIds = subscriptionDataFromApi.jobRoles || []
+        if (subscriptionOptions.jobRoles.length > 0 && Array.isArray(subscriptionDataFromApi.jobRoles)) {
+          validJobRoleIds = subscriptionDataFromApi.jobRoles.filter((id: number) => 
+            subscriptionOptions.jobRoles.some(role => role.id === id)
+          )
+        }
+
+        // 경쟁사 목록이 로드되었고 API에서 가져온 경쟁사 ID가 있으면 유효한 ID만 필터링
+        let validCompanyIds = subscriptionDataFromApi.companies || []
+        if (subscriptionOptions.companies.length > 0 && Array.isArray(subscriptionDataFromApi.companies)) {
+          validCompanyIds = subscriptionDataFromApi.companies.filter((id: number) => 
+            subscriptionOptions.companies.some(company => company.id === id)
+          )
+        }
+
+        // API에서 가져온 구독 데이터 설정
+        const apiData = {
+          technologies: validTechIds,
+          jobRoles: validJobRoleIds,
+          companies: validCompanyIds,
+          emailNotification: {
+            enabled: false,
+            time: '09:00',
+          },
+        }
+        
+        // localStorage에도 저장 (백업용)
+        localStorage.setItem('subscriptionSettings', JSON.stringify(apiData))
+        setSubscriptionData(apiData)
+      } else {
+        // 옵션 목록이 아직 로드되지 않은 경우 localStorage에서 읽기
+        setTimeout(() => {
+          const saved = localStorage.getItem('subscriptionSettings')
+          if (saved) {
+            try {
+              const data = JSON.parse(saved)
+              setSubscriptionData(data)
+            } catch (error) {
+              console.warn('구독 정보 업데이트 실패:', error)
+            }
+          }
+        }, 100)
       }
-    }, 100)
+    } catch (error) {
+      console.warn('구독 조회 실패, localStorage에서 읽기:', error)
+      // API 호출 실패 시 localStorage에서 읽기
+      setTimeout(() => {
+        const saved = localStorage.getItem('subscriptionSettings')
+        if (saved) {
+          try {
+            const data = JSON.parse(saved)
+            setSubscriptionData(data)
+          } catch (error) {
+            console.warn('구독 정보 업데이트 실패:', error)
+          }
+        }
+      }, 100)
+    }
   }
 
   // 구독 정보 및 옵션 로드
@@ -86,7 +152,13 @@ export default function MyPage() {
 
           // 구독 설정을 API에서 가져오기
           try {
-            const subscriptionDataFromApi = await getSubscriptionSettings()
+            // 옵션 목록이 로드된 후 구독 설정 조회 (이름을 ID로 변환하기 위해 필요)
+            const subscriptionOptionsForApi = {
+              technologies,
+              jobRoles,
+              companies,
+            }
+            const subscriptionDataFromApi = await getSubscriptionSettings(subscriptionOptionsForApi)
             
             // 기술 목록이 로드되었고 API에서 가져온 기술 ID가 있으면 유효한 ID만 필터링
             let validTechIds = subscriptionDataFromApi.technologies || []
@@ -229,128 +301,13 @@ export default function MyPage() {
 
           {/* 현재 구독 정보 */}
           <div className="lg:col-span-1">
-            <div className="bg-white border border-gray-200 rounded-lg p-5 sticky top-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">현재 구독</h3>
-              <div className="space-y-4 text-sm">
-                {/* 기술 */}
-                {subscriptionData?.technologies && subscriptionData.technologies.length > 0 && subscriptionOptions && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1.5">기술</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {subscriptionData.technologies.slice(0, 3).map((id) => {
-                        const tech = subscriptionOptions.technologies.find((t) => t.id === id)
-                        return tech ? (
-                          <span
-                            key={id}
-                            className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs"
-                          >
-                            {tech.name}
-                          </span>
-                        ) : null
-                      })}
-                      {subscriptionData.technologies.length > 3 && (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                          +{subscriptionData.technologies.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 직군 */}
-                {subscriptionData?.jobRoles && subscriptionData.jobRoles.length > 0 && subscriptionOptions && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1.5">직군</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {subscriptionData.jobRoles.slice(0, 2).map((id) => {
-                        const role = subscriptionOptions.jobRoles.find((r) => r.id === id)
-                        return role ? (
-                          <span
-                            key={id}
-                            className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs"
-                          >
-                            {role.name}
-                          </span>
-                        ) : null
-                      })}
-                      {subscriptionData.jobRoles.length > 2 && (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                          +{subscriptionData.jobRoles.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 경쟁사 */}
-                {subscriptionData?.companies && subscriptionData.companies.length > 0 && subscriptionOptions && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1.5">경쟁사</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {subscriptionData.companies.slice(0, 2).map((id) => {
-                        const company = subscriptionOptions.companies.find((c) => c.id === id)
-                        return company ? (
-                          <span
-                            key={id}
-                            className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs"
-                          >
-                            {company.name}
-                          </span>
-                        ) : null
-                      })}
-                      {subscriptionData.companies.length > 2 && (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                          +{subscriptionData.companies.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 이메일 알림 정보 */}
-                <div className="pt-3 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 mb-1.5">이메일 알림</p>
-                  {subscriptionData?.emailNotification ? (
-                    <div className="space-y-1">
-                      {user?.email && (
-                        <p className="text-gray-900 font-medium text-xs mb-1 break-all">
-                          {user.email}
-                        </p>
-                      )}
-                      <p className="text-gray-900 font-medium text-xs">
-                        {subscriptionData.emailNotification.enabled
-                          ? `매일 ${subscriptionData.emailNotification.time}에 알림`
-                          : '비활성화'}
-                      </p>
-                      {subscriptionData.emailNotification.enabled && (
-                        <p className="text-xs text-gray-500">
-                          새로운 채용 공고가 등록되면 이메일로 알림을 받습니다.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {user?.email && (
-                        <p className="text-gray-900 font-medium text-xs break-all">
-                          {user.email}
-                        </p>
-                      )}
-                      <p className="text-gray-900 font-medium text-xs">설정되지 않음</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* 구독 정보가 없을 때 */}
-                {(!subscriptionData || 
-                  (subscriptionData.technologies.length === 0 && 
-                   subscriptionData.jobRoles.length === 0 && 
-                   subscriptionData.companies.length === 0)) && (
-                  <div className="text-center py-4">
-                    <p className="text-xs text-gray-500">구독 설정을 완료해주세요</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <SubscriptionView
+              subscriptionOptions={subscriptionOptions}
+              subscriptionData={subscriptionData}
+              onDataUpdate={(data) => {
+                setSubscriptionData(data)
+              }}
+            />
           </div>
         </div>
       </div>

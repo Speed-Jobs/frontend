@@ -10,11 +10,14 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
 
 /**
  * 구독 설정 조회
+ * @param options 옵션 목록 (이름을 ID로 변환하기 위해 필요)
  */
-export async function getSubscriptionSettings(): Promise<SubscriptionData> {
+export async function getSubscriptionSettings(
+  options?: SubscriptionOptions
+): Promise<SubscriptionData> {
   try {
-    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
-    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
+    // Next.js API Route를 통해 프록시 호출 (CORS 문제 해결)
+    const response = await fetch('/api/subscriptions', {
       method: 'GET',
       headers: {
         'accept': '*/*',
@@ -35,10 +38,48 @@ export async function getSubscriptionSettings(): Promise<SubscriptionData> {
     
     // API 응답 형식에 맞게 파싱
     if (result.status === 200 && result.data) {
+      const data = result.data
+      
+      // 이름 배열을 ID 배열로 변환하는 헬퍼 함수
+      const convertNamesToIds = (
+        names: string[],
+        optionList: Array<{ id: number; name: string }>
+      ): number[] => {
+        if (!names || !Array.isArray(names) || names.length === 0) {
+          return []
+        }
+        if (!optionList || optionList.length === 0) {
+          return []
+        }
+        return names
+          .map((name) => optionList.find((item) => item.name === name)?.id)
+          .filter((id): id is number => id !== undefined)
+      }
+      
+      // 이름 배열이 있는 경우 ID로 변환
+      if (data.skillNames || data.positionNames || data.companyNames) {
+        const technologies = options?.technologies
+          ? convertNamesToIds(data.skillNames || [], options.technologies)
+          : []
+        const jobRoles = options?.jobRoles
+          ? convertNamesToIds(data.positionNames || [], options.jobRoles)
+          : []
+        const companies = options?.companies
+          ? convertNamesToIds(data.companyNames || [], options.companies)
+          : []
+        
+        return {
+          technologies,
+          jobRoles,
+          companies,
+        }
+      }
+      
+      // 기존 형식 지원 (ID 배열이 직접 오는 경우)
       return {
-        technologies: result.data.skillIds || result.data.technologies || [],
-        jobRoles: result.data.positionIds || result.data.jobRoles || [],
-        companies: result.data.companyIds || result.data.companies || [],
+        technologies: data.skillIds || data.technologies || [],
+        jobRoles: data.positionIds || data.jobRoles || [],
+        companies: data.companyIds || data.companies || [],
       }
     }
     
@@ -59,10 +100,10 @@ export async function getSubscriptionSettings(): Promise<SubscriptionData> {
  */
 export async function saveSubscriptionSettings(
   subscriptionData: SubscriptionData
-): Promise<void> {
+): Promise<{ message: string }> {
   try {
-    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
-    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
+    // Next.js API Route를 통해 프록시 호출 (CORS 문제 해결)
+    const response = await fetch('/api/subscriptions', {
       method: 'POST',
       headers: {
         'accept': '*/*',
@@ -76,15 +117,25 @@ export async function saveSubscriptionSettings(
       }),
     })
 
+    const result = await response.json()
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
       if (response.status === 401) {
-        throw new Error(errorData.message || '로그인이 필요한 서비스입니다.')
+        throw new Error(result.message || '로그인이 필요한 서비스입니다.')
       }
       throw new Error(
-        errorData.message || `구독 설정 저장 실패: ${response.statusText}`
+        result.message || `구독 설정 저장 실패: ${response.statusText}`
       )
     }
+
+    // API 응답 형식 확인
+    if (result.status === 200 && result.code === 'OK') {
+      return {
+        message: result.message || '구독 설정이 저장되었습니다.',
+      }
+    }
+
+    throw new Error(result.message || '구독 설정 저장에 실패했습니다.')
   } catch (error) {
     console.error('구독 설정 저장 중 오류:', error)
     throw error
@@ -96,8 +147,8 @@ export async function saveSubscriptionSettings(
  */
 export async function deleteSubscriptionSettings(): Promise<void> {
   try {
-    const SPRING_API_BASE_URL = 'https://speedjobs-spring.skala25a.project.skala-ai.com'
-    const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
+    // Next.js API Route를 통해 프록시 호출 (CORS 문제 해결)
+    const response = await fetch('/api/subscriptions', {
       method: 'DELETE',
       headers: {
         'accept': '*/*',

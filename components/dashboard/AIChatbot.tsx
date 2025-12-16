@@ -339,7 +339,7 @@ export default function AIChatbot() {
       }
 
       // 중복 제거
-      const uniquePostIds = [...new Set(postIds)]
+      const uniquePostIds = Array.from(new Set(postIds))
 
       // 공고 정보 가져오기
       let jobPostings: JobPosting[] = []
@@ -381,9 +381,8 @@ export default function AIChatbot() {
 
   // 빠른 질문 메뉴 항목들
   const quickQuestions = [
-    { text: '최근 채용 트렌드를 알려줘' },
-    { text: '인기 있는 기술 스택은?' },
-    { text: '경쟁사 채용 일정을 보여줘' }
+    { text: '2025년 하반기 토스 채용공고수와 이를 기반으로 웹에서 사업동향 분석해줘' },
+    { text: '2025년 각 분기별 토스 채용 공고 총 몇 개야?' }
   ]
 
   // 페이지 이동 메뉴 항목들
@@ -447,7 +446,7 @@ export default function AIChatbot() {
       }
 
       // 중복 제거
-      const uniquePostIds = [...new Set(postIds)]
+      const uniquePostIds = Array.from(new Set(postIds))
 
       // 공고 정보 가져오기
       let jobPostings: JobPosting[] = []
@@ -869,9 +868,9 @@ export default function AIChatbot() {
                         key={index}
                         onClick={() => handleQuickQuestion(item.text)}
                         disabled={isLoading}
-                        className="px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
                       >
-                        <span className="line-clamp-1">{item.text}</span>
+                        <span className="line-clamp-2">{item.text}</span>
                       </button>
                     ))}
                   </div>

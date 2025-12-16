@@ -10,6 +10,9 @@ import {
   getSubscriptionSettings,
   saveSubscriptionSettings,
   getSubscriptionOptions,
+  getMajorSkills,
+  getPositions,
+  getCompetitorCompanies,
   type SubscriptionData,
   type SubscriptionOptions,
 } from '@/lib/api/subscription'
@@ -27,77 +30,12 @@ interface SubscriptionSettingsProps {
 interface SubscriptionFormData {
   technologies: number[]
   jobRoles: number[]
-  jobSkills: string[] // 직군별 직무 (Skill set)
   companies: number[]
   emailNotification: {
     enabled: boolean
     time: string // HH:mm 형식
   }
 }
-
-// 직군별 직무(Skill set) 매핑
-const JOB_ROLE_SKILLS: Record<string, string[]> = {
-  'Software Development': ['Front-end Development', 'Back-end Development', 'Mobile Development'],
-  'Factory AX Engineering': ['Simulation', '기구설계', '전장/제어'],
-  'Solution Development': ['ERP_FCM', 'ERP_SCM', 'ERP_HCM', 'ERP_T&E', 'Biz. Solution'],
-  'Cloud/Infra Engineering': ['System/Network Engineering', 'Middleware/Database Engineering', 'Data Center Engineering'],
-  'Architect': ['Software Architect', 'Data Architect', 'Infra Architect', 'AI Architect', 'Automation Architect'],
-  'Project Management': ['Application PM', 'Infra PM', 'Solution PM', 'AI PM', 'Automation PM'],
-  'Quality Management': ['PMO', 'Quality Engineering', 'Offshoring Service Professional'],
-  'AI': ['AI/Data Development', 'Generative AI Development', 'Physical AI Development'],
-  '정보보호': ['보안 Governance / Compliance', '보안 진단/Consulting', '보안 Solution Service'],
-  'Sales': ['[금융] 제1금융', '[금융] 제2금융', '[공공/Global] 공공', '[공공/Global] Global', '[제조] 대외', '[제조] 대내 Hi-Tech', '[제조] 대내 Process', '[B2C] 통신', '[B2C] 유통/물류/서비스', '[B2C] 미디어/콘텐츠'],
-  'Domain Expert': ['금융 도메인', '제조 도메인', '공공 도메인', 'B2C 도메인'],
-  'Consulting': ['ESG', 'SHE', 'CRM', 'SCM', 'ERP', 'AI'],
-  'Biz. Supporting': ['Strategy Planning', 'New Biz. Development', 'Financial Management', 'Human Resource Management', 'Stakeholder Management', 'Governance & Public Management'],
-}
-
-// 예시 데이터
-const FALLBACK_TECHNOLOGIES: Option[] = [
-  { id: 1, name: 'React' },
-  { id: 2, name: 'TypeScript' },
-  { id: 3, name: 'Node.js' },
-  { id: 4, name: 'Python' },
-  { id: 5, name: 'Java' },
-  { id: 6, name: 'Spring Boot' },
-  { id: 7, name: 'Vue.js' },
-  { id: 8, name: 'Next.js' },
-  { id: 9, name: 'Docker' },
-  { id: 10, name: 'Kubernetes' },
-  { id: 11, name: 'AWS' },
-  { id: 12, name: 'GraphQL' },
-  { id: 13, name: 'AI Engineer' },
-  { id: 14, name: 'Machine Learning' },
-]
-
-const FALLBACK_JOB_ROLES: Option[] = [
-  { id: 1, name: 'Software Development' },
-  { id: 2, name: 'Factory AX Engineering' },
-  { id: 3, name: 'Solution Development' },
-  { id: 4, name: 'Cloud/Infra Engineering' },
-  { id: 5, name: 'Architect' },
-  { id: 6, name: 'Project Management' },
-  { id: 7, name: 'Quality Management' },
-  { id: 8, name: 'AI' },
-  { id: 9, name: '정보보호' },
-  { id: 10, name: 'Sales' },
-  { id: 11, name: 'Domain Expert' },
-  { id: 12, name: 'Consulting' },
-  { id: 13, name: 'Biz. Supporting' },
-]
-
-const FALLBACK_COMPANIES: Option[] = [
-  { id: 1, name: '네이버' },
-  { id: 2, name: '카카오' },
-  { id: 3, name: '토스' },
-  { id: 4, name: '라인' },
-  { id: 5, name: '쿠팡' },
-  { id: 6, name: '배달의민족' },
-  { id: 7, name: '당근마켓' },
-  { id: 8, name: '삼성전자' },
-  { id: 9, name: 'LG전자' },
-  { id: 10, name: 'SK텔레콤' },
-]
 
 // 검색 가능한 멀티 셀렉트 드롭다운 컴포넌트
 function SearchableMultiSelect({
@@ -259,9 +197,9 @@ function SearchableMultiSelect({
 }
 
 export default function SubscriptionSettings({ onSave }: SubscriptionSettingsProps) {
-  const [technologies, setTechnologies] = useState<Option[]>(FALLBACK_TECHNOLOGIES)
-  const [jobRoles, setJobRoles] = useState<Option[]>(FALLBACK_JOB_ROLES)
-  const [companies, setCompanies] = useState<Option[]>(FALLBACK_COMPANIES)
+  const [technologies, setTechnologies] = useState<Option[]>([])
+  const [jobRoles, setJobRoles] = useState<Option[]>([])
+  const [companies, setCompanies] = useState<Option[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -270,7 +208,6 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
   const [formData, setFormData] = useState<SubscriptionFormData>({
     technologies: [],
     jobRoles: [],
-    jobSkills: [],
     companies: [],
     emailNotification: {
       enabled: true,
@@ -278,64 +215,88 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     },
   })
 
-  // 선택된 직군에 해당하는 직무 목록 가져오기
-  const getAvailableSkills = (): string[] => {
-    const selectedRoleNames = formData.jobRoles
-      .map((id) => jobRoles.find((r) => r.id === id)?.name)
-      .filter(Boolean) as string[]
-    
-    const allSkills: string[] = []
-    selectedRoleNames.forEach((roleName) => {
-      const skills = JOB_ROLE_SKILLS[roleName] || []
-      allSkills.push(...skills)
-    })
-    
-    // 중복 제거
-    return Array.from(new Set(allSkills))
-  }
-
-  // 직군 선택 시 해당 직군의 직무가 선택 해제되도록 처리
-  const handleJobRoleChange = (ids: number[]) => {
-    const previousRoleIds = formData.jobRoles
-    const newRoleIds = ids
-    
-    // 제거된 직군 찾기
-    const removedRoles = previousRoleIds.filter(id => !newRoleIds.includes(id))
-    
-    // 제거된 직군의 직무들도 제거
-    let updatedSkills = [...formData.jobSkills]
-    removedRoles.forEach(roleId => {
-      const roleName = jobRoles.find(r => r.id === roleId)?.name
-      if (roleName && JOB_ROLE_SKILLS[roleName]) {
-        updatedSkills = updatedSkills.filter(skill => !JOB_ROLE_SKILLS[roleName].includes(skill))
-      }
-    })
-    
-    setFormData({ ...formData, jobRoles: ids, jobSkills: updatedSkills })
-  }
-
   // 초기 데이터 로드
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
       try {
-        const options = await getSubscriptionOptions().catch(() => null)
-        if (options) {
-          setTechnologies(options.technologies)
-          setJobRoles(options.jobRoles)
-          setCompanies(options.companies)
+        // 기술 스택 목록을 새로운 API로 가져오기
+        let loadedTechnologies: Option[] = []
+        try {
+          const skills = await getMajorSkills()
+          loadedTechnologies = skills
+          setTechnologies(skills)
+        } catch (error) {
+          console.warn('기술 스택 API 호출 실패:', error)
         }
 
-        // 저장된 구독 설정 로드
+        // 직군 목록을 새로운 API로 가져오기
+        let loadedJobRoles: Option[] = []
+        try {
+          const positions = await getPositions()
+          loadedJobRoles = positions
+          setJobRoles(positions)
+        } catch (error) {
+          console.warn('직군 API 호출 실패:', error)
+        }
+
+        // 경쟁사 목록을 새로운 API로 가져오기
+        let loadedCompanies: Option[] = []
+        try {
+          const companies = await getCompetitorCompanies()
+          loadedCompanies = companies
+          setCompanies(companies)
+        } catch (error) {
+          console.warn('경쟁사 API 호출 실패:', error)
+        }
+
+        // 저장된 구독 설정 로드 및 기술 ID 필터링
         try {
           const saved = localStorage.getItem('subscriptionSettings')
           if (saved) {
             const savedData = JSON.parse(saved)
+            
+            // 기술 목록이 로드되었고 저장된 기술 ID가 있으면 유효한 ID만 필터링
+            let validTechIds = savedData.technologies || []
+            if (loadedTechnologies.length > 0 && Array.isArray(savedData.technologies)) {
+              validTechIds = savedData.technologies.filter((id: number) => 
+                loadedTechnologies.some(tech => tech.id === id)
+              )
+            }
+
+            // 직군 목록이 로드되었고 저장된 직군 ID가 있으면 유효한 ID만 필터링
+            let validJobRoleIds = savedData.jobRoles || []
+            if (loadedJobRoles.length > 0 && Array.isArray(savedData.jobRoles)) {
+              validJobRoleIds = savedData.jobRoles.filter((id: number) => 
+                loadedJobRoles.some(role => role.id === id)
+              )
+            }
+
+            // 경쟁사 목록이 로드되었고 저장된 경쟁사 ID가 있으면 유효한 ID만 필터링
+            let validCompanyIds = savedData.companies || []
+            if (loadedCompanies.length > 0 && Array.isArray(savedData.companies)) {
+              validCompanyIds = savedData.companies.filter((id: number) => 
+                loadedCompanies.some(company => company.id === id)
+              )
+            }
+
+            // 유효하지 않은 ID가 있으면 localStorage 업데이트
+            if (validTechIds.length !== (savedData.technologies || []).length ||
+                validJobRoleIds.length !== (savedData.jobRoles || []).length ||
+                validCompanyIds.length !== (savedData.companies || []).length) {
+              const updatedData = {
+                ...savedData,
+                technologies: validTechIds,
+                jobRoles: validJobRoleIds,
+                companies: validCompanyIds,
+              }
+              localStorage.setItem('subscriptionSettings', JSON.stringify(updatedData))
+            }
+            
             setFormData({
-              technologies: savedData.technologies || [],
-              jobRoles: savedData.jobRoles || [],
-              jobSkills: savedData.jobSkills || [],
-              companies: savedData.companies || [],
+              technologies: validTechIds,
+              jobRoles: validJobRoleIds,
+              companies: validCompanyIds,
               emailNotification: savedData.emailNotification ? {
                 ...savedData.emailNotification,
                 time: '08:00', // 알림 시간은 오전 8:00로 고정
@@ -433,11 +394,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
 
     if (techNames.length > 0) parts.push(techNames.join(', '))
     if (roleNames.length > 0) {
-      const roleText = roleNames.join(', ')
-      const skillsText = formData.jobSkills.length > 0 
-        ? ` (${formData.jobSkills.slice(0, 3).join(', ')}${formData.jobSkills.length > 3 ? '...' : ''})`
-        : ''
-      parts.push(`${roleText}${skillsText}`)
+      parts.push(roleNames.join(', '))
     }
     if (companyNames.length > 0) {
       parts.push(`기업: ${companyNames.join(', ')}`)
@@ -491,7 +448,8 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
               selectedIds={formData.technologies}
               onSelectionChange={(ids) => setFormData({ ...formData, technologies: ids })}
               placeholder="기술을 선택하세요"
-              closeOnSelect={true}
+              closeOnSelect={false}
+              showCompleteButton={true}
             />
           </div>
 
@@ -500,93 +458,12 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
             <SearchableMultiSelect
               options={jobRoles}
               selectedIds={formData.jobRoles}
-              onSelectionChange={handleJobRoleChange}
+              onSelectionChange={(ids) => setFormData({ ...formData, jobRoles: ids })}
               placeholder="직군을 선택하세요"
-              closeOnSelect={true}
+              closeOnSelect={false}
+              showCompleteButton={true}
             />
           </div>
-
-          {/* 선택된 직군의 직무 선택 */}
-          {formData.jobRoles.length > 0 && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">직무 (Skill set)</label>
-              <div className="space-y-2">
-                {formData.jobRoles.map((roleId) => {
-                  const role = jobRoles.find((r) => r.id === roleId)
-                  if (!role) return null
-                  
-                  const roleSkills = JOB_ROLE_SKILLS[role.name] || []
-                  const selectedSkillsForRole = formData.jobSkills.filter(skill => 
-                    roleSkills.includes(skill)
-                  )
-                  
-                  return (
-                    <div key={roleId} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-900">{role.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {selectedSkillsForRole.length}/{roleSkills.length} 선택됨
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {roleSkills.map((skill) => {
-                          const isSelected = formData.jobSkills.includes(skill)
-                          return (
-                            <button
-                              key={skill}
-                              type="button"
-                              onClick={() => {
-                                const updatedSkills = isSelected
-                                  ? formData.jobSkills.filter(s => s !== skill)
-                                  : [...formData.jobSkills, skill]
-                                setFormData({ ...formData, jobSkills: updatedSkills })
-                              }}
-                              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                                isSelected
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                              }`}
-                            >
-                              {skill}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              
-              {/* 선택된 직무 태그 */}
-              {formData.jobSkills.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs text-gray-600 mb-2">선택된 직무:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.jobSkills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-medium"
-                      >
-                        {skill}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData({
-                              ...formData,
-                              jobSkills: formData.jobSkills.filter(s => s !== skill),
-                            })
-                          }}
-                          className="hover:bg-green-200 rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* 기업 선택 */}

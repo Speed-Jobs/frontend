@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext'
 interface SubscriptionData {
   technologies: number[]
   jobRoles: number[]
-  jobSkills: string[]
   companies: number[]
   emailNotification: {
     enabled: boolean
@@ -45,70 +44,89 @@ export default function MyPage() {
   useEffect(() => {
     const loadSubscriptionData = async () => {
       try {
-        // 구독 설정 로드
-        const saved = localStorage.getItem('subscriptionSettings')
-        if (saved) {
-          const data = JSON.parse(saved)
-          setSubscriptionData(data)
-        }
-
         // 구독 옵션 로드 (이름 매핑용)
         try {
-          const { getSubscriptionOptions } = await import('@/lib/api/subscription')
-          const options = await getSubscriptionOptions().catch(() => null)
-          if (options) {
-            setSubscriptionOptions({
-              technologies: options.technologies,
-              jobRoles: options.jobRoles,
-              companies: options.companies,
-            })
-          } else {
-            // Fallback 데이터 사용
-            setSubscriptionOptions({
-              technologies: [
-                { id: 1, name: 'React' },
-                { id: 2, name: 'TypeScript' },
-                { id: 3, name: 'Node.js' },
-                { id: 4, name: 'Python' },
-                { id: 5, name: 'Java' },
-                { id: 6, name: 'Spring Boot' },
-                { id: 7, name: 'Vue.js' },
-                { id: 8, name: 'Next.js' },
-                { id: 9, name: 'Docker' },
-                { id: 10, name: 'Kubernetes' },
-                { id: 11, name: 'AWS' },
-                { id: 12, name: 'GraphQL' },
-                { id: 13, name: 'AI Engineer' },
-                { id: 14, name: 'Machine Learning' },
-              ],
-              jobRoles: [
-                { id: 1, name: 'Software Development' },
-                { id: 2, name: 'Factory AX Engineering' },
-                { id: 3, name: 'Solution Development' },
-                { id: 4, name: 'Cloud/Infra Engineering' },
-                { id: 5, name: 'Architect' },
-                { id: 6, name: 'Project Management' },
-                { id: 7, name: 'Quality Management' },
-                { id: 8, name: 'AI' },
-                { id: 9, name: '정보보호' },
-                { id: 10, name: 'Sales' },
-                { id: 11, name: 'Domain Expert' },
-                { id: 12, name: 'Consulting' },
-                { id: 13, name: 'Biz. Supporting' },
-              ],
-              companies: [
-                { id: 1, name: '네이버' },
-                { id: 2, name: '카카오' },
-                { id: 3, name: '토스' },
-                { id: 4, name: '라인' },
-                { id: 5, name: '쿠팡' },
-                { id: 6, name: '배달의민족' },
-                { id: 7, name: '당근마켓' },
-                { id: 8, name: '삼성전자' },
-                { id: 9, name: 'LG전자' },
-                { id: 10, name: 'SK텔레콤' },
-              ],
-            })
+          const { getMajorSkills, getPositions, getCompetitorCompanies } = await import('@/lib/api/subscription')
+          
+          // 기술 스택 목록을 새로운 API로 가져오기
+          let technologies: Array<{ id: number; name: string }> = []
+          try {
+            technologies = await getMajorSkills()
+          } catch (error) {
+            console.warn('기술 스택 API 호출 실패:', error)
+          }
+
+          // 직군 목록을 새로운 API로 가져오기
+          let jobRoles: Array<{ id: number; name: string }> = []
+          try {
+            jobRoles = await getPositions()
+          } catch (error) {
+            console.warn('직군 API 호출 실패:', error)
+          }
+
+          // 경쟁사 목록을 새로운 API로 가져오기
+          let companies: Array<{ id: number; name: string }> = []
+          try {
+            companies = await getCompetitorCompanies()
+          } catch (error) {
+            console.warn('경쟁사 API 호출 실패:', error)
+          }
+
+          // API에서 가져온 데이터만 사용
+          setSubscriptionOptions({
+            technologies,
+            jobRoles,
+            companies,
+          })
+
+          // localStorage에 저장된 구독 설정 로드 및 기술/직군 ID 필터링
+          const saved = localStorage.getItem('subscriptionSettings')
+          if (saved) {
+            try {
+              const data = JSON.parse(saved)
+              
+              // 기술 목록이 로드되었고 저장된 기술 ID가 있으면 유효한 ID만 필터링
+              let validTechIds = data.technologies || []
+              if (technologies.length > 0 && Array.isArray(data.technologies)) {
+                validTechIds = data.technologies.filter((id: number) => 
+                  technologies.some(tech => tech.id === id)
+                )
+              }
+
+              // 직군 목록이 로드되었고 저장된 직군 ID가 있으면 유효한 ID만 필터링
+              let validJobRoleIds = data.jobRoles || []
+              if (jobRoles.length > 0 && Array.isArray(data.jobRoles)) {
+                validJobRoleIds = data.jobRoles.filter((id: number) => 
+                  jobRoles.some(role => role.id === id)
+                )
+              }
+
+              // 경쟁사 목록이 로드되었고 저장된 경쟁사 ID가 있으면 유효한 ID만 필터링
+              let validCompanyIds = data.companies || []
+              if (companies.length > 0 && Array.isArray(data.companies)) {
+                validCompanyIds = data.companies.filter((id: number) => 
+                  companies.some(company => company.id === id)
+                )
+              }
+              
+              // 유효하지 않은 ID가 있으면 localStorage 업데이트
+              if (validTechIds.length !== (data.technologies || []).length ||
+                  validJobRoleIds.length !== (data.jobRoles || []).length ||
+                  validCompanyIds.length !== (data.companies || []).length) {
+                const updatedData = {
+                  ...data,
+                  technologies: validTechIds,
+                  jobRoles: validJobRoleIds,
+                  companies: validCompanyIds,
+                }
+                localStorage.setItem('subscriptionSettings', JSON.stringify(updatedData))
+                setSubscriptionData(updatedData)
+              } else {
+                setSubscriptionData(data)
+              }
+            } catch (error) {
+              console.warn('저장된 설정 로드 실패:', error)
+            }
           }
         } catch (error) {
           console.warn('구독 옵션 로드 실패:', error)
@@ -210,16 +228,6 @@ export default function MyPage() {
                         </span>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* 직무 */}
-                {subscriptionData?.jobSkills && subscriptionData.jobSkills.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1.5">직무</p>
-                    <p className="text-gray-900 font-medium text-xs">
-                      {subscriptionData.jobSkills.length}개 선택됨
-                    </p>
                   </div>
                 )}
 

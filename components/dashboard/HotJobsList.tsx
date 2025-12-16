@@ -78,8 +78,8 @@ export default function HotJobsList({
           params.append('positionName', positionName)
         }
         
-        // API URL - 다른 파일들과 동일한 서버 사용
-        const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+        // API URL - Next.js API 라우트 프록시 사용 (CORS 문제 해결)
+        const apiUrl = `/api/posts?${params.toString()}`
         
         console.log('경쟁사 공고 API 호출:', apiUrl) // 디버깅용
         
@@ -88,8 +88,6 @@ export default function HotJobsList({
           headers: {
             'Accept': '*/*',
           },
-          mode: 'cors',
-          credentials: 'omit',
         })
         
         if (!response.ok) {

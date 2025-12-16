@@ -3658,11 +3658,12 @@ export default function Dashboard() {
                   </div>
                   <div className="text-gray-700 flex-1 min-h-0 overflow-hidden">
                     {/* HotJobsList가 독립적으로 로딩 상태를 처리하므로 즉시 렌더링 */}
+                    {/* 경쟁사 최신 공고는 항상 모든 경쟁사의 최신 공고를 표시 (주요 회사별 채용 활동 선택과 독립적) */}
                     <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="text-gray-500">로딩 중...</div></div>}>
                       <HotJobsList 
                         itemsPerPage={hasInsight ? 10 : 5}
                         limit={10}
-                        companyNames={selectedRecruitmentCompanies.length > 0 ? selectedRecruitmentCompanies : undefined}
+                        companyNames={undefined}
                         positionName={selectedDifficultyPosition || undefined}
                       />
                     </Suspense>

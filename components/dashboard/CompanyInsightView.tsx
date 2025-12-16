@@ -107,15 +107,14 @@ export default function CompanyInsightView({
           size: '20',
         })
         
-        const apiUrl = `http://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
+        // Next.js API 라우트 프록시 사용 (CORS 문제 해결)
+        const apiUrl = `/api/posts?${params.toString()}`
         
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Accept': '*/*',
           },
-          mode: 'cors',
-          credentials: 'omit',
         })
         
         if (!response.ok) {

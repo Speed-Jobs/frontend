@@ -68,7 +68,6 @@ function GaugeChart({
         }
       }}
     >
-      <div className="text-sm font-semibold text-gray-700 mb-2 text-center px-2">{label}</div>
       <div className="relative w-full max-w-[200px] mx-auto" style={{ aspectRatio: '2/1', maxHeight: '120px' }}>
         {/* 왼쪽 라벨 (냉각) */}
         <div className="absolute left-0 top-0 text-xs font-semibold text-green-600">냉각</div>
@@ -125,8 +124,10 @@ function GaugeChart({
           />
         </svg>
       </div>
+      {/* 타이틀 (계기판과 과열도 크리 사이) */}
+      <div className="text-sm font-semibold text-gray-700 mt-2 mb-2 text-center px-2">{label}</div>
       {/* YoY 점수 또는 난이도 지수 표시 (차트 아래 별도 행) */}
-      <div className="mt-4 mb-0">
+      <div className="mt-0 mb-0">
         {yoyScore !== undefined ? (
           <div className="text-2xl font-bold text-gray-900">{yoyScore.toFixed(1)}</div>
         ) : (

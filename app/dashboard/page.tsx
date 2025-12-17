@@ -3844,6 +3844,60 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* API 연동 차트 섹션 */}
+        <div className="space-y-6">
+          {/* 상위 스킬 연도별 트렌드 및 스킬 클라우드 */}
+          <DarkDashboardCard title={
+            <div className="flex items-center justify-between w-full">
+              <span>상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)</span>
+              {(isLoadingSkillTrend || isLoadingSkills) && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  <span>로딩중</span>
+                </div>
+              )}
+            </div>
+          }>
+            <div className="mb-4 flex flex-wrap gap-3 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">스킬 트렌드 회사:</span>
+                <select
+                  value={selectedSkillCompany}
+                  onChange={(e) => {
+                    setSelectedSkillCompany(e.target.value)
+                  }}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">전체</option>
+                  {recruitmentCompanies.length === 0 ? (
+                    <option value="">회사 로딩 중...</option>
+                  ) : (
+                    recruitmentCompanies.map((company: { key: string; name: string }) => (
+                      <option key={company.key} value={company.name}>{company.name}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+            <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="text-gray-500">로딩 중...</div></div>}>
+              <SkillTrendAndCloud
+                skillTrendData={skillTrendData}
+                skillCloudData={skillCloudData}
+                selectedCompany={selectedSkillCompany}
+                selectedCloudCompany={selectedSkillCloudCompany}
+                selectedYear="2021-2025"
+                selectedCloudYear={selectedSkillCloudYear}
+                onYearSelect={(year: string) => setSelectedSkillCloudYear(year)}
+                isLoadingTrend={isLoadingSkillTrend}
+                isLoadingCloud={isLoadingSkills}
+                trendError={skillTrendError}
+                cloudError={skillsError}
+              />
+            </Suspense>
+          </DarkDashboardCard>
+
+        </div>
+
         {/* 하단 2열 그리드 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* 직군 비중 변화 분석 */}
@@ -4309,61 +4363,6 @@ export default function Dashboard() {
               )}
             </div>
           </DarkDashboardCard>
-        </div>
-
-
-        {/* API 연동 차트 섹션 */}
-        <div className="space-y-6">
-          {/* 상위 스킬 연도별 트렌드 및 스킬 클라우드 */}
-          <DarkDashboardCard title={
-            <div className="flex items-center justify-between w-full">
-              <span>상위 스킬 연도별 트렌드 및 스킬 클라우드 (최근 5년)</span>
-              {(isLoadingSkillTrend || isLoadingSkills) && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                  <span>로딩중</span>
-                </div>
-              )}
-            </div>
-          }>
-            <div className="mb-4 flex flex-wrap gap-3 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">스킬 트렌드 회사:</span>
-                <select
-                  value={selectedSkillCompany}
-                  onChange={(e) => {
-                    setSelectedSkillCompany(e.target.value)
-                  }}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">전체</option>
-                  {recruitmentCompanies.length === 0 ? (
-                    <option value="">회사 로딩 중...</option>
-                  ) : (
-                    recruitmentCompanies.map((company: { key: string; name: string }) => (
-                      <option key={company.key} value={company.name}>{company.name}</option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-            <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="text-gray-500">로딩 중...</div></div>}>
-              <SkillTrendAndCloud
-                skillTrendData={skillTrendData}
-                skillCloudData={skillCloudData}
-                selectedCompany={selectedSkillCompany}
-                selectedCloudCompany={selectedSkillCloudCompany}
-                selectedYear="2021-2025"
-                selectedCloudYear={selectedSkillCloudYear}
-                onYearSelect={(year: string) => setSelectedSkillCloudYear(year)}
-                isLoadingTrend={isLoadingSkillTrend}
-                isLoadingCloud={isLoadingSkills}
-                trendError={skillTrendError}
-                cloudError={skillsError}
-              />
-            </Suspense>
-          </DarkDashboardCard>
-
         </div>
 
         {/* 우리 회사 직무 기술서 보기 - 제일 아래 */}

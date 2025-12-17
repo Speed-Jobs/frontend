@@ -12,9 +12,9 @@ export default function Header() {
   const { isAuthenticated, user, logout } = useAuth()
   
   const navItems = [
-    { href: '/dashboard', label: '대시보드', icon: '📊' },
-    { href: '/quality', label: '공고품질 평가', icon: '⭐' },
-    { href: '/companies', label: '회사별 공고', icon: '📋' },
+    { href: '/dashboard', label: '대시보드' },
+    { href: '/quality', label: '공고품질 평가' },
+    { href: '/companies', label: '회사별 공고' },
   ]
   
   const userMenuItems = [

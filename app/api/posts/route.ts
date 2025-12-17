@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     // 쿼리 파라미터 가져오기
     const searchParams = request.nextUrl.searchParams
     
-    // 원본 API URL 구성
-    const apiUrl = `${SPRING_API_BASE_URL}/posts?${searchParams.toString()}`
+    // 원본 API URL 구성 - 대시보드 전용 엔드포인트 사용
+    const apiUrl = `${SPRING_API_BASE_URL}/dashboard/posts?${searchParams.toString()}`
     
     // 백엔드 API 호출
     const response = await fetch(apiUrl, {

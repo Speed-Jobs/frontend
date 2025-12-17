@@ -57,14 +57,11 @@ export default function HotJobsList({
         setIsLoading(true)
         setError(null)
         
-        // 항상 경쟁사 공고 API 사용
+        // 항상 경쟁사 공고 API 사용 (대시보드 전용 엔드포인트)
         const params = new URLSearchParams()
         
-        // 필수 파라미터
-        params.append('sort', 'POST_AT')
-        params.append('isAscending', 'false')
-        params.append('page', '0')
-        params.append('size', String(limit))
+        // 필수 파라미터 - 새로운 API는 limit 사용
+        params.append('limit', String(limit))
         
         // 회사명 필터 (배열) - 있으면 추가
         if (companyNames && companyNames.length > 0) {
@@ -98,15 +95,22 @@ export default function HotJobsList({
         
         console.log('경쟁사 공고 API 응답:', result) // 디버깅용
         
-        // 경쟁사 공고 API 응답 형식 처리
+        // 경쟁사 공고 API 응답 형식 처리 (새로운 대시보드 API 형식 우선)
         let posts = null
-        if (result.content && Array.isArray(result.content)) {
+        if (result.data?.posts && Array.isArray(result.data.posts)) {
+          // 새로운 대시보드 API 형식: { status: 200, code: "OK", data: { posts: [...] } }
+          posts = result.data.posts
+        } else if (result.content && Array.isArray(result.content)) {
+          // 기존 형식: { content: [...] }
           posts = result.content
         } else if (Array.isArray(result)) {
+          // 배열 직접 반환
           posts = result
         } else if (result.data?.content && Array.isArray(result.data.content)) {
+          // 기존 형식: { data: { content: [...] } }
           posts = result.data.content
         } else if (result.data && Array.isArray(result.data)) {
+          // 기존 형식: { data: [...] }
           posts = result.data
         }
         

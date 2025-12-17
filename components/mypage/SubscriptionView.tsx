@@ -15,6 +15,9 @@ interface SubscriptionViewProps {
       enabled: boolean
       time: string
     }
+    slackNotification?: {
+      enabled: boolean
+    }
   } | null
   onDataUpdate: (data: {
     technologies: number[]
@@ -23,6 +26,9 @@ interface SubscriptionViewProps {
     emailNotification: {
       enabled: boolean
       time: string
+    }
+    slackNotification: {
+      enabled: boolean
     }
   }) => void
 }
@@ -80,6 +86,9 @@ export default function SubscriptionView({
         emailNotification: subscriptionData?.emailNotification || {
           enabled: false,
           time: '09:00',
+        },
+        slackNotification: subscriptionData?.slackNotification || {
+          enabled: false,
         },
       }
 

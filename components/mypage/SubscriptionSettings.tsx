@@ -36,6 +36,9 @@ interface SubscriptionFormData {
     enabled: boolean
     time: string // HH:mm 형식
   }
+  slackNotification: {
+    enabled: boolean
+  }
 }
 
 // 검색 가능한 멀티 셀렉트 드롭다운 컴포넌트
@@ -215,6 +218,9 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
       enabled: true,
       time: '08:00', // 매일 오전 8시 (고정)
     },
+    slackNotification: {
+      enabled: false,
+    },
   })
 
   // 초기 데이터 로드
@@ -306,6 +312,11 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
                 enabled: true,
                 time: '08:00',
               },
+              slackNotification: savedData.slackNotification ? {
+                ...savedData.slackNotification,
+              } : {
+                enabled: false,
+              },
             })
           }
         } catch (error) {
@@ -355,6 +366,9 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           emailNotification: {
             ...formData.emailNotification,
             time: '08:00', // 알림 시간은 오전 8:00로 고정
+          },
+          slackNotification: {
+            ...formData.slackNotification,
           },
         }
         localStorage.setItem('subscriptionSettings', JSON.stringify(dataToSave))
@@ -414,6 +428,9 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
             enabled: true,
             time: '08:00',
           },
+          slackNotification: {
+            enabled: false,
+          },
         })
         
         // localStorage에서도 삭제
@@ -467,8 +484,12 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     const emailText = formData.emailNotification.enabled
       ? `이메일 알림: 매일 08:00`
       : '이메일 알림: 비활성화'
+    
+    const slackText = formData.slackNotification.enabled
+      ? 'Slack 알림: 활성화'
+      : 'Slack 알림: 비활성화'
 
-    return parts.length > 0 ? `${parts.join(' | ')} | ${emailText}` : '조건을 선택해주세요'
+    return parts.length > 0 ? `${parts.join(' | ')} | ${emailText} | ${slackText}` : '조건을 선택해주세요'
   }
 
   if (isLoading) {
@@ -577,6 +598,32 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
                   매일 오전 8:00에 새로운 채용 공고 알림을 이메일로 받습니다.
                 </p>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Slack 알림 설정 */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">Slack 알림 설정</h3>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <Checkbox
+                checked={formData.slackNotification.enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    slackNotification: {
+                      enabled: checked === true,
+                    },
+                  })
+                }
+              />
+              <span className="text-sm text-gray-700">Slack 알림 활성화</span>
+            </label>
+            {formData.slackNotification.enabled && (
+              <p className="text-xs text-gray-500">
+                새로운 채용 공고 알림을 Slack으로 받습니다.
+              </p>
             )}
           </div>
         </div>

@@ -14,6 +14,9 @@ interface SubscriptionData {
     enabled: boolean
     time: string
   }
+  slackNotification: {
+    enabled: boolean
+  }
 }
 
 export default function MyPage() {
@@ -69,6 +72,9 @@ export default function MyPage() {
           emailNotification: {
             enabled: false,
             time: '09:00',
+          },
+          slackNotification: {
+            enabled: false,
           },
         }
         
@@ -191,6 +197,9 @@ export default function MyPage() {
               emailNotification: {
                 enabled: false,
                 time: '09:00',
+              },
+              slackNotification: {
+                enabled: false,
               },
             }
             

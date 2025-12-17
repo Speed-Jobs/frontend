@@ -233,7 +233,58 @@ export default function CompanyInsightView({
             skillTrendData={skillTrendData}
             companyName={companyName}
             timeframe={timeframe}
-            insightData={insightData}
+            insightData={insightData && typeof insightData === 'object' ? (() => {
+              // message 필드 제거 (API 응답의 message 필드가 포함되어 있을 수 있음)
+              const { message, ...rest } = insightData as any
+              
+              // key_findings에서도 message 필드 제거
+              if (rest.key_findings && Array.isArray(rest.key_findings)) {
+                const apiMessagePatterns = [
+                  /대시보드.*공고.*조회.*성공/i,
+                  /대시보드 공고 조회 성공/i,
+                  /공고.*조회.*성공/i,
+                  /조회.*성공/i,
+                  /대시보드.*조회.*성공/i,
+                  /공고.*조회/i,
+                  /조회.*완료/i,
+                  /데이터.*조회.*성공/i,
+                ]
+                const exactMatches = [
+                  '대시보드 공고 조회 성공',
+                  '공고 조회 성공',
+                  '조회 성공',
+                  '대시보드 조회 성공',
+                ]
+                
+                rest.key_findings = rest.key_findings.filter((item: any) => {
+                  const itemText = typeof item === 'string' ? item.trim() : String(item).trim()
+                  if (!itemText) return false
+                  
+                  // message 필드와 동일한 내용이면 제거
+                  if (message && typeof message === 'string' && itemText === message.trim()) {
+                    return false
+                  }
+                  
+                  for (const pattern of apiMessagePatterns) {
+                    if (pattern.test(itemText)) return false
+                  }
+                  if (exactMatches.some(match => itemText === match || itemText.includes(match))) return false
+                  
+                  return true
+                })
+              }
+              
+              // message 필드가 key_findings에 포함되어 있지 않도록 보장
+              if (message && typeof message === 'string' && rest.key_findings && Array.isArray(rest.key_findings)) {
+                const messageText = message.trim()
+                rest.key_findings = rest.key_findings.filter((item: any) => {
+                  const itemText = typeof item === 'string' ? item.trim() : String(item).trim()
+                  return itemText !== messageText && !itemText.includes(messageText)
+                })
+              }
+              
+              return rest
+            })() : insightData}
           />
           
           {/* 최근 채용 공고 목록 - posts 로딩 완료 후 표시 */}

@@ -84,13 +84,12 @@ export default function MyPage() {
               const data = JSON.parse(saved)
               setSubscriptionData(data)
             } catch (error) {
-              console.warn('구독 정보 업데이트 실패:', error)
+              // 무시
             }
           }
         }, 100)
       }
     } catch (error) {
-      console.warn('구독 조회 실패, localStorage에서 읽기:', error)
       // API 호출 실패 시 localStorage에서 읽기
       setTimeout(() => {
         const saved = localStorage.getItem('subscriptionSettings')
@@ -124,7 +123,7 @@ export default function MyPage() {
           try {
             technologies = await getMajorSkills()
           } catch (error) {
-            console.warn('기술 스택 API 호출 실패:', error)
+            // 무시
           }
 
           // 직군 목록을 새로운 API로 가져오기
@@ -132,7 +131,7 @@ export default function MyPage() {
           try {
             jobRoles = await getPositions()
           } catch (error) {
-            console.warn('직군 API 호출 실패:', error)
+            // 무시
           }
 
           // 경쟁사 목록을 새로운 API로 가져오기
@@ -140,7 +139,7 @@ export default function MyPage() {
           try {
             companies = await getCompetitorCompanies()
           } catch (error) {
-            console.warn('경쟁사 API 호출 실패:', error)
+            // 무시
           }
 
           // API에서 가져온 데이터만 사용
@@ -199,8 +198,6 @@ export default function MyPage() {
             localStorage.setItem('subscriptionSettings', JSON.stringify(apiData))
             setSubscriptionData(apiData)
           } catch (error: any) {
-            console.warn('구독 설정 API 호출 실패:', error)
-            
             // API 호출 실패 시 localStorage에서 로드 시도
             const saved = localStorage.getItem('subscriptionSettings')
             if (saved) {
@@ -247,15 +244,15 @@ export default function MyPage() {
                   setSubscriptionData(data)
                 }
               } catch (parseError) {
-                console.warn('저장된 설정 로드 실패:', parseError)
+                // 무시
               }
             }
           }
         } catch (error) {
-          console.warn('구독 옵션 로드 실패:', error)
+          // 무시
         }
       } catch (error) {
-        console.warn('구독 정보 로드 실패:', error)
+        // 무시
       }
     }
     loadSubscriptionData()
@@ -292,7 +289,6 @@ export default function MyPage() {
           <div className="lg:col-span-2">
             <SubscriptionSettings
               onSave={(data) => {
-                console.log('구독 설정 저장됨:', data)
                 handleSubscriptionSave()
                 // 여기서 백엔드 API 호출 가능
               }}

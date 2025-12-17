@@ -64,10 +64,6 @@ export default function JobDetailPage() {
         // 상세 공고 API 호출 시도
         const detailApiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
         
-        console.log('=== 상세 공고 API 호출 ===')
-        console.log('호출 URL:', detailApiUrl)
-        console.log('호출 시각:', new Date().toISOString())
-        
         try {
           const response = await fetch(detailApiUrl, {
             method: 'GET',
@@ -79,9 +75,6 @@ export default function JobDetailPage() {
             credentials: 'omit',
           })
           
-          console.log('응답 상태:', response.status)
-          console.log('응답 URL:', response.url)
-          
           if (!response.ok) {
             // 404 등 에러인 경우 대시보드 API로 재시도
             if (response.status === 404) {
@@ -91,7 +84,6 @@ export default function JobDetailPage() {
           }
           
           const result = await response.json()
-          console.log('백엔드에서 받은 상세 데이터:', result)
         
           // API 응답 형식: { status, code, message, data }
           if (result.status === 200 && result.code === 'OK' && result.data) {
@@ -108,18 +100,12 @@ export default function JobDetailPage() {
             setIsLoading(false)
             return // API 성공 시 여기서 종료
           } else {
-            console.warn('API 응답 형식이 올바르지 않습니다:', result)
             throw new Error(result.message || 'API 응답 형식이 올바르지 않습니다.')
           }
         } catch (fetchError: any) {
-          console.error('=== 상세 공고 API 호출 에러 ===')
-          console.error('에러 타입:', fetchError instanceof Error ? fetchError.constructor.name : typeof fetchError)
-          console.error('에러 메시지:', fetchError instanceof Error ? fetchError.message : String(fetchError))
-          
           // 상세 API 실패 시 대시보드 API에서 해당 공고 찾기 시도
           if (fetchError.message === 'NOT_FOUND' || fetchError.message.includes('404')) {
             try {
-              console.log('대시보드 API에서 공고 찾기 시도...')
               const dashboardApiUrl = 'https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/dashboard/posts?limit=100'
               const dashboardResponse = await fetch(dashboardApiUrl, {
                 method: 'GET',
@@ -168,7 +154,7 @@ export default function JobDetailPage() {
                 }
               }
             } catch (dashboardError) {
-              console.error('대시보드 API 호출 실패:', dashboardError)
+              // 대시보드 API 호출 실패 시 무시
             }
           }
           
@@ -221,10 +207,6 @@ export default function JobDetailPage() {
         }
       } catch (err) {
         // 예상치 못한 에러
-        console.error('=== 공고 상세 조회 에러 ===')
-        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
-        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
-        
         setJob(null)
         setError('공고를 불러오는 중 오류가 발생했습니다.')
         setIsLoading(false)

@@ -69,14 +69,6 @@ export default function CombinedTrendChart({
 
   // 두 데이터를 period 기준으로 병합
   const mergedData = useMemo(() => {
-    // 디버깅: 데이터 확인 (개발 환경에서만)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('CombinedTrendChart - jobPostingsTrendData:', jobPostingsTrendData)
-      console.log('CombinedTrendChart - companyRecruitmentData:', companyRecruitmentData)
-      console.log('CombinedTrendChart - companies:', companies)
-      console.log('CombinedTrendChart - selectedCompanies:', selectedCompanies)
-    }
-    
     if (!jobPostingsTrendData || jobPostingsTrendData.length === 0) {
       const result = (companyRecruitmentData || []).map(item => ({
         period: normalizePeriod(item.period),
@@ -84,9 +76,6 @@ export default function CombinedTrendChart({
           Object.entries(item).filter(([key]) => key !== 'period')
         ),
       }))
-      if (process.env.NODE_ENV === 'development') {
-        console.log('CombinedTrendChart - mergedData (companyRecruitmentData only):', result)
-      }
       return result
     }
     if (!companyRecruitmentData || companyRecruitmentData.length === 0) {
@@ -94,9 +83,6 @@ export default function CombinedTrendChart({
         period: normalizePeriod(item.period),
         totalCount: item.count,
       }))
-      if (process.env.NODE_ENV === 'development') {
-        console.log('CombinedTrendChart - mergedData (jobPostingsTrendData only):', result)
-      }
       return result
     }
 
@@ -168,9 +154,6 @@ export default function CombinedTrendChart({
       return parseMD(a.period) - parseMD(b.period)
     })
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('CombinedTrendChart - mergedData (final):', sorted)
-    }
     return sorted
   }, [jobPostingsTrendData, companyRecruitmentData])
 
@@ -267,15 +250,6 @@ export default function CombinedTrendChart({
     // 데이터가 없는 이유 분석
     const hasJobPostingsData = jobPostingsTrendData && jobPostingsTrendData.length > 0
     const hasCompanyRecruitmentData = companyRecruitmentData && companyRecruitmentData.length > 0
-    
-    // 데이터가 있지만 병합 후 비어있는 경우
-    if (hasJobPostingsData || hasCompanyRecruitmentData) {
-      console.warn('CombinedTrendChart - 데이터가 있지만 병합 후 비어있음:', {
-        jobPostingsTrendData,
-        companyRecruitmentData,
-        mergedData
-      })
-    }
     
     // 에러가 있을 때만 에러 메시지 표시, 그 외에는 빈 공간으로 표시
     if (error) {

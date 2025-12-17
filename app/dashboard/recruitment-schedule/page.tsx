@@ -259,16 +259,6 @@ export default function RecruitmentSchedulePage() {
         // API 호출 (params에 이미 data_type이 포함되어 있음)
         const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?${params.toString()}`
         
-        // 디버깅: API URL 로깅
-        console.log('채용 일정 API 호출:', apiUrl)
-        console.log('파라미터:', {
-          type: params.get('type'),
-          data_type: params.get('data_type'),
-          start_date: params.get('start_date'),
-          end_date: params.get('end_date'),
-          job_role: params.get('job_role'),
-        })
-        
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -285,33 +275,16 @@ export default function RecruitmentSchedulePage() {
         const result: ApiResponse = await response.json()
         
         if (result.status === 200 && result.code === 'SUCCESS' && result.data && result.data.schedules) {
-          console.log(`API 응답 성공: ${result.data.schedules.length}개 스케줄`)
-          // 각 스케줄의 data_type 확인
-          result.data.schedules.forEach((schedule: ApiCompanySchedule) => {
-            console.log(`  - ${schedule.company_name}: data_type=${schedule.data_type || 'N/A'}, stages=${schedule.stages.length}개`)
-            schedule.stages.forEach((stage) => {
-              console.log(`    - ${stage.stage}: ${stage.start_date} ~ ${stage.end_date}`)
-            })
-          })
           allSchedules.push(...result.data.schedules)
         } else {
-          console.warn('⚠️ API 응답 형식 오류:', result)
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
         
         if (allSchedules.length > 0) {
           const transformedSchedules = transformApiResponse(allSchedules)
-          console.log('변환된 스케줄:', transformedSchedules.length, '개')
-          transformedSchedules.forEach((schedule) => {
-            console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}, stages=${schedule.stages.length}개`)
-            schedule.stages.forEach((stage) => {
-              console.log(`    - ${stage.stage}: ${stage.startDate.toISOString().split('T')[0]} ~ ${stage.endDate.toISOString().split('T')[0]}`)
-            })
-          })
           setServerSchedules(transformedSchedules)
         } else {
           // 데이터가 없어도 빈 배열로 설정 (에러 아님)
-          console.warn('⚠️ 불러온 스케줄이 없습니다. API 응답:', result)
           setServerSchedules([])
         }
       } catch (error: any) {
@@ -517,12 +490,6 @@ export default function RecruitmentSchedulePage() {
 
     // 신입 공고: data_type 필터 적용
     if (activeTab === '신입') {
-      console.log('필터링 전:', result.length, '개 스케줄')
-      console.log('현재 필터:', dataFilter)
-      result.forEach((schedule) => {
-        console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}`)
-      })
-      
       result = result.filter((schedule) => {
         // 전체 보기: actual과 predicted 모두 표시 (dataType이 없는 경우도 포함)
         if (dataFilter === 'all') {
@@ -530,26 +497,16 @@ export default function RecruitmentSchedulePage() {
         }
         if (dataFilter === 'actual') {
           const matches = schedule.dataType === 'actual'
-          if (!matches) {
-            console.log(`  필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=actual)`)
-          }
           return matches
         }
         // 예측치만 표시
         if (dataFilter === 'predicted') {
           // dataType이 정확히 'predicted'인지 확인 (문자열 비교)
           const matches = schedule.dataType === 'predicted'
-          console.log(`  체크: ${schedule.name}, dataType="${schedule.dataType}", 타입=${typeof schedule.dataType}, 매칭=${matches}`)
-          if (!matches) {
-            console.log(`  ❌ 필터링됨: ${schedule.name} (dataType=${schedule.dataType}, 필터=predicted)`)
-          } else {
-            console.log(`  ✅ 표시됨: ${schedule.name} (dataType=${schedule.dataType})`)
-          }
           return matches
         }
         return true
       })
-      console.log('필터링 후:', result.length, '개 스케줄')
     }
     
     // 경력 공고: 직군 필터 적용 (선택된 직군만 표시)
@@ -728,13 +685,6 @@ export default function RecruitmentSchedulePage() {
             <div>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '신입' | '경력')}>
                 <TabsContent value="신입" className="mt-0">
-                  {(() => {
-                    console.log('📅 Calendar에 전달되는 데이터:', finalFilteredSchedules.length, '개')
-                    finalFilteredSchedules.forEach((schedule) => {
-                      console.log(`  - ${schedule.name}: dataType=${schedule.dataType || 'N/A'}, stages=${schedule.stages.length}개`)
-                    })
-                    return null
-                  })()}
                   <Calendar
                     currentDate={currentDate}
                     companySchedules={finalFilteredSchedules}

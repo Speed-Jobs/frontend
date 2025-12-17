@@ -222,36 +222,35 @@ export default function SkillTrendAndCloud({
     return sortedSkills
   }, [yearlyData])
 
-  // 스킬 색상 매핑 (더 많은 스킬 지원)
+  // 스킬 색상 매핑 (베이지/크림/분홍 계열 10가지 색상)
   const skillColors: Record<string, string> = {
-    python: '#3b82f6',      // blue
-    sql: '#f97316',         // orange
-    java: '#22c55e',        // green
-    kubernetes: '#eab308',  // yellow
-    docker: '#a855f7',      // purple
-    react: '#06b6d4',       // cyan
-    typescript: '#6366f1',  // indigo
-    aws: '#ec4899',         // pink
-    spring: '#14b8a6',      // teal
-    nodejs: '#d97706',      // amber
-    javascript: '#f59e0b',  // amber-500
-    kotlin: '#8b5cf6',      // violet-500
-    go: '#10b981',          // emerald-500
-    mysql: '#ef4444',       // red-500
-    postgresql: '#06b6d4',  // cyan-500
-    redis: '#dc2626',       // red-600
-    mongodb: '#059669',     // emerald-600
-    elasticsearch: '#7c3aed', // violet-600
-    graphql: '#db2777',     // pink-600
-    terraform: '#0891b2',   // cyan-600
+    python: '#F1E5D1',      // very light, creamy beige
+    sql: '#DBB5B5',         // light, muted pink
+    java: '#C39898',        // medium, muted rose
+    kubernetes: '#987070',  // medium-dark, muted brownish-mauve
+    docker: '#B6AE9F',      // muted, medium-light beige
+    react: '#C5C7BC',        // lighter, muted grey-beige
+    typescript: '#DEDED1',  // very light, almost off-white
+    aws: '#FBF3D1',         // very light, pale yellow
+    spring: '#E2B59A',      // light, warm, peachy-beige
+    nodejs: '#957C62',      // medium, muted brown
+    javascript: '#F1E5D1', // very light, creamy beige
+    kotlin: '#DBB5B5',      // light, muted pink
+    go: '#C39898',          // medium, muted rose
+    mysql: '#987070',       // medium-dark, muted brownish-mauve
+    postgresql: '#B6AE9F',  // muted, medium-light beige
+    redis: '#C5C7BC',       // lighter, muted grey-beige
+    mongodb: '#DEDED1',     // very light, almost off-white
+    elasticsearch: '#FBF3D1', // very light, pale yellow
+    graphql: '#E2B59A',     // light, warm, peachy-beige
+    terraform: '#957C62',   // medium, muted brown
   }
 
-  // 색상이 없는 스킬을 위한 기본 색상 팔레트
+  // 색상이 없는 스킬을 위한 기본 색상 팔레트 (10가지 색상 순환)
   const defaultColors = [
-    '#3b82f6', '#f97316', '#22c55e', '#eab308', '#a855f7',
-    '#06b6d4', '#6366f1', '#ec4899', '#14b8a6', '#d97706',
-    '#f59e0b', '#8b5cf6', '#10b981', '#ef4444', '#06b6d4',
-    '#dc2626', '#059669', '#7c3aed', '#db2777', '#0891b2',
+    '#F1E5D1', '#DBB5B5', '#C39898', '#987070',
+    '#B6AE9F', '#C5C7BC', '#DEDED1', '#FBF3D1',
+    '#E2B59A', '#957C62',
   ]
 
   // 스킬에 색상 할당 함수
@@ -490,10 +489,7 @@ export default function SkillTrendAndCloud({
         </h4>
         {isLoadingTrend ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="flex items-center gap-2 text-gray-500">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-              <span>데이터를 불러오는 중...</span>
-            </div>
+            <div className="text-gray-500">데이터를 불러오는 중...</div>
           </div>
         ) : trendError ? (
           <div className="flex items-center justify-center h-[400px]">
@@ -775,10 +771,7 @@ export default function SkillTrendAndCloud({
         </div>
         {isLoadingCloud ? (
           <div className="flex items-center justify-center h-[400px]">
-            <div className="flex items-center gap-2 text-gray-500">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-              <span>데이터를 불러오는 중...</span>
-            </div>
+            <div className="text-gray-500">데이터를 불러오는 중...</div>
           </div>
         ) : cloudError && skillCloudData.length === 0 ? (
           <div className="flex items-center justify-center h-[400px]">

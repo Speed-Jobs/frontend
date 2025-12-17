@@ -78,8 +78,6 @@ export default function HotJobsList({
         // API URL - Next.js API 라우트 프록시 사용 (CORS 문제 해결)
         const apiUrl = `/api/posts?${params.toString()}`
         
-        console.log('경쟁사 공고 API 호출:', apiUrl) // 디버깅용
-        
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -92,8 +90,6 @@ export default function HotJobsList({
         }
         
         const result = await response.json()
-        
-        console.log('경쟁사 공고 API 응답:', result) // 디버깅용
         
         // 경쟁사 공고 API 응답 형식 처리 (새로운 대시보드 API 형식 우선)
         let posts = null
@@ -153,10 +149,8 @@ export default function HotJobsList({
             }
           }).filter((item: Job) => item.title && item.company)
           
-          console.log('변환된 공고 수:', convertedJobs.length) // 디버깅용
           setJobs(convertedJobs)
         } else {
-          console.log('공고 데이터가 없습니다.') // 디버깅용
           setJobs([])
         }
       } catch (error) {

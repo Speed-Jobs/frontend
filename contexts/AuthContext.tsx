@@ -64,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('isAuthenticated', 'true')
       return true
     } catch (error) {
-      console.error('로그인 오류:', error)
       throw error
     }
   }
@@ -100,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('isAuthenticated', 'true')
       return true
     } catch (error) {
-      console.error('회원가입 오류:', error)
       throw error
     }
   }
@@ -128,7 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('isAuthenticated')
       router.push('/')
     } catch (error) {
-      console.error('로그아웃 오류:', error)
       // API 호출 실패해도 로컬 상태는 정리
       setUser(null)
       setIsAuthenticated(false)

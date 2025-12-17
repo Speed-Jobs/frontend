@@ -865,7 +865,6 @@ export default function Dashboard() {
             const start = stage.startDate.getTime()
             const end = stage.endDate.getTime()
             if (start > end) {
-              console.warn(`잘못된 날짜 범위: ${schedule.company_name} - ${stage.stage} (${stage.startDate.toISOString()} ~ ${stage.endDate.toISOString()})`)
               return false
             }
             return true
@@ -970,37 +969,21 @@ export default function Dashboard() {
             })
             
             if (!response.ok) {
-              console.warn(`API 호출 실패 (${apiType}):`, response.status, response.statusText)
               continue
             }
             
             const result = await response.json()
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
-              console.log(`API 응답 성공 (${apiType}):`, result.data.schedules.length, '개 스케줄')
-              // 각 스케줄의 상세 정보 로깅
-              result.data.schedules.forEach((schedule: any) => {
-                console.log(`  - ${schedule.company_name} (${schedule.data_type || 'N/A'}):`, 
-                  schedule.stages.map((s: any) => `${s.stage} (${s.start_date} ~ ${s.end_date})`).join(', '))
-              })
               allSchedules.push(...result.data.schedules)
-            } else {
-              console.warn(`API 응답 형식 오류 (${apiType}):`, result)
             }
           } catch (error) {
-            console.error(`API 호출 중 오류 발생 (${apiType}):`, error)
             continue
           }
         }
         
         if (allSchedules.length > 0) {
           const transformedSchedules = transformApiResponse(allSchedules)
-          console.log('총 스케줄 수:', transformedSchedules.length)
-          console.log('변환된 스케줄 상세:')
-          transformedSchedules.forEach((schedule) => {
-            console.log(`  - ${schedule.name} (${schedule.dataType || 'N/A'}):`, 
-              schedule.stages.map(s => `${s.stage} (${s.startDate.toISOString().split('T')[0]} ~ ${s.endDate.toISOString().split('T')[0]})`).join(', '))
-          })
           setRecruitmentScheduleData(transformedSchedules)
         } else {
           setRecruitmentScheduleData([])
@@ -2216,9 +2199,6 @@ export default function Dashboard() {
             for (const key of uniqueKeys) {
               if (activity.counts.hasOwnProperty(key)) {
                 value = activity.counts[key]
-                if (value > 0 && process.env.NODE_ENV === 'development') {
-                  console.log(`키 매칭 성공: ${company.name} (${company.key}) -> ${key} = ${value}`)
-                }
                 break
               }
             }
@@ -2230,13 +2210,6 @@ export default function Dashboard() {
         
         return data
       })
-      
-      // 디버깅: 생성된 데이터 확인 (개발 환경에서만)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('companyRecruitmentChartData 생성됨:', result)
-        console.log('activity.counts의 키들:', companyRecruitmentApiData.activities[0]?.counts ? Object.keys(companyRecruitmentApiData.activities[0].counts) : [])
-        console.log('recruitmentCompanies:', recruitmentCompanies.map((c: { name: string; key: string }) => ({ name: c.name, key: c.key })))
-      }
       
       // 이전 값 업데이트
       previousCompanyRecruitmentChartDataRef.current = result
@@ -3601,7 +3574,6 @@ export default function Dashboard() {
     } catch (error: any) {
       setHasError(true)
       setErrorMessage(error?.message || '알 수 없는 오류가 발생했습니다.')
-      console.error('대시보드 초기화 에러:', error)
     }
   }, [])
 

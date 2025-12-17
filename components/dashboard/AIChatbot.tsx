@@ -255,7 +255,6 @@ export default function AIChatbot() {
           credentials: 'omit',
         })
         if (!response.ok) {
-          console.warn(`공고 ${postId} 정보를 가져올 수 없습니다.`)
           return null
         }
         const result = await response.json()
@@ -275,7 +274,6 @@ export default function AIChatbot() {
         }
         return null
       } catch (error) {
-        console.error(`공고 ${postId} 정보 가져오기 실패:`, error)
         return null
       }
     })
@@ -369,7 +367,6 @@ export default function AIChatbot() {
         }
         return [...filtered, errorMessage]
       })
-      console.error('API 호출 오류:', error)
     } finally {
       setIsLoading(false)
     }
@@ -476,7 +473,6 @@ export default function AIChatbot() {
         }
         return [...filtered, errorMessage]
       })
-      console.error('API 호출 오류:', error)
     } finally {
       setIsLoading(false)
     }

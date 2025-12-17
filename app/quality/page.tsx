@@ -396,12 +396,9 @@ export default function QualityPage() {
 
       const result: ApiPostsResponse = await response.json()
 
-      console.log('경쟁사 공고 API 응답:', result) // 디버깅용
-
       if (result.status === 200 && result.data) {
         // API 응답을 JobPosting 형식으로 변환
         const transformedJobs = result.data.content.map(transformApiPostToJobPosting)
-        console.log('변환된 경쟁사 공고 수:', transformedJobs.length) // 디버깅용
         setSearchResults(transformedJobs)
       } else {
         throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
@@ -425,12 +422,10 @@ export default function QualityPage() {
     if (currentStep === 3 && selectedOurJob && (selectedCompetitorJob || competitorJobImage)) {
       // 평가가 완료되지 않았다면 평가 API 호출 (자동으로 AI 추천 공고도 가져오기)
       if (!evaluationCompleted || !evaluationData || evaluationError) {
-        console.log('Step 3: 평가가 완료되지 않아 자동으로 평가 API 호출')
         fetchEvaluationData(true) // autoFetchImprovedPosting = true
       } else {
         // 평가가 완료되어 있고, AI 추천 공고가 없거나 에러가 있으면 다시 가져오기
         if (!isLoadingImprovedPosting && (!improvedPosting || improvedPostingError)) {
-          console.log('Step 3: 평가 완료됨, AI 추천 공고 가져오기 (재시도)')
           // 이전 에러 초기화
           if (improvedPostingError) {
             setImprovedPostingError(null)
@@ -445,7 +440,6 @@ export default function QualityPage() {
   // 평가 완료 후 AI 추천 공고 자동 가져오기 (평가가 새로 완료되었을 때)
   useEffect(() => {
     if (currentStep === 3 && evaluationCompleted && evaluationData && !evaluationError && selectedOurJob && !isLoadingImprovedPosting && !improvedPosting && !improvedPostingError) {
-      console.log('평가 완료 후 AI 추천 공고 가져오기')
       fetchImprovedPosting(selectedOurJob.id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -563,11 +557,9 @@ export default function QualityPage() {
 
       // 평가 완료 후 자동으로 AI 추천 공고 가져오기
       if (autoFetchImprovedPosting && selectedOurJob && !improvedPosting && !improvedPostingError) {
-        console.log('평가 완료 후 자동으로 AI 추천 공고 가져오기')
         await fetchImprovedPosting(selectedOurJob.id)
       }
     } catch (error) {
-      console.error('평가 데이터 가져오기 실패:', error)
       setEvaluationError(error instanceof Error ? error.message : '평가 데이터를 가져오는데 실패했습니다.')
       setEvaluationCompleted(false) // 평가 실패 표시
     } finally {
@@ -598,10 +590,6 @@ export default function QualityPage() {
       // API 엔드포인트
       // POST /api/v1/evaluation/reports/{post_id}
       const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/api/v1/evaluation/reports/${postId}`
-      
-      console.log('=== AI 추천 공고 API 호출 ===')
-      console.log('호출 URL:', apiUrl)
-      console.log('postId:', postId)
 
       // POST 메서드로 요청 (body는 빈 객체 또는 빈 문자열)
       const response = await fetch(apiUrl, {
@@ -653,18 +641,14 @@ export default function QualityPage() {
       // 응답 데이터 파싱 및 타입 검증
       const result: ImprovedPostingApiResponse = await response.json()
       
-      console.log('AI 추천 공고 응답 데이터:', result)
-      
       // 데이터 구조 검증
       if (result.status !== 'success' || !result.data) {
-        console.error('응답 데이터 구조 오류:', result)
         throw new Error(result.message || '응답 데이터 구조가 올바르지 않습니다.')
       }
       
       // improved_posting 데이터 저장
       setImprovedPosting(result.data)
     } catch (error) {
-      console.error('AI 추천 공고 가져오기 실패:', error)
       // 사용자 친화적인 에러 메시지로 변환
       let userFriendlyMessage = 'AI 추천 공고를 가져오는데 실패했습니다.'
       if (error instanceof Error) {
@@ -852,7 +836,6 @@ export default function QualityPage() {
         : '공고_개선안.pdf'
       pdf.save(fileName)
     } catch (error) {
-      console.error('PDF 생성 중 오류:', error)
       alert('PDF 다운로드 중 오류가 발생했습니다. html2canvas와 jspdf 패키지가 설치되어 있는지 확인해주세요.')
     }
   }

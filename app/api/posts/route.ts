@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('API 프록시 오류:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

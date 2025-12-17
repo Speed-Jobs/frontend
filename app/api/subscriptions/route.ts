@@ -9,13 +9,6 @@ export async function GET(request: NextRequest) {
     const cookies = request.cookies.getAll()
     const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ')
     
-    // 디버깅: 쿠키 정보 로그
-    console.log('구독 조회 API - 쿠키 정보:', {
-      cookieCount: cookies.length,
-      cookieNames: cookies.map(c => c.name),
-      cookieString: cookieString || '쿠키 없음',
-    })
-    
     // 백엔드 API 호출
     const response = await fetch(`${SPRING_API_BASE_URL}/subscriptions`, {
       method: 'GET',
@@ -28,12 +21,6 @@ export async function GET(request: NextRequest) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('구독 API 에러:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        cookieString: cookieString ? '쿠키 있음' : '쿠키 없음',
-      })
       return NextResponse.json(
         { error: errorData.message || `API error: ${response.status}` },
         { status: response.status }
@@ -60,7 +47,6 @@ export async function GET(request: NextRequest) {
     
     return nextResponse
   } catch (error) {
-    console.error('구독 조회 API 프록시 오류:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -94,12 +80,6 @@ export async function POST(request: NextRequest) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('구독 API 에러:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        cookieString: cookieString ? '쿠키 있음' : '쿠키 없음',
-      })
       return NextResponse.json(
         { error: errorData.message || `API error: ${response.status}` },
         { status: response.status }
@@ -126,7 +106,6 @@ export async function POST(request: NextRequest) {
     
     return nextResponse
   } catch (error) {
-    console.error('구독 저장 API 프록시 오류:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -152,12 +131,6 @@ export async function DELETE(request: NextRequest) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('구독 API 에러:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData,
-        cookieString: cookieString ? '쿠키 있음' : '쿠키 없음',
-      })
       return NextResponse.json(
         { error: errorData.message || `API error: ${response.status}` },
         { status: response.status }
@@ -184,7 +157,6 @@ export async function DELETE(request: NextRequest) {
     
     return nextResponse
   } catch (error) {
-    console.error('구독 취소 API 프록시 오류:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

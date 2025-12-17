@@ -236,7 +236,6 @@ export default function CompaniesPage() {
     } catch (error: any) {
       setApiError(error.message || '공고 데이터를 불러오는데 실패했습니다.')
       setApiJobs([])
-      console.error('API 호출 에러:', error)
     } finally {
       setIsLoadingApi(false)
     }
@@ -334,8 +333,6 @@ export default function CompaniesPage() {
 
       const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${jobId}`
       
-      console.log('공고 상세 정보 API 호출:', apiUrl)
-      
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -350,7 +347,6 @@ export default function CompaniesPage() {
       }
 
       const result: ApiJobDetailResponse = await response.json()
-      console.log('공고 상세 정보 API 응답:', result)
 
       if (result.status === 200 && result.data) {
         // API 응답을 기존 형식으로 변환
@@ -402,7 +398,6 @@ export default function CompaniesPage() {
         throw new Error(result.message || '공고 상세 정보를 불러오는데 실패했습니다.')
       }
     } catch (error: any) {
-      console.error('공고 상세 정보 API 호출 에러:', error)
       setJobDetailError(error.message || '공고 상세 정보를 불러오는데 실패했습니다.')
       // 에러 발생 시에도 모달은 유지 (fallbackJob이 있으면)
       if (!fallbackJob) {
@@ -1267,8 +1262,6 @@ export default function CompaniesPage() {
                             // 기타 타입도 포함
                             return true
                           })
-                        
-                        console.log('metaData remainingFields:', remainingFields)
                         
                         if (remainingFields.length === 0) return null
                         

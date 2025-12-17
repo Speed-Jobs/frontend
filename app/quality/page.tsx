@@ -914,17 +914,23 @@ export default function QualityPage() {
                 <div className="flex flex-col flex-1">
                   {/* 필터 영역 */}
                   <div className="space-y-4 flex-shrink-0 flex flex-col">
+                    {/* 필터 초기화 버튼 */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          setEmploymentTypeFilter([])
+                          setJobRoleInput('')
+                          setOurCompanyJobs([])
+                          setOurJobPage(1)
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        필터 초기화
+                      </button>
+                    </div>
                     {/* 유형 필터 */}
                     <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <label className="text-sm font-medium text-gray-700">유형</label>
-                        <button
-                          onClick={() => setEmploymentTypeFilter([])}
-                          className="text-xs text-gray-500 hover:text-gray-700"
-                        >
-                          초기화
-                        </button>
-                      </div>
+                      <label className="text-sm font-medium text-gray-700 mb-3">유형</label>
                       <div className="flex flex-wrap gap-2">
                         {['정규', '계약', '아르바이트', '기타'].map((option) => (
                           <button
@@ -963,6 +969,20 @@ export default function QualityPage() {
                 <div className="flex flex-col flex-1">
                   {/* 필터 영역 */}
                   <div className="space-y-4 flex-shrink-0 flex flex-col">
+                    {/* 필터 초기화 버튼 */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          setSelectedCompany('전체')
+                          setSelectedJobRole('전체')
+                          setSearchResults([])
+                          setCompetitorJobPage(1)
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        필터 초기화
+                      </button>
+                    </div>
                     {/* 선택 필터 영역 */}
                     <div className="space-y-4">
                       {/* 회사 선택 */}

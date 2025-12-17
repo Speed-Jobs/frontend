@@ -4049,8 +4049,9 @@ export default function Dashboard() {
                               <div className="text-base md:text-lg font-bold text-gray-900">전체 시장 분석</div>
                             </div>
                           
-                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
-                            {hhiAnalysisApiData.total_insight.yoy_overheat_score !== undefined && (
+                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {hhiAnalysisApiData.total_insight.yoy_overheat_score !== undefined && (
+                            <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
                                 전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.total_insight.yoy_trend && (
@@ -4063,35 +4064,42 @@ export default function Dashboard() {
                                   </span>
                                 )}
                               </div>
-                            )}
+                            </div>
+                          )}
+                          
+                          {/* 나머지 정보들 */}
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4 items-center">
                             {hhiAnalysisApiData.total_insight.total_posts !== undefined && (
                               <div className="text-xs md:text-sm text-gray-700">
                                 전체 공고 수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.total_posts.toLocaleString()}개</span>
                               </div>
                             )}
                             {hhiAnalysisApiData.total_insight.hhi !== undefined && (
-                              <div className="text-xs md:text-sm text-gray-700">
-                                HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.hhi.toFixed(4)}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs md:text-sm text-gray-700">
+                                  HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.total_insight.hhi.toFixed(4)}</span>
+                                </div>
+                                {(() => {
+                                  // HHI 값을 기반으로 집중도를 계산 (기준에 맞게)
+                                  const concentrationLevel = getHhiConcentrationLevel(hhiAnalysisApiData.total_insight.hhi)
+                                  return (
+                                    <>
+                                      {concentrationLevel && (
+                                        <span className={`px-2 py-0.5 rounded text-xs ${
+                                          concentrationLevel === '쏠림' 
+                                            ? 'bg-red-100 text-red-800' 
+                                            : concentrationLevel === '부분 집중' 
+                                            ? 'bg-yellow-100 text-yellow-800' 
+                                            : 'bg-green-100 text-green-800'
+                                        }`}>
+                                          {concentrationLevel}
+                                        </span>
+                                      )}
+                                    </>
+                                  )
+                                })()}
                               </div>
                             )}
-                            {(() => {
-                              // HHI 값을 기반으로 집중도를 계산 (기준에 맞게)
-                              const concentrationLevel = getHhiConcentrationLevel(hhiAnalysisApiData.total_insight.hhi)
-                              return (
-                                <>
-                                  {concentrationLevel && (
-                                    <div className="text-xs md:text-sm text-gray-700">
-                                      집중도: <span className="font-semibold">{concentrationLevel}</span>
-                                    </div>
-                                  )}
-                                  {hhiAnalysisApiData.total_insight.interpretation?.difficulty && (
-                                    <div className="text-xs md:text-sm text-gray-700">
-                                      난이도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.interpretation.difficulty}</span>
-                                    </div>
-                                  )}
-                                </>
-                              )
-                            })()}
                           </div>
                           
                           {/* 주요 인사이트 */}
@@ -4155,8 +4163,9 @@ export default function Dashboard() {
                             </div>
                           </div>
                       
-                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
-                            {hhiAnalysisApiData.position_insight.yoy_overheat_score !== undefined && (
+                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {hhiAnalysisApiData.position_insight.yoy_overheat_score !== undefined && (
+                            <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
                                 전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.position_insight.yoy_trend && (
@@ -4169,30 +4178,37 @@ export default function Dashboard() {
                                   </span>
                                 )}
                               </div>
-                            )}
+                            </div>
+                          )}
+                          
+                          {/* 나머지 정보들 */}
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4 items-center">
                             {hhiAnalysisApiData.position_insight.hhi !== undefined && (
-                              <div className="text-xs md:text-sm text-gray-700">
-                                HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.position_insight.hhi.toFixed(4)}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs md:text-sm text-gray-700">
+                                  HHI 지수: <span className="font-semibold">{hhiAnalysisApiData.position_insight.hhi.toFixed(4)}</span>
+                                </div>
+                                {(() => {
+                                  // HHI 값을 기반으로 집중도를 계산 (기준에 맞게)
+                                  const concentrationLevel = getHhiConcentrationLevel(hhiAnalysisApiData.position_insight.hhi)
+                                  return (
+                                    <>
+                                      {concentrationLevel && (
+                                        <span className={`px-2 py-0.5 rounded text-xs ${
+                                          concentrationLevel === '쏠림' 
+                                            ? 'bg-red-100 text-red-800' 
+                                            : concentrationLevel === '부분 집중' 
+                                            ? 'bg-yellow-100 text-yellow-800' 
+                                            : 'bg-green-100 text-green-800'
+                                        }`}>
+                                          {concentrationLevel}
+                                        </span>
+                                      )}
+                                    </>
+                                  )
+                                })()}
                               </div>
                             )}
-                            {(() => {
-                              // HHI 값을 기반으로 집중도를 계산 (기준에 맞게)
-                              const concentrationLevel = getHhiConcentrationLevel(hhiAnalysisApiData.position_insight.hhi)
-                              return (
-                                <>
-                                  {concentrationLevel && (
-                                    <div className="text-xs md:text-sm text-gray-700">
-                                      집중도: <span className="font-semibold">{concentrationLevel}</span>
-                                    </div>
-                                  )}
-                                  {hhiAnalysisApiData.position_insight.interpretation?.difficulty && (
-                                    <div className="text-xs md:text-sm text-gray-700">
-                                      난이도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.interpretation.difficulty}</span>
-                                    </div>
-                                  )}
-                                </>
-                              )
-                            })()}
                           </div>
                           
                           {hhiAnalysisApiData.position_insight.insights && hhiAnalysisApiData.position_insight.insights.length > 0 ? (
@@ -4240,8 +4256,9 @@ export default function Dashboard() {
                             </div>
                           </div>
                           
-                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
-                            {hhiAnalysisApiData.industry_insight.yoy_overheat_score !== undefined && (
+                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {hhiAnalysisApiData.industry_insight.yoy_overheat_score !== undefined && (
+                            <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
                                 전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.industry_insight.yoy_trend && (
@@ -4254,7 +4271,11 @@ export default function Dashboard() {
                                   </span>
                                 )}
                               </div>
-                            )}
+                            </div>
+                          )}
+                          
+                          {/* 나머지 정보들 */}
+                          <div className="flex flex-wrap gap-3 md:gap-4 mb-4">
                             {hhiAnalysisApiData.industry_insight.posts_count !== undefined && (
                               <div className="text-xs md:text-sm text-gray-700">
                                 공고 수: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.posts_count.toLocaleString()}개</span>

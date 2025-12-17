@@ -869,7 +869,7 @@ export default function QualityPage() {
               }
               setCurrentStep(2)
             }}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
+            className={`px-6 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
               currentStep === 2
                 ? 'bg-gray-100 text-gray-900 border-b-2 border-gray-900'
                 : !canProceedToNextStep() || currentStep < 2
@@ -877,6 +877,7 @@ export default function QualityPage() {
                 : 'text-gray-600 hover:text-gray-900 cursor-pointer'
             }`}
           >
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
             공고 품질 및 평가 결과
           </button>
           <button

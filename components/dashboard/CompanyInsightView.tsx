@@ -38,13 +38,13 @@ interface PostData {
 interface PostsApiResponse {
   status: number
   code: string
-  message: string
   data: {
     page: number
     size: number
     totalPages: number
     content: PostData[]
   }
+  // message 필드는 개발자용 메타데이터이므로 타입 정의에서 제외
 }
 
 export default function CompanyInsightView({
@@ -125,11 +125,34 @@ export default function CompanyInsightView({
         
         if (result.status === 200 && result.code === 'OK' && result.data?.content) {
           setPostsData(result.data.content)
+          // 성공 시 에러 상태 초기화 (API 응답의 message는 개발자용이므로 사용자에게 보여주지 않음)
+          setPostsError(null)
         } else {
-          throw new Error(result.message || '데이터 형식 오류')
+          // result.message는 개발자용 메타데이터이므로 절대 사용하지 않음
+          // 실제 에러 상황만 처리
+          throw new Error('데이터를 불러오는 중 오류가 발생했습니다.')
         }
       } catch (error) {
-        setPostsError(error instanceof Error ? error.message : '채용 공고 데이터를 불러오는 중 오류가 발생했습니다.')
+        // 네트워크 에러나 실제 에러만 사용자에게 표시
+        // API 응답의 message 필드는 절대 사용하지 않음
+        const errorMessage = error instanceof Error ? error.message : '채용 공고 데이터를 불러오는 중 오류가 발생했습니다.'
+        
+        // API 응답 메시지 패턴 필터링 (개발자용 메시지는 사용자에게 보여주지 않음)
+        const apiMessagePatterns = [
+          /대시보드.*공고.*조회.*성공/i,
+          /대시보드 공고 조회 성공/i,
+          /공고.*조회.*성공/i,
+          /조회.*성공/i,
+          /조회.*완료/i,
+        ]
+        
+        const isApiMessage = apiMessagePatterns.some(pattern => pattern.test(errorMessage))
+        
+        if (!isApiMessage) {
+          setPostsError(errorMessage)
+        } else {
+          setPostsError(null) // API 응답 메시지는 무시
+        }
         setPostsData([])
       } finally {
         setIsLoadingPosts(false)
@@ -227,6 +250,7 @@ export default function CompanyInsightView({
           )}
 
           {/* 텍스트 기반 인사이트 분석 - 항상 표시 */}
+          {/* CompanyInsightAnalysis에서 data.insights만 사용하므로 여기서는 개발자용 메타데이터 필드 제거 */}
           <CompanyInsightAnalysis
             recruitmentData={recruitmentData}
             totalTrendData={totalTrendData}
@@ -234,55 +258,17 @@ export default function CompanyInsightView({
             companyName={companyName}
             timeframe={timeframe}
             insightData={insightData && typeof insightData === 'object' ? (() => {
-              // message 필드 제거 (API 응답의 message 필드가 포함되어 있을 수 있음)
-              const { message, ...rest } = insightData as any
-              
-              // key_findings에서도 message 필드 제거
-              if (rest.key_findings && Array.isArray(rest.key_findings)) {
-                const apiMessagePatterns = [
-                  /대시보드.*공고.*조회.*성공/i,
-                  /대시보드 공고 조회 성공/i,
-                  /공고.*조회.*성공/i,
-                  /조회.*성공/i,
-                  /대시보드.*조회.*성공/i,
-                  /공고.*조회/i,
-                  /조회.*완료/i,
-                  /데이터.*조회.*성공/i,
-                ]
-                const exactMatches = [
-                  '대시보드 공고 조회 성공',
-                  '공고 조회 성공',
-                  '조회 성공',
-                  '대시보드 조회 성공',
-                ]
-                
-                rest.key_findings = rest.key_findings.filter((item: any) => {
-                  const itemText = typeof item === 'string' ? item.trim() : String(item).trim()
-                  if (!itemText) return false
-                  
-                  // message 필드와 동일한 내용이면 제거
-                  if (message && typeof message === 'string' && itemText === message.trim()) {
-                    return false
-                  }
-                  
-                  for (const pattern of apiMessagePatterns) {
-                    if (pattern.test(itemText)) return false
-                  }
-                  if (exactMatches.some(match => itemText === match || itemText.includes(match))) return false
-                  
-                  return true
-                })
-              }
-              
-              // message 필드가 key_findings에 포함되어 있지 않도록 보장
-              if (message && typeof message === 'string' && rest.key_findings && Array.isArray(rest.key_findings)) {
-                const messageText = message.trim()
-                rest.key_findings = rest.key_findings.filter((item: any) => {
-                  const itemText = typeof item === 'string' ? item.trim() : String(item).trim()
-                  return itemText !== messageText && !itemText.includes(messageText)
-                })
-              }
-              
+              // 개발자용 메타데이터 필드 완전히 제거 (message, status, code 등은 사용자에게 보여지지 않음)
+              const { 
+                message, 
+                status, 
+                code, 
+                result, 
+                response,
+                success,
+                error,
+                ...rest 
+              } = insightData as any
               return rest
             })() : insightData}
           />

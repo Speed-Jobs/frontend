@@ -5,19 +5,25 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
+type NavItem = {
+  href: string
+  label: string
+  icon?: string
+}
+
 export default function Header() {
   const pathname = usePathname()
   const [logoError, setLogoError] = useState(false)
   const [logoSrc, setLogoSrc] = useState('/logos/service-logo.png')
   const { isAuthenticated, user, logout } = useAuth()
   
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: '/dashboard', label: '대시보드' },
     { href: '/quality', label: '공고품질 평가' },
     { href: '/companies', label: '회사별 공고' },
   ]
   
-  const userMenuItems = [
+  const userMenuItems: NavItem[] = [
     { href: '/mypage', label: '마이페이지', icon: '👤' },
   ]
 

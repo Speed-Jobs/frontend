@@ -350,10 +350,20 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
     setSaveMessage(null)
 
     try {
+      // 알림 타입 배열 생성
+      const notificationTypes: string[] = []
+      if (formData.emailNotification.enabled) {
+        notificationTypes.push('EMAIL')
+      }
+      if (formData.slackNotification.enabled) {
+        notificationTypes.push('SLACK')
+      }
+
       const subscriptionData: SubscriptionData = {
         technologies: formData.technologies,
         jobRoles: formData.jobRoles,
         companies: formData.companies,
+        notificationTypes: notificationTypes,
       }
 
       // 백엔드 API에 저장

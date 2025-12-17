@@ -4,6 +4,7 @@ export interface SubscriptionData {
   technologies: number[]
   jobRoles: number[]
   companies: number[]
+  notificationTypes?: string[] // "EMAIL", "SLACK" 등
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
@@ -114,6 +115,7 @@ export async function saveSubscriptionSettings(
         companyIds: subscriptionData.companies,
         skillIds: subscriptionData.technologies,
         positionIds: subscriptionData.jobRoles,
+        notificationTypes: subscriptionData.notificationTypes || [],
       }),
     })
 

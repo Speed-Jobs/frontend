@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         companyIds: body.companyIds || [],
         skillIds: body.skillIds || [],
         positionIds: body.positionIds || [],
+        notificationTypes: body.notificationTypes || [],
       }),
     })
     

@@ -231,75 +231,55 @@ export default function CompanyInsightView({
         </div>
       </div>
 
-      {/* 메인 인사이트 로딩 중일 때는 인사이트 섹션만 로딩 메시지 표시, 그래프는 이미 위에서 표시됨 */}
-      {isMainInsightLoading ? (
-        <div className="bg-white rounded-lg border border-gray-200 px-5 py-6">
-          <div className="flex flex-col items-center justify-center gap-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            <p className="text-gray-600 text-sm font-medium">인사이트 생성 중...</p>
-            <p className="text-gray-400 text-xs">위의 그래프를 확인하세요. 인사이트는 곧 표시됩니다.</p>
+      {/* 텍스트 기반 인사이트 분석 - 항상 표시 */}
+      {/* CompanyInsightAnalysis에서 data.insights만 사용하므로 여기서는 개발자용 메타데이터 필드 제거 */}
+      <CompanyInsightAnalysis
+        recruitmentData={recruitmentData}
+        totalTrendData={totalTrendData}
+        skillTrendData={skillTrendData}
+        companyName={companyName}
+        timeframe={timeframe}
+        insightData={insightData && typeof insightData === 'object' ? (() => {
+          // 개발자용 메타데이터 필드 완전히 제거 (message, status, code 등은 사용자에게 보여지지 않음)
+          const { 
+            message, 
+            status, 
+            code, 
+            result, 
+            response,
+            success,
+            error,
+            ...rest 
+          } = insightData as any
+          return rest
+        })() : insightData}
+      />
+      
+      {/* 최근 채용 공고 목록 - posts 로딩 완료 후 표시 */}
+      {!isLoadingPosts && postsData.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 px-5 pt-4 pb-3">
+          <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            최근 채용 공고
+          </h3>
+          <div className="space-y-2">
+            {postsData.slice(0, 5).map((post) => (
+              <div key={post.id} className="flex items-start justify-between text-sm py-2 border-b border-gray-100 last:border-b-0">
+                <div className="flex-1">
+                  <p className="text-gray-900 font-medium">{post.title}</p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    {post.employmentType} • {post.crawledAt.year}-{String(post.crawledAt.month).padStart(2, '0')}-{String(post.crawledAt.day).padStart(2, '0')}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {postsData.length > 5 && (
+              <p className="text-gray-500 text-xs text-center pt-2">
+                외 {postsData.length - 5}건의 공고가 더 있습니다
+              </p>
+            )}
           </div>
         </div>
-      ) : (
-        <>
-          {/* 채용 공고 데이터 에러 표시 */}
-          {postsError && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
-              <p className="text-yellow-800 text-sm">{postsError}</p>
-            </div>
-          )}
-
-          {/* 텍스트 기반 인사이트 분석 - 항상 표시 */}
-          {/* CompanyInsightAnalysis에서 data.insights만 사용하므로 여기서는 개발자용 메타데이터 필드 제거 */}
-          <CompanyInsightAnalysis
-            recruitmentData={recruitmentData}
-            totalTrendData={totalTrendData}
-            skillTrendData={skillTrendData}
-            companyName={companyName}
-            timeframe={timeframe}
-            insightData={insightData && typeof insightData === 'object' ? (() => {
-              // 개발자용 메타데이터 필드 완전히 제거 (message, status, code 등은 사용자에게 보여지지 않음)
-              const { 
-                message, 
-                status, 
-                code, 
-                result, 
-                response,
-                success,
-                error,
-                ...rest 
-              } = insightData as any
-              return rest
-            })() : insightData}
-          />
-          
-          {/* 최근 채용 공고 목록 - posts 로딩 완료 후 표시 */}
-          {!isLoadingPosts && postsData.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-200 px-5 pt-4 pb-3">
-              <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                최근 채용 공고
-              </h3>
-              <div className="space-y-2">
-                {postsData.slice(0, 5).map((post) => (
-                  <div key={post.id} className="flex items-start justify-between text-sm py-2 border-b border-gray-100 last:border-b-0">
-                    <div className="flex-1">
-                      <p className="text-gray-900 font-medium">{post.title}</p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        {post.employmentType} • {post.crawledAt.year}-{String(post.crawledAt.month).padStart(2, '0')}-{String(post.crawledAt.day).padStart(2, '0')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {postsData.length > 5 && (
-                  <p className="text-gray-500 text-xs text-center pt-2">
-                    외 {postsData.length - 5}건의 공고가 더 있습니다
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </>
       )}
     </div>
   )

@@ -47,7 +47,8 @@ export default function SignupPage() {
     try {
       const success = await signup(email, password, name, confirmPassword)
       if (success) {
-        router.push('/dashboard')
+        // 회원가입 성공 시 로그인 페이지로 이동하고 이메일을 쿼리 파라미터로 전달
+        router.push(`/login?email=${encodeURIComponent(email)}&signup=success`)
       } else {
         setError('회원가입에 실패했습니다. 다시 시도해주세요.')
       }

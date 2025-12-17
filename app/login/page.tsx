@@ -1,19 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [logoError, setLogoError] = useState(false)
   const [logoSrc, setLogoSrc] = useState('/logos/service-logo.png')
   const { login } = useAuth()
   const router = useRouter()
+
+  // URL 쿼리 파라미터에서 이메일과 회원가입 성공 메시지 확인
+  useEffect(() => {
+    const emailParam = searchParams.get('email')
+    const signupSuccess = searchParams.get('signup')
+    
+    if (emailParam) {
+      setEmail(emailParam)
+    }
+    
+    if (signupSuccess === 'success') {
+      setSuccessMessage('회원가입이 완료되었습니다! 로그인해주세요.')
+      // URL에서 쿼리 파라미터 제거 (뒤로가기 시 메시지가 다시 나타나지 않도록)
+      router.replace('/login', { scroll: false })
+    }
+  }, [searchParams, router])
 
   const handleLogoError = () => {
     setLogoError(true)
@@ -74,6 +92,11 @@ export default function LoginPage() {
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {successMessage && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                {successMessage}
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}

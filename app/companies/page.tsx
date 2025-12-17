@@ -1084,7 +1084,7 @@ export default function CompaniesPage() {
                     )}
                   </div>
                   
-                  {/* 지원하기 버튼 */}
+                  {/* 원본 채용공고 바로가기 버튼 */}
                   {selectedJobDetail.applyUrl && (
                     <div className="mt-4">
                       <a
@@ -1093,7 +1093,7 @@ export default function CompaniesPage() {
                         rel="noopener noreferrer"
                         className="inline-block w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors text-center"
                       >
-                        지원하기
+                        원본 채용공고 바로가기
                       </a>
                     </div>
                   )}

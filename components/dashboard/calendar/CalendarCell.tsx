@@ -237,21 +237,51 @@ export function CalendarCell({
       '3차 면접': { color: 'bg-orange-500', text: '3차 면접', textColor: 'text-white' },
     };
 
-    return userPinRangesOnThisDate.map((pin) => {
-      const startDate = new Date(pin.date);
-      const endDate = pin.endDate ? new Date(pin.endDate) : new Date(pin.date);
-      
-      // Determine if this is start, middle, or end of range
-      const isStart = date.toDateString() === startDate.toDateString();
-      const isEnd = date.toDateString() === endDate.toDateString();
-      
-      return {
-        ...badgeConfig[pin.type],
-        type: pin.type,
-        isStart,
-        isEnd,
-      };
+    // 시뮬레이션 ID별로 그룹화
+    const groupedBySimulation = new Map<string, UserPin[]>();
+    userPinRangesOnThisDate.forEach((pin) => {
+      const simId = pin.simulationId || 'default';
+      if (!groupedBySimulation.has(simId)) {
+        groupedBySimulation.set(simId, []);
+      }
+      groupedBySimulation.get(simId)!.push(pin);
     });
+
+    // 각 시뮬레이션 그룹별로 배지 생성
+    const badges: Array<{
+      color: string;
+      text: string;
+      textColor: string;
+      type: UserPin['type'];
+      isStart: boolean;
+      isEnd: boolean;
+      simulationId?: string;
+      groupIndex: number;
+    }> = [];
+
+    let groupIndex = 0;
+    groupedBySimulation.forEach((pins, simId) => {
+      pins.forEach((pin) => {
+        const startDate = new Date(pin.date);
+        const endDate = pin.endDate ? new Date(pin.endDate) : new Date(pin.date);
+        
+        // Determine if this is start, middle, or end of range
+        const isStart = date.toDateString() === startDate.toDateString();
+        const isEnd = date.toDateString() === endDate.toDateString();
+        
+        badges.push({
+          ...badgeConfig[pin.type],
+          type: pin.type,
+          isStart,
+          isEnd,
+          simulationId: simId,
+          groupIndex: groupIndex,
+        });
+      });
+      groupIndex++;
+    });
+
+    return badges;
   };
 
   const userBadges = getUserBadges();
@@ -294,7 +324,7 @@ export function CalendarCell({
 
               {/* 회사명 표시 (최대 3개) */}
               {displayCompanyNames.length > 0 && (
-                <div className="flex-1 flex flex-col justify-start pt-0.5 gap-0.5 min-h-0 overflow-hidden">
+                <div className="flex-1 flex flex-col justify-start pt-0.5 gap-0.5 min-h-0 overflow-hidden relative z-30">
                   {displayCompanyNames.map((companyName, idx) => (
                     <div
                       key={idx}
@@ -319,9 +349,11 @@ export function CalendarCell({
                 </div>
               )}
 
-              {/* Long bars for user ranges */}
+              {/* Long bars for user ranges - 회사명이 있으면 하단에, 없으면 상단에 배치 */}
               {userBadges.length > 0 && (
-                <div className="absolute left-0 right-0 top-5 flex flex-col z-20">
+                <div className={`absolute left-0 right-0 flex flex-col z-20 gap-0.5 ${
+                  displayCompanyNames.length > 0 ? 'bottom-0' : 'top-5'
+                }`}>
                   {userBadges.map((badge, index) => {
                     const roundedClass = badge.isStart && badge.isEnd 
                       ? 'rounded-full px-2' 
@@ -342,11 +374,31 @@ export function CalendarCell({
                       positionStyle.paddingRight = '1px';
                     }
                     
+                    // 각 badge가 겹치지 않도록 간격 추가
+                    if (index > 0) {
+                      // 같은 시뮬레이션 그룹 내에서는 작은 간격, 다른 그룹 사이에는 큰 간격
+                      const prevBadge = userBadges[index - 1];
+                      if (prevBadge.simulationId !== badge.simulationId) {
+                        positionStyle.marginTop = '4px'; // 다른 시뮬레이션 그룹 사이 큰 간격
+                        positionStyle.borderTop = '1px solid rgba(0, 0, 0, 0.1)'; // 구분선
+                        positionStyle.paddingTop = '2px';
+                      } else {
+                        positionStyle.marginTop = '2px'; // 같은 그룹 내 작은 간격
+                      }
+                    }
+                    
+                    // 시뮬레이션 그룹별로 다른 색상 톤 적용 (약간의 투명도 차이)
+                    const opacity = badge.groupIndex === 0 ? '1' : '0.85';
+                    const badgeStyle = {
+                      ...positionStyle,
+                      opacity: opacity,
+                    };
+                    
                     return (
                       <div
                         key={index}
-                        className={`${badge.color} ${badge.textColor} ${roundedClass} h-2.5 flex items-center text-[8px] text-left leading-tight`}
-                        style={positionStyle}
+                        className={`${badge.color} ${badge.textColor} ${roundedClass} h-2.5 flex items-center text-[8px] text-left leading-tight flex-shrink-0`}
+                        style={badgeStyle}
                       >
                         {badge.isStart ? badge.text : ''}
                       </div>

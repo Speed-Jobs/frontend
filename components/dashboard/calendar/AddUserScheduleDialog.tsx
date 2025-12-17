@@ -97,8 +97,13 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
     }
   }
 
+  // 선택한 전형들을 STAGE_ORDER 순서대로 정렬하는 함수
+  const getSortedSelectedStages = (): UserPin['type'][] => {
+    return STAGE_ORDER.filter(stage => selectedTypes.has(stage))
+  }
+
   const handleNextStage = () => {
-    const selectedArray = Array.from(selectedTypes)
+    const selectedArray = getSortedSelectedStages()
     if (currentStageIndex < selectedArray.length - 1) {
       setCurrentStageIndex(currentStageIndex + 1)
       // 다음 전형으로 이동할 때 날짜 초기화는 하지 않음 (사용자가 선택한 날짜 유지)
@@ -112,7 +117,7 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
   }
 
   const handleSubmit = () => {
-    const selectedArray = Array.from(selectedTypes)
+    const selectedArray = getSortedSelectedStages()
     const pins: Omit<UserPin, 'id'>[] = selectedArray
       .filter(type => {
         const dates = stageDates[type]
@@ -139,7 +144,7 @@ export function AddUserScheduleDialog({ open, onClose, onAdd }: AddUserScheduleD
     onClose()
   }
 
-  const selectedArray = Array.from(selectedTypes)
+  const selectedArray = getSortedSelectedStages()
   const currentStage = selectedArray[currentStageIndex]
   
   // 이전 전형의 종료일 계산 (최소 시작일)

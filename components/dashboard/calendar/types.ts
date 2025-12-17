@@ -20,6 +20,7 @@ export interface UserPin {
   type: '서류 접수' | '인적성' | '1차 면접' | '2차 면접' | '3차 면접';
   date: Date;
   endDate?: Date; // For range-based stages
+  simulationId?: string; // 시뮬레이션 세트 구분을 위한 ID
 }
 
 export const PIN_TYPES = [

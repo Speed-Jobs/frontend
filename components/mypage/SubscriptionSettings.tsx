@@ -229,7 +229,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           loadedTechnologies = skills
           setTechnologies(skills)
         } catch (error) {
-          console.warn('기술 스택 API 호출 실패:', error)
+          // 무시
         }
 
         // 직군 목록을 새로운 API로 가져오기
@@ -239,7 +239,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           loadedJobRoles = positions
           setJobRoles(positions)
         } catch (error) {
-          console.warn('직군 API 호출 실패:', error)
+          // 무시
         }
 
         // 경쟁사 목록을 새로운 API로 가져오기
@@ -249,7 +249,7 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           loadedCompanies = companies
           setCompanies(companies)
         } catch (error) {
-          console.warn('경쟁사 API 호출 실패:', error)
+          // 무시
         }
 
         // 저장된 구독 설정 로드 및 기술 ID 필터링
@@ -309,10 +309,10 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
             })
           }
         } catch (error) {
-          console.warn('저장된 설정 로드 실패:', error)
+          // 무시
         }
       } catch (error) {
-        console.error('데이터 로드 실패:', error)
+        // 무시
       } finally {
         setIsLoading(false)
       }
@@ -365,7 +365,6 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           text: result.message || '구독 설정이 저장되었습니다.' 
         })
       } catch (apiError: any) {
-        console.error('API 저장 실패:', apiError)
         // API 실패 시 에러 메시지 표시
         setSaveMessage({
           type: 'error',
@@ -381,7 +380,6 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
       // 3초 후 메시지 제거
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error: any) {
-      console.error('구독 설정 저장 실패:', error)
       setSaveMessage({ 
         type: 'error', 
         text: error.message || '저장 중 오류가 발생했습니다.' 
@@ -429,7 +427,6 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
           })
         }
       } catch (apiError: any) {
-        console.warn('API 구독 취소 실패:', apiError)
         setSaveMessage({
           type: 'error',
           text: apiError.message || '구독 취소 중 오류가 발생했습니다.',
@@ -439,7 +436,6 @@ export default function SubscriptionSettings({ onSave }: SubscriptionSettingsPro
       // 3초 후 메시지 제거
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
-      console.error('구독 취소 실패:', error)
       setSaveMessage({ type: 'error', text: '구독 취소 중 오류가 발생했습니다.' })
     } finally {
       setIsDeleting(false)

@@ -79,7 +79,7 @@ export default function NewRecruitmentCalendar({
             <span className="font-medium">상세 페이지에서 더 많은 기능을 확인하세요!</span>
           </p>
           <div className="text-sm text-gray-500 text-center leading-relaxed space-y-1.5">
-            <p>• 경쟁사 채용 일정을 등록하고 달력에서 경쟁 강도를 시각적으로 확인할 수 있습니다</p>
+            <p>• 경쟁사 채용 일정 시뮬레이션을 등록하고 달력에서 경쟁 강도를 시각적으로 확인할 수 있습니다</p>
             <p>• 우리 회사의 채용 일정을 시뮬레이션하여 경쟁사와 비교 분석할 수 있습니다</p>
           </div>
         </div>

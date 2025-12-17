@@ -46,12 +46,12 @@ interface ChatComponent {
 const DASHBOARD_PAGES: Record<string, { route: string; description: string; icon: string }> = {
   '채용 일정': {
     route: '/dashboard/recruitment-schedule',
-    description: '경쟁사 채용 일정을 시각화하고 최적의 채용 전략을 수립하세요',
+    description: '경쟁사 채용 일정 시뮬레이션을 시각화하고 최적의 채용 전략을 수립하세요',
     icon: '📅'
   },
   '채용 일정 분석': {
     route: '/dashboard/recruitment-schedule',
-    description: '경쟁사 채용 일정을 시각화하고 최적의 채용 전략을 수립하세요',
+    description: '경쟁사 채용 일정 시뮬레이션을 시각화하고 최적의 채용 전략을 수립하세요',
     icon: '📅'
   },
   '대시보드': {
@@ -84,11 +84,11 @@ function generateAIResponse(query: string): { content: string; components?: Chat
   if (lowerQuery.includes('채용 일정') || lowerQuery.includes('일정') || lowerQuery.includes('스케줄') || 
       lowerQuery.includes('캘린더') || lowerQuery.includes('달력') || lowerQuery.includes('recruitment schedule')) {
     return {
-      content: '채용 일정 분석 페이지에서 경쟁사 채용 일정을 확인하고 관리할 수 있습니다.',
+      content: '채용 일정 분석 페이지에서 경쟁사 채용 일정 시뮬레이션을 확인하고 관리할 수 있습니다.',
       components: [{
         id: 'recruitment-schedule',
         title: '채용 일정 분석',
-        description: '경쟁사 채용 일정 시각화 및 분석',
+        description: '경쟁사 채용 일정 시뮬레이션 시각화 및 분석',
         route: '/dashboard/recruitment-schedule',
         icon: '📅'
       }]
@@ -156,7 +156,7 @@ function generateAIResponse(query: string): { content: string; components?: Chat
         {
           id: 'recruitment-schedule',
           title: '채용 일정 분석',
-          description: '경쟁사 채용 일정 시각화',
+          description: '경쟁사 채용 일정 시뮬레이션 시각화',
           route: '/dashboard/recruitment-schedule',
           icon: '📅'
         },
@@ -385,7 +385,7 @@ export default function AIChatbot() {
   // 페이지 이동 메뉴 항목들
   const pageMenus = [
     { title: '대시보드', route: '/dashboard', icon: LayoutDashboard, description: '전체 통계 및 인사이트' },
-    { title: '채용 일정', route: '/dashboard/recruitment-schedule', icon: Calendar, description: '경쟁사 채용 일정 분석' },
+    { title: '채용 일정', route: '/dashboard/recruitment-schedule', icon: Calendar, description: '경쟁사 채용 일정 시뮬레이션 분석' },
     { title: '공고 품질', route: '/quality', icon: Star, description: '채용 공고 품질 평가' },
     { title: '회사별 공고', route: '/companies', icon: Building2, description: '회사별 채용 공고 확인' }
   ]

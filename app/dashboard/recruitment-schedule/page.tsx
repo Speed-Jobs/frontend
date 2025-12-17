@@ -398,11 +398,12 @@ export default function RecruitmentSchedulePage() {
       const stored = localStorage.getItem('recruitment-schedule-user-pins')
       if (stored) {
         const parsed = JSON.parse(stored)
-        // Date 객체 복원
+        // Date 객체 복원 및 simulationId 처리 (기존 데이터 호환성)
         return parsed.map((pin: any) => ({
           ...pin,
           date: new Date(pin.date),
           endDate: pin.endDate ? new Date(pin.endDate) : undefined,
+          simulationId: pin.simulationId || 'default', // 기존 데이터 호환성
         }))
       }
     } catch (error) {
@@ -448,9 +449,12 @@ export default function RecruitmentSchedulePage() {
   }
 
   const addUserPins = (pins: Omit<UserPin, 'id'>[]) => {
+    // 새로운 시뮬레이션 세트에 고유 ID 부여
+    const simulationId = `simulation-${Date.now()}`
     const newPins = pins.map((pin, index) => ({
       ...pin,
-      id: `${Date.now()}-${index}`,
+      id: `${simulationId}-${index}`,
+      simulationId: simulationId,
     }))
     setUserPins([...userPins, ...newPins])
   }
@@ -538,7 +542,7 @@ export default function RecruitmentSchedulePage() {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold text-gray-900">채용 일정 분석 시스템</h1>
             <p className="text-gray-600">
-              경쟁사 채용 일정을 시각화하고 최적의 채용 전략을 수립하세요
+              경쟁사 채용 일정 시뮬레이션을 시각화하고 최적의 채용 전략을 수립하세요
             </p>
             {schedulesError && (
               <p className="text-sm text-red-600 mt-2">
@@ -717,7 +721,7 @@ export default function RecruitmentSchedulePage() {
             )}
           </div>
 
-          <div className="space-y-6 pt-[130px]">
+          <div className="space-y-6">
             <CompanyScheduleManager
               schedules={userSchedules.filter((s) => s.type === activeTab)}
               onAdd={addCompanySchedule}

@@ -54,20 +54,43 @@ export function UserPinManager({ pins, onAdd, onRemove, onClearAll }: UserPinMan
                 </Button>
               </div>
               
-              {/* Pin list */}
-              <div className="p-3 space-y-2">
-                {pins.map((pin) => (
-                  <div key={pin.id} className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="text-sm text-slate-700 font-medium">{getPinDisplayLabel(pin.type)}</div>
-                      <div className="text-xs text-slate-500">
-                        {pin.endDate && pin.endDate.toDateString() !== pin.date.toDateString()
-                          ? `${pin.date.toLocaleDateString('ko-KR')} ~ ${pin.endDate.toLocaleDateString('ko-KR')}`
-                          : pin.date.toLocaleDateString('ko-KR')}
+              {/* Pin list - 시뮬레이션 세트별로 그룹화 */}
+              <div className="p-3 space-y-3">
+                {(() => {
+                  // 시뮬레이션 ID별로 그룹화
+                  const groupedBySimulation = new Map<string, UserPin[]>();
+                  pins.forEach((pin) => {
+                    const simId = pin.simulationId || 'default';
+                    if (!groupedBySimulation.has(simId)) {
+                      groupedBySimulation.set(simId, []);
+                    }
+                    groupedBySimulation.get(simId)!.push(pin);
+                  });
+
+                  return Array.from(groupedBySimulation.entries()).map(([simId, simPins], groupIndex) => (
+                    <div key={simId} className={groupIndex > 0 ? 'border-t border-slate-200 pt-3' : ''}>
+                      {groupedBySimulation.size > 1 && (
+                        <div className="text-xs text-slate-400 mb-2 font-medium">
+                          시뮬레이션 {groupIndex + 1}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {simPins.map((pin) => (
+                          <div key={pin.id} className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="text-sm text-slate-700 font-medium">{getPinDisplayLabel(pin.type)}</div>
+                              <div className="text-xs text-slate-500">
+                                {pin.endDate && pin.endDate.toDateString() !== pin.date.toDateString()
+                                  ? `${pin.date.toLocaleDateString('ko-KR')} ~ ${pin.endDate.toLocaleDateString('ko-KR')}`
+                                  : pin.date.toLocaleDateString('ko-KR')}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
           )}

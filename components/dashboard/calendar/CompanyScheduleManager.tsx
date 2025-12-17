@@ -26,7 +26,7 @@ export function CompanyScheduleManager({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
-          <CardTitle className="text-lg">경쟁사 채용 일정</CardTitle>
+          <CardTitle className="text-lg">경쟁사 채용 일정 시뮬레이션</CardTitle>
           {schedules.length > 0 && (
             <Button 
               variant="outline" 

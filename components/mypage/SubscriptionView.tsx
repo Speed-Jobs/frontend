@@ -87,7 +87,6 @@ export default function SubscriptionView({
       localStorage.setItem('subscriptionSettings', JSON.stringify(apiData))
       onDataUpdate(apiData)
     } catch (error: any) {
-      console.error('구독 조회 실패:', error)
       setError(error.message || '구독 정보를 불러오는데 실패했습니다.')
     } finally {
       setIsLoading(false)

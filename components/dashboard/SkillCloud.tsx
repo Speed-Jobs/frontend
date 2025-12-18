@@ -321,10 +321,16 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
               preserveAspectRatio="xMidYMid meet"
             >
               {(() => {
-                const relatedSkillsStrings = getRelatedSkillsAsStrings(expandedSkillData.relatedSkills).slice(0, 3)
-                return relatedSkillsStrings.map((relatedSkillName, idx) => {
+                const relatedSkillsData = Array.isArray(expandedSkillData.relatedSkills) && expandedSkillData.relatedSkills.length > 0
+                  ? (typeof expandedSkillData.relatedSkills[0] === 'string'
+                      ? expandedSkillData.relatedSkills.slice(0, 3).map(name => ({ name: name as string, similarity: undefined }))
+                      : (expandedSkillData.relatedSkills as Array<{ name: string; similarity?: number }>).slice(0, 3))
+                  : []
+                return relatedSkillsData.map((relatedSkill, idx) => {
+                  const relatedSkillName = typeof relatedSkill === 'string' ? relatedSkill : relatedSkill.name
+                  const similarity = typeof relatedSkill === 'object' && 'similarity' in relatedSkill ? relatedSkill.similarity : undefined
                   const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
-                  const baseAngle = (idx / Math.max(relatedSkillsStrings.length, 1)) * Math.PI * 2 - Math.PI / 2
+                  const baseAngle = (idx / Math.max(relatedSkillsData.length, 1)) * Math.PI * 2 - Math.PI / 2
                   const adjustedAngle = isTopSkill && expandedPosition.y < -30
                     ? baseAngle + Math.PI / 4
                     : baseAngle
@@ -348,18 +354,37 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                   if (lineEndY > maxY) lineEndY = maxY
                   if (lineEndY < minY) lineEndY = minY
                   
+                  // 선의 중간 지점 계산 (similarity 텍스트 위치)
+                  const midX = (expandedX + lineEndX) / 2
+                  const midY = (expandedY + lineEndY) / 2
+                  
                   return (
-                    <line
-                      key={`${expandedSkillName}-${relatedSkillName}`}
-                      x1={expandedX}
-                      y1={expandedY}
-                      x2={lineEndX}
-                      y2={lineEndY}
-                      stroke="#9ca3af"
-                      strokeWidth="2"
-                      strokeDasharray="4 4"
-                      opacity="0.5"
-                    />
+                    <g key={`${expandedSkillName}-${relatedSkillName}`}>
+                      <line
+                        x1={expandedX}
+                        y1={expandedY}
+                        x2={lineEndX}
+                        y2={lineEndY}
+                        stroke="#9ca3af"
+                        strokeWidth="2"
+                        strokeDasharray="4 4"
+                        opacity="0.5"
+                      />
+                      {similarity !== undefined && (
+                        <text
+                          x={midX}
+                          y={midY}
+                          fontSize="12"
+                          fill="#6b7280"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="pointer-events-none"
+                          style={{ fontWeight: 600 }}
+                        >
+                          {similarity.toFixed(2)}
+                        </text>
+                      )}
+                    </g>
                   )
                 })
               })()}
@@ -458,12 +483,18 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             : { x: 0, y: 0 }
           const radius = 130
           
-          // relatedSkills를 문자열 배열로 변환하고 3개로 제한
-          const relatedSkillsStrings = getRelatedSkillsAsStrings(expandedSkillData.relatedSkills).slice(0, 3)
+          // relatedSkills를 객체 배열로 처리하여 similarity 값도 가져오기
+          const relatedSkillsData = Array.isArray(expandedSkillData.relatedSkills) && expandedSkillData.relatedSkills.length > 0
+            ? (typeof expandedSkillData.relatedSkills[0] === 'string'
+                ? expandedSkillData.relatedSkills.slice(0, 3).map(name => ({ name: name as string, similarity: undefined }))
+                : (expandedSkillData.relatedSkills as Array<{ name: string; similarity?: number }>).slice(0, 3))
+            : []
           
-          return relatedSkillsStrings.map((relatedSkillName, idx) => {
+          return relatedSkillsData.map((relatedSkill, idx) => {
+            const relatedSkillName = typeof relatedSkill === 'string' ? relatedSkill : relatedSkill.name
+            const similarity = typeof relatedSkill === 'object' && 'similarity' in relatedSkill ? relatedSkill.similarity : undefined
             const isTopSkill = expandedSkillName === 'go' || expandedSkillName === 'kotlin'
-            const baseAngle = (idx / Math.max(relatedSkillsStrings.length, 1)) * Math.PI * 2 - Math.PI / 2
+            const baseAngle = (idx / Math.max(relatedSkillsData.length, 1)) * Math.PI * 2 - Math.PI / 2
             const adjustedAngle = isTopSkill && expandedPosition.y < -30
               ? baseAngle + Math.PI / 4
               : baseAngle
@@ -493,9 +524,10 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
             const relatedSkillData = visibleSkills.find(s => s.name === relatedSkillName)
             const isRelatedSkillInData = !!relatedSkillData
             
+            // similarity가 있으면 버튼 높이를 더 크게 설정
             const buttonSize = isRelatedSkillInData 
-              ? 'px-4 py-2 h-8 text-sm' 
-              : 'px-3 py-1.5 h-7 text-xs'
+              ? (similarity !== undefined ? 'px-4 py-2 h-10 text-sm' : 'px-4 py-2 h-8 text-sm')
+              : (similarity !== undefined ? 'px-3 py-1.5 h-9 text-xs' : 'px-3 py-1.5 h-7 text-xs')
             
             return (
               <button
@@ -507,7 +539,7 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                   // 관련 스킬의 가지치기는 표시하지 않음 (expandedRelatedSkills에 추가하지 않음)
                   setDetailViewSkill(relatedSkillName)
                 }}
-                className={`absolute ${buttonSize} rounded-full flex items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-colors duration-300 ${
+                className={`absolute ${buttonSize} rounded-full flex flex-col items-center justify-center font-semibold cursor-pointer whitespace-nowrap z-40 transition-colors duration-300 ${
                   isRelatedSkillInData
                     ? 'bg-gray-900/20 text-gray-700 border-2 border-gray-700/50 hover:bg-gray-900/30 shadow-md'
                     : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-50 shadow-sm'
@@ -520,7 +552,12 @@ export default function SkillCloud({ skills, selectedCompany = '전체' }: Skill
                   willChange: 'auto',
                 }}
               >
-                {relatedSkillName}
+                <span>{relatedSkillName}</span>
+                {similarity !== undefined && (
+                  <span className="text-[10px] font-normal text-gray-500 mt-0.5">
+                    {similarity.toFixed(2)}
+                  </span>
+                )}
               </button>
             )
           })

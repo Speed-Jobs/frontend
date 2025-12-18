@@ -217,6 +217,15 @@ const getCompanyKeyword = (companyName: string): string | null => {
 
 // HHI 값을 기반으로 집중도를 계산하는 함수
 // 기준: 0.00 ≤ HHI < 0.12: 분산, 0.12 ≤ HHI < 0.25: 부분 집중, HHI ≥ 0.25: 쏠림
+// 인사이트 텍스트에서 "냉각"/"과열"을 "여유"/"경쟁"으로 치환하는 함수
+const replaceInsightText = (text: string): string => {
+  return text
+    .replace(/냉각/g, '여유')
+    .replace(/과열/g, '경쟁')
+    .replace(/냉각 상태/g, '수급 여유')
+    .replace(/과열 상태/g, '수급 경쟁')
+}
+
 const getHhiConcentrationLevel = (hhi: number | undefined): string | null => {
   if (hhi === undefined || hhi === null) return null
   
@@ -4075,18 +4084,18 @@ export default function Dashboard() {
                               <div className="text-base md:text-lg font-bold text-gray-900">전체 시장 분석</div>
                             </div>
                           
-                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {/* 전년 대비 경쟁도와 여유 표시만 맨 위에 */}
                           {hhiAnalysisApiData.total_insight.yoy_overheat_score !== undefined && (
                             <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
-                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.yoy_overheat_score.toFixed(2)}</span>
+                                전년 대비 경쟁도: <span className="font-semibold">{hhiAnalysisApiData.total_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.total_insight.yoy_trend && (
                                   <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
                                     hhiAnalysisApiData.total_insight.yoy_trend === '과열' 
                                       ? 'bg-red-100 text-red-800' 
                                       : 'bg-blue-100 text-blue-800'
                                   }`}>
-                                    {hhiAnalysisApiData.total_insight.yoy_trend}
+                                    {hhiAnalysisApiData.total_insight.yoy_trend === '과열' ? '경쟁' : hhiAnalysisApiData.total_insight.yoy_trend === '냉각' ? '여유' : hhiAnalysisApiData.total_insight.yoy_trend}
                                   </span>
                                 )}
                               </div>
@@ -4143,7 +4152,7 @@ export default function Dashboard() {
                                 {insights.map((insight: string, index: number) => (
                                   <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
                                     <span className="text-blue-600 mr-2">•</span>
-                                    <span>{insight}</span>
+                                    <span>{replaceInsightText(insight)}</span>
                                   </li>
                                 ))}
                               </ul>
@@ -4189,18 +4198,18 @@ export default function Dashboard() {
                             </div>
                           </div>
                       
-                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {/* 전년 대비 경쟁도와 여유 표시만 맨 위에 */}
                           {hhiAnalysisApiData.position_insight.yoy_overheat_score !== undefined && (
                             <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
-                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.yoy_overheat_score.toFixed(2)}</span>
+                                전년 대비 경쟁도: <span className="font-semibold">{hhiAnalysisApiData.position_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.position_insight.yoy_trend && (
                                   <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
                                     hhiAnalysisApiData.position_insight.yoy_trend === '과열' 
                                       ? 'bg-red-100 text-red-800' 
                                       : 'bg-blue-100 text-blue-800'
                                   }`}>
-                                    {hhiAnalysisApiData.position_insight.yoy_trend}
+                                    {hhiAnalysisApiData.position_insight.yoy_trend === '과열' ? '경쟁' : hhiAnalysisApiData.position_insight.yoy_trend === '냉각' ? '여유' : hhiAnalysisApiData.position_insight.yoy_trend}
                                   </span>
                                 )}
                               </div>
@@ -4244,7 +4253,7 @@ export default function Dashboard() {
                                 {hhiAnalysisApiData.position_insight.insights.map((insight: string, index: number) => (
                                   <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
                                 <span className="text-green-600 mr-2">•</span>
-                                <span>{insight}</span>
+                                <span>{replaceInsightText(insight)}</span>
                               </li>
                             ))}
                           </ul>
@@ -4282,18 +4291,18 @@ export default function Dashboard() {
                             </div>
                           </div>
                           
-                          {/* 전년 대비 과열도와 냉각 표시만 맨 위에 */}
+                          {/* 전년 대비 경쟁도와 여유 표시만 맨 위에 */}
                           {hhiAnalysisApiData.industry_insight.yoy_overheat_score !== undefined && (
                             <div className="mb-4">
                               <div className="text-xs md:text-sm text-gray-700">
-                                전년 대비 과열도: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.yoy_overheat_score.toFixed(2)}</span>
+                                전년 대비 경쟁도: <span className="font-semibold">{hhiAnalysisApiData.industry_insight.yoy_overheat_score.toFixed(2)}</span>
                                 {hhiAnalysisApiData.industry_insight.yoy_trend && (
                                   <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
                                     hhiAnalysisApiData.industry_insight.yoy_trend === '과열' 
                                       ? 'bg-red-100 text-red-800' 
                                       : 'bg-blue-100 text-blue-800'
                                   }`}>
-                                    {hhiAnalysisApiData.industry_insight.yoy_trend}
+                                    {hhiAnalysisApiData.industry_insight.yoy_trend === '과열' ? '경쟁' : hhiAnalysisApiData.industry_insight.yoy_trend === '냉각' ? '여유' : hhiAnalysisApiData.industry_insight.yoy_trend}
                                   </span>
                                 )}
                               </div>
@@ -4326,7 +4335,7 @@ export default function Dashboard() {
                                 {hhiAnalysisApiData.industry_insight.insights.map((insight: string, index: number) => (
                                   <li key={index} className="text-xs md:text-sm text-gray-700 flex items-start">
                                     <span className="text-purple-600 mr-2">•</span>
-                                    <span>{insight}</span>
+                                    <span>{replaceInsightText(insight)}</span>
                                   </li>
                                 ))}
                               </ul>

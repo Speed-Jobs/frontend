@@ -23,15 +23,15 @@ function GaugeChart({
   const centerY = size / 2
   
   // 반원형 호 (180도)
-  const startAngle = -180 // 왼쪽 끝 (냉각)
-  const endAngle = 0 // 오른쪽 끝 (과열)
+  const startAngle = -180 // 왼쪽 끝 (여유)
+  const endAngle = 0 // 오른쪽 끝 (경쟁)
   
   // YoY 점수가 있으면 과열도로 사용, 없으면 기존 난이도 지수 사용
   const overheatPercentage = yoyScore !== undefined 
-    ? Math.min(Math.max(yoyScore, 0), 100) // YoY 점수 그대로 사용 (0=냉각, 100=과열)
+    ? Math.min(Math.max(yoyScore, 0), 100) // YoY 점수 그대로 사용 (0=여유, 100=경쟁)
     : Math.min(Math.max(value, 0), 100)
   
-  // 바늘 각도 계산 (0% = -180도(냉각), 100% = 0도(과열))
+  // 바늘 각도 계산 (0% = -180도(여유), 100% = 0도(경쟁))
   const needleAngle = startAngle + (overheatPercentage / 100) * (endAngle - startAngle)
   
   // 호 경로 생성
@@ -46,13 +46,39 @@ function GaugeChart({
     return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`
   }
   
-  // 그라데이션 색상 (과열도 기준: 초록(냉각) -> 노랑(기준) -> 빨강(과열))
+  // 그라데이션 색상 (과열도 기준: 초록(여유) -> 노랑(기준) -> 빨강(경쟁))
   const gradientId = `gauge-gradient-${label.replace(/\s+/g, '-')}-${overheatPercentage}`
   
   // 바늘 끝점 계산
   const needleLength = radius - 10
   const needleEndX = centerX + needleLength * Math.cos((needleAngle * Math.PI) / 180)
   const needleEndY = centerY + needleLength * Math.sin((needleAngle * Math.PI) / 180)
+  
+  // 4등분 구분선 각도 계산 (0%, 25%, 50%, 75%, 100%)
+  const getDivisionAngle = (percentage: number) => {
+    return startAngle + (percentage / 100) * (endAngle - startAngle)
+  }
+  
+  // 구분선 끝점 계산 (호 바깥쪽)
+  const getDivisionLineEnd = (angle: number, lineRadius: number) => {
+    const angleRad = (angle * Math.PI) / 180
+    return {
+      x: centerX + lineRadius * Math.cos(angleRad),
+      y: centerY + lineRadius * Math.sin(angleRad)
+    }
+  }
+  
+  // 구분선 라벨 위치 계산 (호 바깥쪽 더 멀리)
+  const getLabelPosition = (angle: number, labelRadius: number) => {
+    const angleRad = (angle * Math.PI) / 180
+    return {
+      x: centerX + labelRadius * Math.cos(angleRad),
+      y: centerY + labelRadius * Math.sin(angleRad)
+    }
+  }
+  
+  const divisionRadius = radius + strokeWidth / 2 + 5 // 호 바깥쪽
+  const labelRadius = radius + strokeWidth / 2 + 18 // 라벨 위치
   
   return (
     <div 
@@ -69,18 +95,18 @@ function GaugeChart({
       }}
     >
       <div className="relative w-full max-w-[200px] mx-auto" style={{ aspectRatio: '2/1', maxHeight: '120px' }}>
-        {/* 왼쪽 라벨 (냉각) */}
-        <div className="absolute left-0 top-0 text-xs font-semibold text-green-600">냉각</div>
-        {/* 오른쪽 라벨 (과열) */}
-        <div className="absolute right-0 top-0 text-xs font-semibold text-red-600">과열</div>
+        {/* 왼쪽 라벨 (여유) */}
+        <div className="absolute left-0 top-0 text-xs font-semibold text-green-600">여유</div>
+        {/* 오른쪽 라벨 (경쟁) */}
+        <div className="absolute right-0 top-0 text-xs font-semibold text-red-600">경쟁</div>
         <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="overflow-visible" preserveAspectRatio="xMidYMid meet">
           <defs>
             <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#22c55e" /> {/* 초록 (냉각) */}
+              <stop offset="0%" stopColor="#22c55e" /> {/* 초록 (여유) */}
               <stop offset="25%" stopColor="#84cc16" /> {/* 연두 */}
               <stop offset="50%" stopColor="#eab308" /> {/* 노랑 (기준) */}
               <stop offset="75%" stopColor="#f97316" /> {/* 주황 */}
-              <stop offset="100%" stopColor="#dc2626" /> {/* 빨강 (과열) */}
+              <stop offset="100%" stopColor="#dc2626" /> {/* 빨강 (경쟁) */}
             </linearGradient>
           </defs>
           
@@ -103,6 +129,40 @@ function GaugeChart({
             className="transition-all duration-500"
           />
           
+          {/* 4등분 구분선 (0%, 25%, 50%, 75%, 100%) */}
+          {[0, 25, 50, 75, 100].map((percentage) => {
+            const divAngle = getDivisionAngle(percentage)
+            const lineStart = getDivisionLineEnd(divAngle, radius - strokeWidth / 2)
+            const lineEnd = getDivisionLineEnd(divAngle, divisionRadius)
+            const labelPos = getLabelPosition(divAngle, labelRadius)
+            
+            return (
+              <g key={percentage}>
+                {/* 구분선 */}
+                <line
+                  x1={lineStart.x}
+                  y1={lineStart.y}
+                  x2={lineEnd.x}
+                  y2={lineEnd.y}
+                  stroke="#6b7280"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+                {/* 구분선 라벨 (숫자) */}
+                <text
+                  x={labelPos.x}
+                  y={labelPos.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="text-[10px] font-semibold fill-gray-700"
+                  style={{ fontSize: '10px' }}
+                >
+                  {percentage}
+                </text>
+              </g>
+            )
+          })}
+          
           {/* 바늘 */}
           <line
             x1={centerX}
@@ -124,7 +184,7 @@ function GaugeChart({
           />
         </svg>
       </div>
-      {/* 타이틀 (계기판과 과열도 크리 사이) */}
+      {/* 타이틀 (계기판과 난이도 지수 사이) */}
       <div className="text-sm font-semibold text-gray-700 mt-2 mb-2 text-center px-2">{label}</div>
       {/* YoY 점수 또는 난이도 지수 표시 (차트 아래 별도 행) */}
       <div className="mt-0 mb-0">
@@ -135,9 +195,9 @@ function GaugeChart({
         )}
         {trend && (
           <div className="text-xs text-gray-600 mt-1">
-            {trend === '냉각' && <span className="text-green-600">냉각 상태</span>}
-            {trend === '과열' && <span className="text-red-600">과열 상태</span>}
-            {trend === '기준' && <span className="text-yellow-600">기준 상태</span>}
+            {trend === '냉각' && <span className="text-green-600">수급 여유</span>}
+            {trend === '과열' && <span className="text-red-600">수급 경쟁</span>}
+            {trend === '기준' && <span className="text-yellow-600">수급 보통</span>}
           </div>
         )}
       </div>
@@ -411,6 +471,15 @@ export default function JobDifficultyGauges({
 
   const selectedDetails = getSelectedDetails()
 
+  // 인사이트 텍스트에서 "냉각"/"과열"을 "여유"/"경쟁"으로 치환하는 함수
+  const replaceInsightText = (text: string): string => {
+    return text
+      .replace(/냉각/g, '여유')
+      .replace(/과열/g, '경쟁')
+      .replace(/냉각 상태/g, '수급 여유')
+      .replace(/과열 상태/g, '수급 경쟁')
+  }
+
   const renderInsights = (gaugeType: string, details: typeof overallDetails) => {
     if (selectedGauge !== gaugeType || !details) return null
 
@@ -429,7 +498,7 @@ export default function JobDifficultyGauges({
               {apiInsights.map((insight, index) => (
                 <li key={index} className="text-sm text-gray-700 flex items-start">
                   <span className="text-blue-600 mr-2">•</span>
-                  <span>{insight}</span>
+                  <span>{replaceInsightText(insight)}</span>
                 </li>
               ))}
             </ul>
@@ -448,7 +517,7 @@ export default function JobDifficultyGauges({
               {details.recommendations.map((rec, index) => (
                 <li key={index} className="text-sm text-green-800 flex items-start">
                   <span className="text-green-600 mr-2">→</span>
-                  <span>{rec}</span>
+                  <span>{replaceInsightText(rec)}</span>
                 </li>
               ))}
             </ul>
@@ -591,7 +660,7 @@ export default function JobDifficultyGauges({
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={overallDifficulty.difficulty}
-              label="전체 과열 지수"
+              label="전체 난이도 지수"
               onClick={() => handleGaugeClick('overall')}
               yoyScore={overallDifficulty.yoyScore}
               trend={overallDifficulty.trend}
@@ -654,7 +723,7 @@ export default function JobDifficultyGauges({
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={selectedJobRoleDifficulty.difficulty}
-              label={selectedJobRoleFilter === '전체' ? '전체 직군 과열 지수' : `${selectedJobRoleFilter} 과열 지수`}
+              label={selectedJobRoleFilter === '전체' ? '전체 직군 난이도 지수' : `${selectedJobRoleFilter} 난이도 지수`}
               onClick={() => handleGaugeClick('job-role')}
               yoyScore={selectedJobRoleDifficulty.yoyScore}
               trend={selectedJobRoleDifficulty.trend}
@@ -710,8 +779,8 @@ export default function JobDifficultyGauges({
                 selectedJobRoleFilter === '전체' 
                   ? '직군을 선택하세요' 
                   : selectedSkillSetFilter === '전체' 
-                    ? `${selectedJobRoleFilter} 직무 과열 지수` 
-                    : `${selectedSkillSetFilter} 과열 지수`
+                    ? `${selectedJobRoleFilter} 직무 난이도 지수` 
+                    : `${selectedSkillSetFilter} 난이도 지수`
               }
               onClick={() => selectedJobRoleFilter !== '전체' && handleGaugeClick('skill-set')}
               yoyScore={selectedSkillSetDifficulty.yoyScore}

@@ -239,6 +239,33 @@ export default function AIChatbot() {
     scrollToBottom()
   }, [messages])
 
+  // 이미지 첨부 시 체크 표시 숨김
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      .ai-chatbot-message img + [class*="check"],
+      .ai-chatbot-message img + [class*="Check"],
+      .ai-chatbot-message img ~ [class*="check"],
+      .ai-chatbot-message img ~ [class*="Check"],
+      .ai-chatbot-message [class*="image"] + [class*="check"],
+      .ai-chatbot-message [class*="image"] + [class*="Check"],
+      .ai-chatbot-message [class*="image"] ~ [class*="check"],
+      .ai-chatbot-message [class*="image"] ~ [class*="Check"],
+      .ai-chatbot-message [class*="attachment"] [class*="check"],
+      .ai-chatbot-message [class*="attachment"] [class*="Check"],
+      .ai-chatbot-message [class*="check-circle"],
+      .ai-chatbot-message [class*="CheckCircle"],
+      .ai-chatbot-message svg[class*="check"],
+      .ai-chatbot-message svg[class*="Check"] {
+        display: none !important;
+      }
+    `
+    document.head.appendChild(style)
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [])
+
   // 공고 상세 정보 가져오기 함수
   const fetchJobPostings = async (postIds: number[]): Promise<JobPosting[]> => {
     const jobPostings: JobPosting[] = []
@@ -705,7 +732,7 @@ export default function AIChatbot() {
       {/* 메시지 영역 */}
       {!isMinimized && (
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 ai-chatbot-message">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -906,90 +933,66 @@ export default function AIChatbot() {
         </>
       )}
       
-      {/* 리사이즈 핸들들 */}
+      {/* 리사이즈 핸들들 - 기능은 유지하되 시각적으로 완전히 숨김 */}
       {!isMinimized && (
         <>
-          {/* 모서리 핸들 */}
+          {/* 모서리 핸들 - 더 큰 영역으로 리사이즈 용이하게 */}
           {/* 좌상 (nw) */}
           <div
             onMouseDown={handleResizeStart('nw')}
-            className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize group z-10"
-            style={{ marginTop: '-2px', marginLeft: '-2px' }}
-          >
-            <div className="absolute top-0 left-0 w-full h-full flex items-start justify-start">
-              <div className="w-3 h-3 border-l-2 border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-tl-lg bg-white"></div>
-            </div>
-          </div>
+            className="absolute top-0 left-0 w-8 h-8 cursor-nwse-resize z-10 opacity-0"
+            style={{ marginTop: '-4px', marginLeft: '-4px' }}
+          />
           
           {/* 우상 (ne) */}
           <div
             onMouseDown={handleResizeStart('ne')}
-            className="absolute top-0 right-0 w-4 h-4 cursor-nesw-resize group z-10"
-            style={{ marginTop: '-2px', marginRight: '-2px' }}
-          >
-            <div className="absolute top-0 right-0 w-full h-full flex items-start justify-end">
-              <div className="w-3 h-3 border-r-2 border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-tr-lg bg-white"></div>
-            </div>
-          </div>
+            className="absolute top-0 right-0 w-8 h-8 cursor-nesw-resize z-10 opacity-0"
+            style={{ marginTop: '-4px', marginRight: '-4px' }}
+          />
           
           {/* 좌하 (sw) */}
           <div
             onMouseDown={handleResizeStart('sw')}
-            className="absolute bottom-0 left-0 w-4 h-4 cursor-nesw-resize group z-10"
-            style={{ marginBottom: '-2px', marginLeft: '-2px' }}
-          >
-            <div className="absolute bottom-0 left-0 w-full h-full flex items-end justify-start">
-              <div className="w-3 h-3 border-l-2 border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-bl-lg bg-white"></div>
-            </div>
-          </div>
+            className="absolute bottom-0 left-0 w-8 h-8 cursor-nesw-resize z-10 opacity-0"
+            style={{ marginBottom: '-4px', marginLeft: '-4px' }}
+          />
           
           {/* 우하 (se) */}
           <div
             onMouseDown={handleResizeStart('se')}
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize group z-10"
-            style={{ marginBottom: '-2px', marginRight: '-2px' }}
-          >
-            <div className="absolute bottom-0 right-0 w-full h-full flex items-end justify-end">
-              <div className="w-3 h-3 border-r-2 border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors rounded-br-lg bg-white"></div>
-            </div>
-          </div>
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize z-10 opacity-0"
+            style={{ marginBottom: '-4px', marginRight: '-4px' }}
+          />
           
-          {/* 변 핸들 */}
-          {/* 상 (n) */}
+          {/* 변 핸들 - 모서리 영역 제외하여 대각선 리사이즈 우선 */}
+          {/* 상 (n) - 모서리 제외 */}
           <div
             onMouseDown={handleResizeStart('n')}
-            className="absolute top-0 left-4 right-4 h-2 cursor-ns-resize group z-10"
-            style={{ marginTop: '-2px' }}
-          >
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-12 h-full border-t-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-t"></div>
-          </div>
+            className="absolute top-0 left-8 right-8 h-4 cursor-ns-resize z-[9] opacity-0"
+            style={{ marginTop: '-4px' }}
+          />
           
-          {/* 하 (s) */}
+          {/* 하 (s) - 모서리 제외 */}
           <div
             onMouseDown={handleResizeStart('s')}
-            className="absolute bottom-0 left-4 right-4 h-2 cursor-ns-resize group z-10"
-            style={{ marginBottom: '-2px' }}
-          >
-            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-full border-b-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-b"></div>
-          </div>
+            className="absolute bottom-0 left-8 right-8 h-4 cursor-ns-resize z-[9] opacity-0"
+            style={{ marginBottom: '-4px' }}
+          />
           
-          {/* 좌 (w) */}
+          {/* 좌 (w) - 모서리 제외 */}
           <div
             onMouseDown={handleResizeStart('w')}
-            className="absolute top-4 bottom-4 left-0 w-2 cursor-ew-resize group z-10"
-            style={{ marginLeft: '-2px' }}
-          >
-            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 h-12 w-full border-l-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-l"></div>
-          </div>
+            className="absolute top-8 bottom-8 left-0 w-4 cursor-ew-resize z-[9] opacity-0"
+            style={{ marginLeft: '-4px' }}
+          />
           
-          {/* 우 (e) */}
+          {/* 우 (e) - 모서리 제외 */}
           <div
             onMouseDown={handleResizeStart('e')}
-            className="absolute top-4 bottom-4 right-0 w-2 cursor-ew-resize group z-10"
-            style={{ marginRight: '-2px' }}
-          >
-            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 h-12 w-full border-r-2 border-gray-400 group-hover:border-gray-600 transition-colors bg-white rounded-r"></div>
-          </div>
+            className="absolute top-8 bottom-8 right-0 w-4 cursor-ew-resize z-[9] opacity-0"
+            style={{ marginRight: '-4px' }}
+          />
         </>
       )}
     </div>

@@ -211,9 +211,49 @@ export default function AIChatbot() {
   useEffect(() => {
     setPosition(null)
   }, [pathname])
+  
+  // 화면 크기 변경 시 반응형 조정
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window === 'undefined') return
+      const isMobile = window.innerWidth < 640
+      const isTablet = window.innerWidth < 1024
+      
+      // 모바일에서는 전체 화면으로 조정
+      if (isMobile) {
+        setSize({ width: window.innerWidth - 16, height: window.innerHeight - 16 })
+        setPosition({ x: 8, y: 8 })
+      } else if (isTablet) {
+        // 태블릿에서는 적절한 크기로 조정
+        const newWidth = Math.min(600, window.innerWidth - 32)
+        const newHeight = Math.min(700, window.innerHeight - 32)
+        setSize({ width: newWidth, height: newHeight })
+      }
+    }
+    
+    window.addEventListener('resize', handleResize)
+    handleResize() // 초기 실행
+    
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  const [size, setSize] = useState<{ width: number; height: number }>({ width: 480, height: 700 })
+  
+  // 반응형 초기 크기 계산
+  const getInitialSize = () => {
+    if (typeof window === 'undefined') return { width: 480, height: 700 }
+    const isMobile = window.innerWidth < 640 // sm breakpoint
+    const isTablet = window.innerWidth < 1024 // lg breakpoint
+    
+    if (isMobile) {
+      return { width: window.innerWidth - 16, height: window.innerHeight - 16 }
+    } else if (isTablet) {
+      return { width: Math.min(600, window.innerWidth - 32), height: Math.min(700, window.innerHeight - 32) }
+    }
+    return { width: 480, height: 700 }
+  }
+  
+  const [size, setSize] = useState<{ width: number; height: number }>(getInitialSize())
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState<string | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; left: number; top: number } | null>(null)
@@ -562,11 +602,12 @@ export default function AIChatbot() {
         const deltaX = e.clientX - resizeStart.x
         const deltaY = e.clientY - resizeStart.y
         
-        // 최소/최대 크기 제한
-        const minWidth = 300
-        const minHeight = 400
-        const maxWidth = window.innerWidth - 24
-        const maxHeight = window.innerHeight - 24
+        // 반응형 최소/최대 크기 제한
+        const isMobile = window.innerWidth < 640
+        const minWidth = isMobile ? window.innerWidth - 16 : 300
+        const minHeight = isMobile ? window.innerHeight - 16 : 400
+        const maxWidth = window.innerWidth - (isMobile ? 16 : 24)
+        const maxHeight = window.innerHeight - (isMobile ? 16 : 24)
         
         let newWidth = resizeStart.width
         let newHeight = resizeStart.height
@@ -650,16 +691,16 @@ export default function AIChatbot() {
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-center gap-2">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-center gap-2">
         <button
           onClick={() => setIsOpen(true)}
-          className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50"
+          className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50"
           aria-label="챗봇 열기"
           style={{ boxShadow: '0 10px 40px rgba(59, 130, 246, 0.5)' }}
         >
-          <Bot className="w-10 h-10" />
+          <Bot className="w-8 h-8 sm:w-10 sm:h-10" />
         </button>
-        <span className="text-xs font-semibold text-gray-800 bg-white px-3 py-1 rounded-lg shadow-lg whitespace-nowrap">
+        <span className="text-xs font-semibold text-gray-800 bg-white px-3 py-1 rounded-lg shadow-lg whitespace-nowrap hidden sm:block">
           Speed Jobs AI Chatbot
         </span>
       </div>
@@ -675,56 +716,56 @@ export default function AIChatbot() {
           bottom: 'auto',
         }
       : {
-          right: '1.5rem',
-          bottom: '1.5rem'
+          right: '1rem',
+          bottom: '1rem'
         }),
     width: `${size.width}px`,
     height: isMinimized ? '64px' : `${size.height}px`,
-    maxWidth: 'calc(100vw - 3rem)',
-    maxHeight: 'calc(100vh - 3rem)',
+    maxWidth: 'calc(100vw - 1rem)',
+    maxHeight: 'calc(100vh - 1rem)',
     transition: (isDragging || isResizing) ? 'none' : 'all 0.3s'
   }
 
   return (
     <div
       ref={chatbotRef}
-      className={`fixed bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-[9999] ${
+      className={`fixed bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-[9999] w-full sm:w-auto ${
         isDragging ? 'cursor-move' : ''
       } ${isResizing ? 'cursor-nwse-resize' : ''}`}
       style={chatbotStyle}
     >
       {/* 헤더 */}
       <div
-        className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg cursor-move select-none"
+        className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg cursor-move select-none"
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 text-sm">AI Chatbot</h3>
-            <p className="text-xs text-gray-500">무엇을 도와드릴까요?</p>
+            <h3 className="font-semibold text-gray-900 text-xs sm:text-sm">AI Chatbot</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500">무엇을 도와드릴까요?</p>
           </div>
         </div>
         <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+            className="p-1 sm:p-1.5 hover:bg-gray-200 rounded transition-colors"
             aria-label={isMinimized ? '최대화' : '최소화'}
           >
             {isMinimized ? (
-              <Maximize2 className="w-4 h-4 text-gray-600" />
+              <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
             ) : (
-              <Minimize2 className="w-4 h-4 text-gray-600" />
+              <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
             )}
           </button>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+            className="p-1 sm:p-1.5 hover:bg-gray-200 rounded transition-colors"
             aria-label="닫기"
           >
-            <X className="w-4 h-4 text-gray-600" />
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
           </button>
         </div>
       </div>
@@ -732,26 +773,26 @@ export default function AIChatbot() {
       {/* 메시지 영역 */}
       {!isMinimized && (
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 ai-chatbot-message">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 ai-chatbot-message">
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[80%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
+                <div className={`max-w-[85%] sm:max-w-[80%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
                   {message.type === 'assistant' && (
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-2">
-                      <Bot className="w-4 h-4 text-white" />
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-2">
+                      <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                     </div>
                   )}
                   <div
-                    className={`rounded-lg p-3 ${
+                    className={`rounded-lg p-2.5 sm:p-3 ${
                       message.type === 'user'
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-900'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-xs sm:text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
                   {message.components && message.components.length > 0 && (
                     <div className="mt-3 space-y-2">
@@ -835,18 +876,18 @@ export default function AIChatbot() {
             {/* 빠른 시작 토글 버튼 */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="w-full px-5 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors bg-gradient-to-r from-blue-100 to-purple-100"
+              className="w-full px-3 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between hover:bg-blue-100 transition-colors bg-gradient-to-r from-blue-100 to-purple-100"
             >
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <span className="text-sm font-bold text-gray-800">질문 가이드</span>
+                <span className="text-xs sm:text-sm font-bold text-gray-800">질문 가이드</span>
               </div>
               {isMenuOpen ? (
-                <ChevronUp className="w-5 h-5 text-blue-600 transition-transform font-bold" />
+                <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 transition-transform font-bold" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-blue-600 transition-transform font-bold" />
+                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 transition-transform font-bold" />
               )}
             </button>
             
@@ -856,20 +897,20 @@ export default function AIChatbot() {
                 isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
               }`}
             >
-              <div className="px-4 pt-3 pb-4">
+              <div className="px-3 sm:px-4 pt-2 sm:pt-3 pb-3 sm:pb-4">
                 {/* 페이지 이동 메뉴 */}
-                <div className="mb-4">
-                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-blue-600" />
+                <div className="mb-3 sm:mb-4">
+                  <p className="text-xs sm:text-sm font-bold text-gray-800 mb-2 sm:mb-3 flex items-center gap-2">
+                    <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
                     페이지 이동
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {pageMenus.map((menu) => {
                       return (
                         <button
                           key={menu.route}
                           onClick={() => handleComponentClick(menu.route)}
-                          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-blue-200 rounded-xl hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transition-all"
+                          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-gray-800 bg-white border-2 border-blue-200 rounded-xl hover:bg-blue-50 hover:border-blue-400 hover:shadow-md transition-all"
                           title={menu.description}
                         >
                           <span>{menu.title}</span>
@@ -881,17 +922,17 @@ export default function AIChatbot() {
                 
                 {/* 자주 묻는 질문 */}
                 <div>
-                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <Star className="w-4 h-4 text-purple-600" />
+                  <p className="text-xs sm:text-sm font-bold text-gray-800 mb-2 sm:mb-3 flex items-center gap-2">
+                    <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
                     자주 묻는 질문
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {quickQuestions.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => handleQuickQuestion(item.text)}
                         disabled={isLoading}
-                        className="px-4 py-2.5 text-sm font-semibold text-gray-800 bg-white border-2 border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-gray-800 bg-white border-2 border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
                       >
                         <span className="line-clamp-2">{item.text}</span>
                       </button>
@@ -903,29 +944,29 @@ export default function AIChatbot() {
           </div>
 
           {/* 입력 영역 */}
-          <div className="px-5 pt-5 pb-5 border-t border-gray-200 bg-gray-50">
-            <div className="flex gap-3">
+          <div className="px-3 sm:px-5 pt-3 sm:pt-5 pb-3 sm:pb-5 border-t border-gray-200 bg-gray-50">
+            <div className="flex gap-2 sm:gap-3">
               <Input
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="메시지를 입력하세요..."
-                className="flex-1 text-base py-3 h-12"
+                className="flex-1 text-sm sm:text-base py-2.5 sm:py-3 h-10 sm:h-12"
                 disabled={isLoading}
               />
               <Button
                 onClick={handleSend}
                 disabled={!inputValue.trim() || isLoading}
-                className="bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed h-12 px-6"
+                className="bg-gray-900 hover:bg-gray-800 text-white disabled:opacity-50 disabled:cursor-not-allowed h-10 sm:h-12 px-4 sm:px-6"
               >
                 {isLoading ? (
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-3.5 w-3.5 sm:h-4 sm:w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 )}
               </Button>
             </div>

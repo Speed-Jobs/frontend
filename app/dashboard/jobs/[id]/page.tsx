@@ -52,6 +52,9 @@ export default function JobDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [matchedJobs, setMatchedJobs] = useState<MatchedJob[]>([])
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
+  const [isLoadingScreenshot, setIsLoadingScreenshot] = useState(false)
+  const [screenshotError, setScreenshotError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchJobDetail = async () => {
@@ -214,6 +217,36 @@ export default function JobDetailPage() {
     }
 
     fetchJobDetail()
+  }, [params.id])
+
+  // 스크린샷 가져오기 - params.id를 직접 사용하여 job 로드 전에도 스크린샷 URL 생성
+  useEffect(() => {
+    const fetchScreenshot = async () => {
+      const jobId = params.id as string
+      if (!jobId) return
+      
+      try {
+        setIsLoadingScreenshot(true)
+        setScreenshotError(null)
+        
+        const queryParams = new URLSearchParams({
+          width: '800',
+          useWebp: 'false'
+        })
+        
+        // API 프록시를 통해 스크린샷 가져오기
+        const screenshotApiUrl = `/api/posts/${jobId}/screenshot?${queryParams.toString()}`
+        setScreenshotUrl(screenshotApiUrl)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '스크린샷을 불러오는 중 오류가 발생했습니다.'
+        setScreenshotError(errorMessage)
+        setScreenshotUrl(null)
+      } finally {
+        setIsLoadingScreenshot(false)
+      }
+    }
+    
+    fetchScreenshot()
   }, [params.id])
 
   // 매칭된 직무 생성
@@ -394,18 +427,6 @@ export default function JobDetailPage() {
                 <span>{job.role}</span>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <span className={`px-4 py-2 rounded-lg font-semibold ${
-                getDaysUntilExpiry(job.daysLeft).includes('마감')
-                  ? 'bg-red-50 text-red-700 border border-red-200'
-                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-              }`}>
-                {getDaysUntilExpiry(job.daysLeft)}
-              </span>
-              <span className="text-sm text-gray-500">
-                {job.role}
-              </span>
-            </div>
           </div>
 
           {/* Job Info Grid */}
@@ -439,19 +460,38 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {/* 스크린샷 이미지 */}
-        {job.screenShotUrl && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">공고 스크린샷</h2>
+        {/* 스크린샷 이미지 - 항상 표시 */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 border border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">공고 스크린샷</h2>
+          {isLoadingScreenshot ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-2"></div>
+                <p className="text-gray-600 text-sm">스크린샷을 불러오는 중...</p>
+              </div>
+            </div>
+          ) : screenshotError ? (
+            <div className="text-center py-12">
+              <p className="text-red-500 text-sm">{screenshotError}</p>
+            </div>
+          ) : (screenshotUrl || job.screenShotUrl) ? (
             <div className="flex justify-center">
               <img
-                src={job.screenShotUrl}
+                src={screenshotUrl || job.screenShotUrl || ''}
                 alt={`${job.title} 공고 스크린샷`}
-                className="max-w-full h-auto rounded-lg border border-gray-200"
+                className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                onError={() => {
+                  setScreenshotError('스크린샷을 불러올 수 없습니다.')
+                  setScreenshotUrl(null)
+                }}
               />
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-sm">스크린샷을 사용할 수 없습니다.</p>
+            </div>
+          )}
+        </div>
 
         {/* Tech Stack */}
         {job.skills && job.skills.length > 0 && (

@@ -1,11 +1,49 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import CompanyLogo from '@/components/CompanyLogo'
-import jobPostingsData from '@/data/jobPostings.json'
+
+// API 응답 타입 정의
+interface ApiPost {
+  id: number
+  companyName: string
+  title: string
+  role: string
+  registeredAt: {
+    year: number
+    month: number
+    day: number
+  }
+  employmentType: string | null
+}
+
+interface ApiResponse {
+  status: number
+  code: string
+  message: string
+  data: {
+    posts: ApiPost[]
+  }
+}
+
+// 변환된 공고 데이터 타입 (기존 구조와 호환)
+interface JobPosting {
+  id: number
+  company: string
+  title: string
+  employment_type: string
+  posted_date: string
+  expired_date: string | null
+  experience?: string
+  meta_data?: {
+    job_category?: string
+    tech_stack?: string[]
+  }
+  description?: string
+}
 
 export default function JobsPage() {
   const router = useRouter()
@@ -15,6 +53,11 @@ export default function JobsPage() {
   const [selectedEmploymentType, setSelectedEmploymentType] = useState('all')
   const [sortBy, setSortBy] = useState<'latest' | 'company' | 'deadline'>('latest')
   const [expandedJobId, setExpandedJobId] = useState<number | null>(null)
+  
+  // API 데이터 상태
+  const [jobPostingsData, setJobPostingsData] = useState<JobPosting[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // 로고가 있는 회사 목록 (CompanyLogo의 companyNameMap 기반 + 실제 데이터의 회사명)
   const companiesWithLogo = [
@@ -32,10 +75,73 @@ export default function JobsPage() {
     '당근마켓', '당근', 'Daangn'
   ]
 
+  // API 호출하여 경쟁사 최신 공고 가져오기
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const params = new URLSearchParams({
+          limit: '50'
+        })
+        
+        const apiUrl = `/api/posts?${params.toString()}`
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`API 호출 실패: ${response.status} ${response.statusText}`)
+        }
+        
+        const result: ApiResponse = await response.json()
+        
+        if (result.status === 200 && result.code === 'OK' && result.data?.posts) {
+          // API 응답을 기존 데이터 구조로 변환
+          const convertedPosts: JobPosting[] = result.data.posts.map((post) => {
+            const registeredDate = post.registeredAt
+              ? `${post.registeredAt.year}-${String(post.registeredAt.month).padStart(2, '0')}-${String(post.registeredAt.day).padStart(2, '0')}`
+              : new Date().toISOString().split('T')[0]
+            
+            return {
+              id: post.id,
+              company: post.companyName,
+              title: post.title,
+              employment_type: post.employmentType || '정규직',
+              posted_date: registeredDate,
+              expired_date: null,
+              meta_data: {
+                job_category: post.role,
+                tech_stack: []
+              },
+              description: ''
+            }
+          })
+          
+          setJobPostingsData(convertedPosts)
+        } else {
+          throw new Error('데이터를 불러오는 중 오류가 발생했습니다.')
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : '경쟁사 공고를 불러오는 중 오류가 발생했습니다.'
+        setError(errorMessage)
+        setJobPostingsData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchPosts()
+  }, [])
+
   // 회사 목록 (중복 제거, 전체 옵션 포함)
   const companies = useMemo(() => 
     Array.from(new Set(jobPostingsData.map((job) => job.company.replace('(주)', '').trim())))
-  , [])
+  , [jobPostingsData])
 
   const employmentTypes = ['고용형태', '정규직', '계약직', '인턴', '프리랜서', '파트타임']
 
@@ -71,7 +177,7 @@ export default function JobsPage() {
     setSelectedCompanies(prev => prev.filter(c => c !== company))
   }
 
-  // 필터링된 공고 목록 (로고가 있는 회사만 + 회사 필터)
+  // 필터링된 공고 목록 (회사 필터 적용)
   const filteredJobPostings = useMemo(() => {
     const filtered = jobPostingsData.filter((job) => {
       // 회사 필터링 (다중 선택)
@@ -85,7 +191,9 @@ export default function JobsPage() {
         if (!companyMatch) return false
       }
 
-      // 로고가 있는 회사만 필터링 (더 유연한 매칭)
+      // API에서 가져온 모든 경쟁사 공고를 표시 (로고 필터링 제거)
+      // 필요시 로고가 있는 회사만 필터링하려면 아래 주석을 해제하세요
+      /*
       const companyName = job.company.replace('(주)', '').trim().toLowerCase()
       const normalizedCompanyName = companyName.replace(/\s+/g, '')
       const hasLogo = companiesWithLogo.some(company => {
@@ -99,6 +207,7 @@ export default function JobsPage() {
                normalizedLogoCompany.startsWith(companyName)
       })
       if (!hasLogo) return false
+      */
 
       const employmentTypeMatch =
         selectedEmploymentType === 'all' || job.employment_type === selectedEmploymentType
@@ -129,7 +238,7 @@ export default function JobsPage() {
     })
 
     return sorted
-  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy])
+  }, [selectedCompanies, selectedEmploymentType, companiesWithLogo, sortBy, jobPostingsData])
 
   const handleEmploymentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedEmploymentType(e.target.value === '고용형태' ? 'all' : e.target.value)
@@ -170,6 +279,17 @@ export default function JobsPage() {
           <p className="text-gray-600">
             실시간으로 업데이트되는 모든 채용 공고를 확인하세요
           </p>
+          {isLoading && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              <span>경쟁사 최신 공고를 불러오는 중...</span>
+            </div>
+          )}
+          {error && (
+            <div className="mt-4 text-sm text-red-500">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Filters and Sort */}

@@ -36,6 +36,7 @@ interface JobPosting {
   closeAt: PostedAt | null
   applyUrl: string
   screenShotUrl?: string | null
+  screenshotUrl?: string | null // 백엔드 API 응답에서 사용될 수 있는 필드명
   skills: string[]
   company: Company
   description?: string
@@ -90,6 +91,12 @@ export default function JobDetailPage() {
         
           // API 응답 형식: { status, code, message, data }
           if (result.status === 200 && result.code === 'OK' && result.data) {
+            // 디버깅: API 응답 전체 확인
+            console.log('API Response for job:', jobId, result.data)
+            console.log('All field names:', Object.keys(result.data))
+            console.log('screenShotUrl value:', result.data.screenShotUrl)
+            console.log('All field values:', Object.entries(result.data).map(([key, value]) => ({ key, value: typeof value === 'object' ? JSON.stringify(value) : value })))
+            
             // 백엔드 데이터에 description이 없을 경우 기본 데이터에서 찾기
             const foundJob = jobPostingsData.find((j) => j.id === parseInt(jobId))
             if (foundJob && !result.data.description) {
@@ -98,6 +105,25 @@ export default function JobDetailPage() {
             if (foundJob && !result.data.meta_data) {
               result.data.meta_data = foundJob.meta_data
             }
+            
+            // screenShotUrl 필드명 확인 (다양한 변형 확인)
+            // screenShotUrl이 undefined인 경우에만 다른 필드명 시도
+            if (result.data.screenShotUrl === undefined) {
+              // 다양한 필드명 시도
+              result.data.screenShotUrl = result.data.screenshotUrl || 
+                                         result.data.screen_shot_url || 
+                                         result.data.screenshot_url ||
+                                         result.data.screenShot ||
+                                         result.data.screenshot ||
+                                         null
+            }
+            
+            // 디버깅: screenShotUrl 값 확인
+            console.log('screenShotUrl after mapping:', result.data.screenShotUrl)
+            console.log('screenShotUrl type:', typeof result.data.screenShotUrl)
+            console.log('screenShotUrl === null:', result.data.screenShotUrl === null)
+            console.log('screenShotUrl === undefined:', result.data.screenShotUrl === undefined)
+            
             // 백엔드 데이터로 설정
             setJob(result.data)
             setIsLoading(false)
@@ -219,35 +245,52 @@ export default function JobDetailPage() {
     fetchJobDetail()
   }, [params.id])
 
-  // 스크린샷 가져오기 - params.id를 직접 사용하여 job 로드 전에도 스크린샷 URL 생성
+  // 스크린샷 URL 생성 - job 데이터가 로드된 후 screenShotUrl 사용
   useEffect(() => {
-    const fetchScreenshot = async () => {
-      const jobId = params.id as string
-      if (!jobId) return
-      
-      try {
-        setIsLoadingScreenshot(true)
-        setScreenshotError(null)
-        
-        const queryParams = new URLSearchParams({
-          width: '800',
-          useWebp: 'false'
-        })
-        
-        // API 프록시를 통해 스크린샷 가져오기
-        const screenshotApiUrl = `/api/posts/${jobId}/screenshot?${queryParams.toString()}`
-        setScreenshotUrl(screenshotApiUrl)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '스크린샷을 불러오는 중 오류가 발생했습니다.'
-        setScreenshotError(errorMessage)
-        setScreenshotUrl(null)
-      } finally {
+    if (!job) return
+    
+    setIsLoadingScreenshot(true)
+    setScreenshotError(null)
+    
+    // screenShotUrl이 있고 유효한 경우
+    const screenShotUrl = job.screenShotUrl || job.screenshotUrl
+    
+    // 백엔드 스크린샷 엔드포인트 사용 (쿼리 파라미터 포함)
+    const queryParams = new URLSearchParams({
+      width: '800',
+      useWebp: 'false'
+    })
+    
+    // screenShotUrl이 있고 유효한 경우
+    if (screenShotUrl && screenShotUrl !== 'null' && screenShotUrl !== null && screenShotUrl !== undefined && String(screenShotUrl).trim() !== '') {
+      // 전체 URL인 경우 그대로 사용
+      if (String(screenShotUrl).startsWith('http://') || String(screenShotUrl).startsWith('https://')) {
+        setScreenshotUrl(String(screenShotUrl))
         setIsLoadingScreenshot(false)
+        return
+      } else {
+        // 파일명만 있는 경우 screenShotUrl을 쿼리 파라미터로 전달
+        queryParams.append('screenShotUrl', String(screenShotUrl))
       }
     }
     
-    fetchScreenshot()
-  }, [params.id])
+    // 백엔드 스크린샷 엔드포인트 호출 (screenShotUrl이 null이어도 시도)
+    const screenshotApiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${job.id}/screenshot?${queryParams.toString()}`
+    
+    // 디버깅: screenShotUrl 값 확인
+    console.log('Screenshot URL generation:', {
+      jobId: job.id,
+      screenShotUrl: screenShotUrl,
+      screenShotUrlType: typeof screenShotUrl,
+      screenShotUrlIsNull: screenShotUrl === null,
+      screenShotUrlIsUndefined: screenShotUrl === undefined,
+      finalUrl: screenshotApiUrl
+    })
+    
+    setScreenshotUrl(screenshotApiUrl)
+    
+    setIsLoadingScreenshot(false)
+  }, [job])
 
   // 매칭된 직무 생성
   useEffect(() => {
@@ -474,15 +517,78 @@ export default function JobDetailPage() {
             <div className="text-center py-12">
               <p className="text-red-500 text-sm">{screenshotError}</p>
             </div>
-          ) : (screenshotUrl || job.screenShotUrl) ? (
+          ) : screenshotUrl ? (
             <div className="flex justify-center">
               <img
-                src={screenshotUrl || job.screenShotUrl || ''}
+                src={screenshotUrl}
                 alt={`${job.title} 공고 스크린샷`}
                 className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
-                onError={() => {
-                  setScreenshotError('스크린샷을 불러올 수 없습니다.')
-                  setScreenshotUrl(null)
+                crossOrigin="anonymous"
+                onLoad={() => {
+                  setIsLoadingScreenshot(false)
+                  setScreenshotError(null)
+                  console.log('Screenshot loaded successfully:', screenshotUrl)
+                }}
+                onError={async (e) => {
+                  setIsLoadingScreenshot(false)
+                  
+                  // 백엔드 스크린샷 엔드포인트 직접 확인
+                  try {
+                    const screenshotResponse = await fetch(screenshotUrl, {
+                      method: 'GET',
+                      headers: {
+                        'Accept': '*/*',
+                      },
+                    })
+                    console.log('Direct screenshot API check:', {
+                      status: screenshotResponse.status,
+                      statusText: screenshotResponse.statusText,
+                      url: screenshotUrl,
+                      headers: Object.fromEntries(screenshotResponse.headers.entries())
+                    })
+                    
+                    if (screenshotResponse.ok) {
+                      // 이미지가 실제로 존재하는 경우
+                      console.log('Screenshot exists but img tag failed to load')
+                      // 이미지가 존재하지만 로드 실패한 경우, 에러를 표시하지 않고 재시도 가능하도록 함
+                      return
+                    } else if (screenshotResponse.status === 404) {
+                      // 백엔드에 해당 postId의 스크린샷 이미지가 없는 경우
+                      console.log('Screenshot not found in backend (404)')
+                      setScreenshotError(`스크린샷 이미지가 없습니다. (postId: ${job.id})`)
+                      return
+                    } else {
+                      console.log('Screenshot API returned error:', screenshotResponse.status)
+                    }
+                  } catch (fetchErr) {
+                    console.error('Failed to check screenshot API:', fetchErr)
+                  }
+                  
+                  // 백엔드 API에서 screenShotUrl 다시 확인
+                  try {
+                    const checkResponse = await fetch(`https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts/${job.id}`)
+                    if (checkResponse.ok) {
+                      const checkResult = await checkResponse.json()
+                      const recheckScreenShotUrl = checkResult.data?.screenShotUrl || checkResult.data?.screenshotUrl
+                      console.log('Re-check API response:', checkResult.data)
+                      console.log('Re-check screenShotUrl:', recheckScreenShotUrl)
+                    }
+                  } catch (err) {
+                    console.error('Failed to re-check API:', err)
+                  }
+                  
+                  // screenShotUrl이 null이어도 백엔드 엔드포인트가 작동해야 하므로 에러 메시지 변경
+                  const screenShotUrlValue = job.screenShotUrl || job.screenshotUrl
+                  const errorMsg = `스크린샷을 불러올 수 없습니다. (postId: ${job.id})`
+                  
+                  console.error('Screenshot load error:', {
+                    jobId: job.id,
+                    screenShotUrl: screenShotUrlValue,
+                    imageSrc: screenshotUrl,
+                    error: e
+                  })
+                  setScreenshotError(errorMsg)
+                  // 에러가 발생해도 URL은 유지 (재시도 가능하도록)
                 }}
               />
             </div>

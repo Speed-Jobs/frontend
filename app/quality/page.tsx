@@ -179,7 +179,7 @@ export default function QualityPage() {
 
   // 우리 회사 공고 필터
   const [employmentTypeFilter, setEmploymentTypeFilter] = useState<string[]>([])
-  const [jobRoleInput, setJobRoleInput] = useState('')
+  const [selectedJobRoleForOurCompany, setSelectedJobRoleForOurCompany] = useState('전체')
 
   // 우리 회사 공고 API 상태
   const [ourCompanyJobs, setOurCompanyJobs] = useState<JobPosting[]>([])
@@ -290,9 +290,9 @@ export default function QualityPage() {
       params.append('page', page.toString())
       params.append('size', apiPageSize.toString())
 
-      // 직무 필터 (postTitle로 검색)
-      if (jobRoleInput.trim() !== '') {
-        params.append('postTitle', jobRoleInput.trim())
+      // 직군 필터 (전체가 아닌 경우)
+      if (selectedJobRoleForOurCompany && selectedJobRoleForOurCompany !== '전체') {
+        params.append('positionName', selectedJobRoleForOurCompany)
       }
 
       const apiUrl = `https://speedjobs-spring.skala25a.project.skala-ai.com/api/v1/posts?${params.toString()}`
@@ -342,7 +342,7 @@ export default function QualityPage() {
     } finally {
       setIsLoadingOurJobs(false)
     }
-  }, [employmentTypeFilter, jobRoleInput, apiPageSize])
+  }, [employmentTypeFilter, selectedJobRoleForOurCompany, apiPageSize])
 
   // 필터 변경 시 자동 검색 제거 - "공고 검색" 버튼을 눌러야만 검색됨
   // useEffect 제거됨 - 이제 버튼 클릭 시에만 검색됩니다
@@ -919,7 +919,7 @@ export default function QualityPage() {
                       <button
                         onClick={() => {
                           setEmploymentTypeFilter([])
-                          setJobRoleInput('')
+                          setSelectedJobRoleForOurCompany('전체')
                           setOurCompanyJobs([])
                           setOurJobPage(1)
                         }}
@@ -948,16 +948,20 @@ export default function QualityPage() {
                       </div>
                     </div>
 
-                    {/* 직무 입력 */}
+                    {/* 직군 선택 */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">직무</label>
-                      <input
-                        type="text"
-                        value={jobRoleInput}
-                        onChange={(e) => setJobRoleInput(e.target.value)}
-                        placeholder="기획, 개발, 마케팅"
+                      <label className="block text-sm font-medium text-gray-700 mb-2">직군 선택</label>
+                      <select
+                        value={selectedJobRoleForOurCompany}
+                        onChange={(e) => setSelectedJobRoleForOurCompany(e.target.value)}
                         className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-gray-900"
-                      />
+                      >
+                        {jobRoles.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -1030,12 +1034,12 @@ export default function QualityPage() {
                 <div>
                   <button
                     onClick={() => {
-                      // 필터가 하나라도 선택되었거나 직무 입력이 있으면 API 호출
-                      if (employmentTypeFilter.length > 0 || jobRoleInput.trim() !== '') {
+                      // 필터가 하나라도 선택되었거나 직군이 선택되었으면 API 호출
+                      if (employmentTypeFilter.length > 0 || (selectedJobRoleForOurCompany && selectedJobRoleForOurCompany !== '전체')) {
                         setOurJobPage(1) // 검색 시 첫 페이지로
                         fetchOurCompanyJobs(0)
                       } else {
-                        alert('필터를 선택하거나 직무를 입력해주세요.')
+                        alert('필터를 선택하거나 직군을 선택해주세요.')
                       }
                       // 공고 목록으로 스크롤 이동
                       document.getElementById('our-job-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1189,8 +1193,8 @@ export default function QualityPage() {
                       <p className="text-center text-red-500 py-8">{ourJobsError}</p>
                     ) : ourCompanyJobs.length === 0 ? (
                       <p className="text-center text-gray-500 py-8">
-                        {employmentTypeFilter.length === 0 && jobRoleInput === ''
-                          ? '필터를 선택하거나 직무를 입력한 후 공고 검색 버튼을 클릭하세요.'
+                        {employmentTypeFilter.length === 0 && (selectedJobRoleForOurCompany === '전체' || !selectedJobRoleForOurCompany)
+                          ? '필터를 선택하거나 직군을 선택한 후 공고 검색 버튼을 클릭하세요.'
                           : '공고가 없습니다.'}
                       </p>
                     ) : (

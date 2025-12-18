@@ -223,18 +223,7 @@ export default function JobDetailPage() {
   useEffect(() => {
     const fetchScreenshot = async () => {
       const jobId = params.id as string
-      if (!jobId) {
-        console.log('스크린샷: jobId가 없습니다')
-        return
-      }
-      
-      // job.screenShotUrl이 있으면 우선 사용
-      if (job?.screenShotUrl) {
-        console.log('스크린샷 URL (job에서):', job.screenShotUrl)
-        setScreenshotUrl(job.screenShotUrl)
-        setIsLoadingScreenshot(false)
-        return
-      }
+      if (!jobId) return
       
       try {
         setIsLoadingScreenshot(true)
@@ -247,20 +236,18 @@ export default function JobDetailPage() {
         
         // API 프록시를 통해 스크린샷 가져오기
         const screenshotApiUrl = `/api/posts/${jobId}/screenshot?${queryParams.toString()}`
-        console.log('스크린샷 URL (API에서):', screenshotApiUrl)
         setScreenshotUrl(screenshotApiUrl)
-        setIsLoadingScreenshot(false)
       } catch (err) {
-        console.error('스크린샷 URL 설정 오류:', err)
         const errorMessage = err instanceof Error ? err.message : '스크린샷을 불러오는 중 오류가 발생했습니다.'
         setScreenshotError(errorMessage)
         setScreenshotUrl(null)
+      } finally {
         setIsLoadingScreenshot(false)
       }
     }
     
     fetchScreenshot()
-  }, [params.id, job])
+  }, [params.id])
 
   // 매칭된 직무 생성
   useEffect(() => {
@@ -487,19 +474,15 @@ export default function JobDetailPage() {
             <div className="text-center py-12">
               <p className="text-red-500 text-sm">{screenshotError}</p>
             </div>
-          ) : screenshotUrl ? (
+          ) : (screenshotUrl || job.screenShotUrl) ? (
             <div className="flex justify-center">
               <img
-                src={screenshotUrl}
-                alt={`${job?.title || '공고'} 스크린샷`}
+                src={screenshotUrl || job.screenShotUrl || ''}
+                alt={`${job.title} 공고 스크린샷`}
                 className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
                 onError={() => {
                   setScreenshotError('스크린샷을 불러올 수 없습니다.')
                   setScreenshotUrl(null)
-                }}
-                onLoad={() => {
-                  // 이미지 로드 성공 시 에러 상태 초기화
-                  setScreenshotError(null)
                 }}
               />
             </div>
@@ -561,4 +544,3 @@ export default function JobDetailPage() {
     </div>
   )
 }
-

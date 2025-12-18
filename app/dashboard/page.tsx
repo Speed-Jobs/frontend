@@ -3899,7 +3899,7 @@ export default function Dashboard() {
         </div>
 
         {/* 하단 2열 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-12">
           {/* 직군 비중 변화 분석 */}
           <DarkDashboardCard title={
             <div className="flex items-center justify-between w-full">

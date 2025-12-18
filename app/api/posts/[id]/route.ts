@@ -7,15 +7,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const jobId = params.id
-    const searchParams = request.nextUrl.searchParams
-    
-    // 쿼리 파라미터 구성 (width, useWebp)
-    const width = searchParams.get('width') || '800'
-    const useWebp = searchParams.get('useWebp') || 'false'
+    const postId = params.id
     
     // 원본 API URL 구성
-    const apiUrl = `${SPRING_API_BASE_URL}/posts/${jobId}/screenshot?width=${width}&useWebp=${useWebp}`
+    const apiUrl = `${SPRING_API_BASE_URL}/posts/${postId}`
     
     // 백엔드 API 호출
     const response = await fetch(apiUrl, {
@@ -32,18 +27,14 @@ export async function GET(
       )
     }
     
-    // 이미지 데이터 가져오기
-    const imageBuffer = await response.arrayBuffer()
-    const contentType = response.headers.get('content-type') || 'image/png'
+    const data = await response.json()
     
-    // 이미지 응답 반환
-    return new NextResponse(imageBuffer, {
+    // CORS 헤더 추가하여 클라이언트에 응답
+    return NextResponse.json(data, {
       headers: {
-        'Content-Type': contentType,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'public, max-age=3600', // 1시간 캐시
       },
     })
   } catch (error) {
@@ -65,3 +56,4 @@ export async function OPTIONS() {
     },
   })
 }
+

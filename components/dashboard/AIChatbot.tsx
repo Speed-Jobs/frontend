@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -826,42 +827,46 @@ export default function AIChatbot() {
                         관련 채용 공고 ({message.jobPostings.length}개)
                       </div>
                       {message.jobPostings.map((job) => (
-                        <Card
+                        <Link
                           key={job.id}
-                          className="p-3 border border-gray-200"
+                          href={`/dashboard/jobs/${job.id}`}
+                          className="block"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
-                                  {job.title || '제목 없음'}
-                                </h4>
-                              </div>
-                              {job.companyName && (
-                                <p className="text-xs text-gray-600 mb-1">
-                                  {job.companyName}
-                                </p>
-                              )}
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {job.role && (
-                                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                                    {job.role}
-                                  </span>
+                          <Card className="p-3 border border-gray-200 hover:bg-gray-50 cursor-pointer transition-all hover:border-gray-300 hover:shadow-md">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                    {job.title || '제목 없음'}
+                                  </h4>
+                                  <ExternalLink className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                </div>
+                                {job.companyName && (
+                                  <p className="text-xs text-gray-600 mb-1">
+                                    {job.companyName}
+                                  </p>
                                 )}
-                                {job.experience && (
-                                  <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
-                                    {job.experience}
-                                  </span>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {job.role && (
+                                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                      {job.role}
+                                    </span>
+                                  )}
+                                  {job.experience && (
+                                    <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                      {job.experience}
+                                    </span>
+                                  )}
+                                </div>
+                                {job.postedAt && (
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    등록일: {job.postedAt.year}.{String(job.postedAt.month).padStart(2, '0')}.{String(job.postedAt.day).padStart(2, '0')}
+                                  </p>
                                 )}
                               </div>
-                              {job.postedAt && (
-                                <p className="text-xs text-gray-500 mt-2">
-                                  등록일: {job.postedAt.year}.{String(job.postedAt.month).padStart(2, '0')}.{String(job.postedAt.day).padStart(2, '0')}
-                                </p>
-                              )}
                             </div>
-                          </div>
-                        </Card>
+                          </Card>
+                        </Link>
                       ))}
                     </div>
                   )}

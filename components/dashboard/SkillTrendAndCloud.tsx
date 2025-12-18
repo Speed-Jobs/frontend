@@ -222,35 +222,42 @@ export default function SkillTrendAndCloud({
     return sortedSkills
   }, [yearlyData])
 
-  // 스킬 색상 매핑 (베이지/크림/분홍 계열 10가지 색상)
+  // 스킬 색상 매핑 (검정부터 하양까지 10단계 그레이스케일)
   const skillColors: Record<string, string> = {
-    python: '#F1E5D1',      // very light, creamy beige
-    sql: '#DBB5B5',         // light, muted pink
-    java: '#C39898',        // medium, muted rose
-    kubernetes: '#987070',  // medium-dark, muted brownish-mauve
-    docker: '#B6AE9F',      // muted, medium-light beige
-    react: '#C5C7BC',        // lighter, muted grey-beige
-    typescript: '#DEDED1',  // very light, almost off-white
-    aws: '#FBF3D1',         // very light, pale yellow
-    spring: '#E2B59A',      // light, warm, peachy-beige
-    nodejs: '#957C62',      // medium, muted brown
-    javascript: '#F1E5D1', // very light, creamy beige
-    kotlin: '#DBB5B5',      // light, muted pink
-    go: '#C39898',          // medium, muted rose
-    mysql: '#987070',       // medium-dark, muted brownish-mauve
-    postgresql: '#B6AE9F',  // muted, medium-light beige
-    redis: '#C5C7BC',       // lighter, muted grey-beige
-    mongodb: '#DEDED1',     // very light, almost off-white
-    elasticsearch: '#FBF3D1', // very light, pale yellow
-    graphql: '#E2B59A',     // light, warm, peachy-beige
-    terraform: '#957C62',   // medium, muted brown
+    python: '#000000',      // 검정
+    sql: '#1C1C1C',         // 매우 어두운 회색
+    java: '#383838',        // 어두운 회색
+    kubernetes: '#555555',  // 중간-어두운 회색
+    docker: '#717171',      // 중간 회색
+    react: '#8D8D8D',       // 중간-밝은 회색
+    typescript: '#AAAAAA',  // 밝은 회색
+    aws: '#C6C6C6',         // 매우 밝은 회색
+    spring: '#E2E2E2',      // 거의 하양
+    nodejs: '#FFFFFF',      // 하양
+    javascript: '#000000',  // 검정
+    kotlin: '#1C1C1C',      // 매우 어두운 회색
+    go: '#383838',          // 어두운 회색
+    mysql: '#555555',       // 중간-어두운 회색
+    postgresql: '#717171',  // 중간 회색
+    redis: '#8D8D8D',       // 중간-밝은 회색
+    mongodb: '#AAAAAA',     // 밝은 회색
+    elasticsearch: '#C6C6C6', // 매우 밝은 회색
+    graphql: '#E2E2E2',     // 거의 하양
+    terraform: '#FFFFFF',   // 하양
   }
 
-  // 색상이 없는 스킬을 위한 기본 색상 팔레트 (10가지 색상 순환)
+  // 색상이 없는 스킬을 위한 기본 색상 팔레트 (검정부터 하양까지 10단계 그레이스케일)
   const defaultColors = [
-    '#F1E5D1', '#DBB5B5', '#C39898', '#987070',
-    '#B6AE9F', '#C5C7BC', '#DEDED1', '#FBF3D1',
-    '#E2B59A', '#957C62',
+    '#000000', // 검정
+    '#1C1C1C', // 매우 어두운 회색
+    '#383838', // 어두운 회색
+    '#555555', // 중간-어두운 회색
+    '#717171', // 중간 회색
+    '#8D8D8D', // 중간-밝은 회색
+    '#AAAAAA', // 밝은 회색
+    '#C6C6C6', // 매우 밝은 회색
+    '#E2E2E2', // 거의 하양
+    '#FFFFFF', // 하양
   ]
 
   // 스킬에 색상 할당 함수

@@ -123,38 +123,27 @@ const CustomTooltip = ({ active, payload, data, chartTotal, isCurrentPeriod }: C
   const isDecrease = parseFloat(changeRate) < 0
   
   return (
-    <div className="bg-white border border-gray-300 rounded-lg shadow-xl px-4 py-3 min-w-[180px] max-w-[250px] relative z-[10000]" style={{ pointerEvents: 'auto' }}>
+    <div className="bg-white border border-gray-300 rounded-lg shadow-xl px-4 py-3 min-w-[180px] max-w-[250px] relative z-[10000]" style={{ pointerEvents: 'none' }}>
       <div className="space-y-1.5">
         <div className="text-sm font-semibold text-gray-900 leading-tight break-words">
           {name}
         </div>
         {isCurrentPeriod ? (
-          // 현재 기간 차트: 현재 기간과 이전 기간 비교 정보 표시
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-gray-200">
+          // 현재 기간 차트: 현재 기간 정보만 표시
+          <div className="pt-1 border-t border-gray-200">
             <div className="flex flex-col">
               <span className="text-xs text-gray-500">현재 기간</span>
-              <span className="text-base font-bold text-gray-900">{currentValue.toLocaleString()}건</span>
-              <span className="text-xs text-gray-600 mt-0.5">{percentage}%</span>
+              <span className="text-xl font-bold text-gray-900">{percentage}%</span>
+              <span className="text-xs text-gray-600 mt-0.5">{currentValue.toLocaleString()}건</span>
             </div>
-            {previousValue > 0 && (
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-gray-500">이전 기간</span>
-                <span className="text-sm font-medium text-gray-700">{previousValue.toLocaleString()}건</span>
-                <span className={`text-xs font-medium mt-0.5 ${
-                  isIncrease ? 'text-green-600' : isDecrease ? 'text-red-600' : 'text-gray-600'
-                }`}>
-                  {isIncrease ? '↑' : isDecrease ? '↓' : ''} {Math.abs(parseFloat(changeRate))}%
-                </span>
-              </div>
-            )}
           </div>
         ) : (
           // 이전 기간 차트: 이전 기간 정보만 표시
           <div className="pt-1 border-t border-gray-200">
             <div className="flex flex-col">
               <span className="text-xs text-gray-500">이전 기간</span>
-              <span className="text-base font-bold text-gray-900">{value.toLocaleString()}건</span>
-              <span className="text-xs text-gray-600 mt-0.5">{percentage}%</span>
+              <span className="text-xl font-bold text-gray-900">{percentage}%</span>
+              <span className="text-xs text-gray-600 mt-0.5">{value.toLocaleString()}건</span>
             </div>
           </div>
         )}

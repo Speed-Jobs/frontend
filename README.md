@@ -45,60 +45,161 @@ npm start
 npm run lint
 ```
 
+### Docker를 사용한 배포
+
+```bash
+# Docker 이미지 빌드
+./docker-build.sh
+
+# Docker 이미지 푸시
+./docker-push.sh
+
+# 또는 직접 실행
+docker build -t speed-jobs-frontend .
+docker run -p 3000:3000 speed-jobs-frontend
+```
+
+### Kubernetes 배포
+
+```bash
+# Kubernetes 배포
+kubectl apply -f k8s/deploy.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
 ## 📁 프로젝트 구조
 
 ```
 frontend_1/
 ├── app/                          # Next.js App Router 페이지
-│   ├── page.tsx                 # 메인 페이지 (홈)
+│   ├── page.tsx                 # 메인 페이지 (홈 - 대시보드로 리다이렉트)
 │   ├── layout.tsx               # 루트 레이아웃
 │   ├── globals.css              # 전역 스타일
+│   ├── error.tsx                # 에러 페이지
+│   ├── not-found.tsx            # 404 페이지
+│   ├── api/                     # API 라우트 핸들러
+│   │   ├── auth/
+│   │   │   └── login/
+│   │   │       └── route.ts     # 로그인 API 라우트
+│   │   ├── posts/
+│   │   │   ├── route.ts         # 공고 목록 API 라우트
+│   │   │   └── [id]/
+│   │   │       └── route.ts     # 공고 상세 API 라우트
+│   │   └── subscriptions/
+│   │       └── route.ts         # 구독 API 라우트
 │   ├── login/                   # 로그인 페이지
 │   │   └── page.tsx
 │   ├── signup/                  # 회원가입 페이지
 │   │   └── page.tsx
 │   ├── dashboard/               # 대시보드 페이지
-│   │   ├── page.tsx            # 대시보드 메인
-│   │   └── jobs/
-│   │       └── [id]/
-│   │           └── page.tsx    # 공고 상세 페이지
+│   │   ├── layout.tsx           # 대시보드 레이아웃
+│   │   ├── page.tsx             # 대시보드 메인
+│   │   ├── jobs/
+│   │   │   └── [id]/
+│   │   │       └── page.tsx     # 공고 상세 페이지
+│   │   └── recruitment-schedule/
+│   │       └── page.tsx         # 채용 일정 분석 페이지
 │   ├── jobs/                    # 경쟁사 공고 전체 목록
 │   │   └── page.tsx
 │   ├── companies/               # 회사별 공고 페이지
 │   │   └── page.tsx
 │   ├── quality/                 # 공고 품질 평가 페이지
 │   │   └── page.tsx
-│   ├── mypage/                  # 마이페이지
-│   │   └── page.tsx
-│   ├── error.tsx                # 에러 페이지
-│   └── not-found.tsx            # 404 페이지
+│   └── mypage/                  # 마이페이지
+│       └── page.tsx
 ├── components/                   # 재사용 가능한 컴포넌트
-│   ├── Header.tsx              # 헤더 네비게이션
-│   ├── CompanyLogo.tsx         # 회사 로고 컴포넌트
-│   ├── JobPostingCard.tsx      # 공고 카드 컴포넌트
-│   └── NotificationToast.tsx   # 알림 토스트 컴포넌트
+│   ├── Header.tsx               # 헤더 네비게이션
+│   ├── CompanyLogo.tsx          # 회사 로고 컴포넌트
+│   ├── NotificationToast.tsx    # 알림 토스트 컴포넌트
+│   ├── dashboard/               # 대시보드 전용 컴포넌트
+│   │   ├── AIChatbot.tsx        # AI 챗봇 컴포넌트
+│   │   ├── CombinedTrendChart.tsx          # 통합 트렌드 차트
+│   │   ├── CompanyInsightAnalysis.tsx      # 회사 인사이트 분석
+│   │   ├── CompanyInsightView.tsx           # 회사 인사이트 뷰
+│   │   ├── CompanyNetworkBubble.tsx         # 회사 네트워크 버블 차트
+│   │   ├── CompanyRecruitmentChart.tsx      # 회사 채용 차트
+│   │   ├── CompanySkillDiversityChart.tsx   # 회사 스킬 다양성 차트
+│   │   ├── DarkDashboardCard.tsx            # 다크 대시보드 카드
+│   │   ├── HotJobsList.tsx                  # 인기 공고 목록
+│   │   ├── JobDifficultyGauges.tsx          # 직무 난이도 게이지
+│   │   ├── JobPostingsTrendChart.tsx         # 채용 공고 트렌드 차트
+│   │   ├── JobRoleSkillSetGuide.tsx         # 직군 스킬셋 가이드
+│   │   ├── JobRoleStatisticsChart.tsx       # 직군 통계 차트
+│   │   ├── NewRecruitmentCalendar.tsx        # 신규 채용 캘린더
+│   │   ├── SkillCloud.tsx                    # 스킬 클라우드
+│   │   ├── SkillTrendAndCloud.tsx           # 스킬 트렌드 및 클라우드
+│   │   ├── SkillTrendChart.tsx               # 스킬 트렌드 차트
+│   │   ├── SurgingKeywords.tsx               # 급상승 키워드
+│   │   ├── TechStackList.tsx                 # 기술 스택 목록
+│   │   └── calendar/                         # 캘린더 관련 컴포넌트
+│   │       ├── Calendar.tsx                  # 메인 캘린더 컴포넌트
+│   │       ├── CalendarCell.tsx              # 캘린더 셀 컴포넌트
+│   │       ├── CompanyScheduleManager.tsx   # 회사 일정 관리자
+│   │       ├── UserPinManager.tsx            # 사용자 핀 관리자
+│   │       ├── InsightPanel.tsx              # 인사이트 패널
+│   │       ├── AddScheduleDialog.tsx         # 일정 추가 다이얼로그
+│   │       ├── AddUserScheduleDialog.tsx     # 사용자 일정 추가 다이얼로그
+│   │       ├── DateRangePicker.tsx           # 날짜 범위 선택기
+│   │       └── types.ts                      # 캘린더 타입 정의
+│   ├── mypage/                  # 마이페이지 컴포넌트
+│   │   ├── SubscriptionSettings.tsx  # 구독 설정
+│   │   └── SubscriptionView.tsx      # 구독 뷰
+│   └── ui/                      # UI 기본 컴포넌트 (shadcn/ui)
+│       ├── badge.tsx            # 배지 컴포넌트
+│       ├── button.tsx           # 버튼 컴포넌트
+│       ├── card.tsx             # 카드 컴포넌트
+│       ├── checkbox.tsx          # 체크박스 컴포넌트
+│       ├── dialog.tsx           # 다이얼로그 컴포넌트
+│       ├── input.tsx            # 입력 컴포넌트
+│       ├── label.tsx            # 라벨 컴포넌트
+│       ├── tabs.tsx            # 탭 컴포넌트
+│       ├── tooltip.tsx          # 툴팁 컴포넌트
+│       └── utils.ts             # 유틸리티 함수
 ├── contexts/                    # React Context
 │   └── AuthContext.tsx         # 인증 컨텍스트
 ├── hooks/                       # 커스텀 훅
 │   └── useJobNotifications.ts  # 공고 알림 훅
 ├── lib/                         # 유틸리티 및 헬퍼 함수
-│   ├── api/                    # API 호출 함수
+│   ├── api/
+│   │   └── subscription.ts     # 구독 API 함수
 │   ├── storage/                # 스토리지 관련 유틸리티
-│   └── notifications/          # 알림 관련 유틸리티
+│   │   ├── factory.ts          # 스토리지 팩토리
+│   │   ├── localStorageStorage.ts  # 로컬 스토리지 구현
+│   │   ├── types.ts            # 스토리지 타입 정의
+│   │   └── debug.ts            # 디버그 유틸리티
+│   ├── notifications/          # 알림 관련 유틸리티
+│   │   └── browser.ts          # 브라우저 알림
+│   └── jobNotification.ts      # 공고 알림 유틸리티
 ├── data/                        # 정적 데이터 (목업)
 │   ├── jobPostings.json        # 채용공고 목업 데이터
 │   └── skaxJobPostings.json    # SK AX 공고 데이터
-├── api-specs/                   # API 명세서
-│   ├── job-role-statistics-api-guide.md
-│   └── recruitment-schedule-api-guide.md
+├── api-specs/                   # API 명세서 (YAML)
+│   ├── job-role-statistics-api.yaml      # 직군별 통계 API 명세
+│   └── skill-trends-and-cloud-api.yaml   # 스킬 트렌드 및 클라우드 API 명세
+├── k8s/                         # Kubernetes 배포 설정
+│   ├── deploy.yaml             # 배포 설정
+│   ├── service.yaml             # 서비스 설정
+│   └── ingress.yaml             # 인그레스 설정
 ├── public/                      # 정적 파일
-│   └── logos/                   # 회사 로고 이미지
-│       └── README.md           # 로고 이미지 가이드
+│   ├── logos/                   # 회사 로고 이미지
+│   │   └── README.md           # 로고 이미지 가이드
+│   └── job-postings/           # 채용 공고 스크린샷
+│       ├── kakao/
+│       ├── lg/
+│       ├── line/
+│       └── toss/
+├── dashboard_api_spec.yaml      # 대시보드 API 명세서
+├── Dockerfile                   # Docker 이미지 빌드 설정
+├── docker-build.sh              # Docker 빌드 스크립트
+├── docker-push.sh               # Docker 푸시 스크립트
 ├── package.json                 # 프로젝트 의존성 및 스크립트
 ├── tsconfig.json                # TypeScript 설정
-├── tailwind.config.js          # Tailwind CSS 설정
-├── next.config.js              # Next.js 설정
-├── .env.local                  # 환경 변수 (gitignore에 포함)
+├── tailwind.config.js           # Tailwind CSS 설정
+├── postcss.config.js            # PostCSS 설정
+├── next.config.js               # Next.js 설정
+├── next-env.d.ts                # Next.js 타입 정의
+├── .env.local                   # 환경 변수 (gitignore에 포함)
 └── README.md                    # 프로젝트 문서 (현재 파일)
 ```
 
@@ -118,17 +219,34 @@ frontend_1/
 - **트렌드 비교**
   - 일간/주간/월간 트렌드 비교
   - 회사별, 직무별, 기술별 트렌드 차트
+  - 통합 트렌드 차트 (CombinedTrendChart)
 - **직군별 통계**
   - Tech/Biz/BizSupporting 카테고리별 직무 분포
   - 인터랙티브 파이 차트 및 산업별 통계
+  - 직군별 스킬셋 가이드
 - **스킬별 통계**
   - 인터랙티브 스킬 클라우드
+  - 스킬 트렌드 차트
   - 스킬 클릭 시 상세 통계 표시
-- **채용 관련 뉴스**
-- **AI 분석 리포트 생성**
-  - 오른쪽 하단 고정 버튼
-  - 리포트 미리보기 모달
-  - PDF 다운로드 기능
+- **회사 인사이트 분석**
+  - 회사별 네트워크 버블 차트
+  - 회사별 채용 차트 및 스킬 다양성 분석
+- **인기 공고 목록**
+  - 실시간 인기 공고 자동 업데이트
+- **직무 난이도 분석**
+  - 직무별 난이도 게이지 표시
+- **급상승 키워드**
+  - 실시간 급상승 키워드 모니터링
+- **AI 챗봇**
+  - 오른쪽 하단 고정 AI 챗봇
+  - 채용 관련 질문 답변
+- **채용 일정 분석** (`/dashboard/recruitment-schedule`)
+  - 경쟁사 채용 일정 캘린더 뷰
+  - 신입/경력 공고 필터링
+  - 실제 공고/예측치 필터링
+  - 직군별 필터링 (경력 공고)
+  - 사용자 일정 시뮬레이션 기능
+  - 인사이트 패널 (경쟁 강도 분석)
 - 공고 상세 페이지 (`/dashboard/jobs/[id]`)
 
 ### 3. 경쟁사 공고 전체 목록 (`/jobs`)
@@ -252,6 +370,10 @@ http://localhost:8080/api/v1
 
 - **Swagger UI**: https://speedjobs-backend.skala25a.project.skala-ai.com/docs
 - **ReDoc**: https://speedjobs-backend.skala25a.project.skala-ai.com/redoc
+- **로컬 API 명세서**: `api-specs/` 폴더의 YAML 파일들
+  - `job-role-statistics-api.yaml` - 직군별 통계 API
+  - `skill-trends-and-cloud-api.yaml` - 스킬 트렌드 및 클라우드 API
+- **대시보드 API 명세서**: `dashboard_api_spec.yaml`
 
 ### CORS 설정
 
@@ -354,35 +476,14 @@ rm -rf .next
 npm run build
 ```
 
-## 📌 주요 특징
-
-- **실시간 공고 모니터링**: 경쟁사 채용공고를 실시간으로 수집 및 분석
-- **AI 기반 분석**: AI를 활용한 공고 품질 평가 및 직무 매칭
-- **인터랙티브 대시보드**: 다양한 차트와 통계로 시각화된 데이터 제공
-- **정렬 및 필터링**: 다양한 기준으로 공고 검색 및 정렬
-- **PDF 리포트**: AI 분석 리포트를 PDF로 다운로드 가능
-- **반응형 디자인**: 모바일 및 데스크톱 환경 모두 지원
-
 ## 📚 문서 가이드
 
 프로젝트에는 다양한 가이드 문서가 포함되어 있습니다:
 
-### 개발 표준 문서
-- **`FRONTEND_DEVELOPMENT_STANDARDS.md`** - 프론트엔드 개발 표준 정의서 (코딩 컨벤션, 컴포넌트 작성 규칙 등)
-- **`UI_DEVELOPMENT_STANDARDS.md`** - UI 개발 표준 정의서 (Vite/React 기반)
-- **`COLLABORATION_GUIDE.md`** - 협업 가이드 (페이지 추가, 컴포넌트 추가, API 연동 등)
-
-### API 문서
-- **`DASHBOARD_API_SPECIFICATION.md`** - 대시보드 API 명세서 (모든 API 엔드포인트 및 형식)
-- **`API_SKILL_STATISTICS.md`** - 스킬별 통계 API 연동 가이드
-- **`api-specs/job-role-statistics-api-guide.md`** - 직군별 통계 API 사용 가이드
-- **`api-specs/recruitment-schedule-api-guide.md`** - 채용 일정 분석 API 가이드
-- **`API_COMPARISON.md`** - 백엔드 API vs 대시보드 요구사항 비교 분석
-
-### 설정 및 문제 해결
-- **`CORS_SETUP_GUIDE.md`** - CORS 설정 가이드
-- **`BACKEND_CORS_UPDATE.md`** - 백엔드 CORS 설정 개선 가이드
-- **`SWAGGER_TEST_GUIDE.md`** - Swagger UI를 이용한 API 테스트 가이드
+### API 명세서
+- **`dashboard_api_spec.yaml`** - 대시보드 API 명세서 (OpenAPI 3.0 형식)
+- **`api-specs/job-role-statistics-api.yaml`** - 직군별 통계 API 명세서
+- **`api-specs/skill-trends-and-cloud-api.yaml`** - 스킬 트렌드 및 클라우드 API 명세서
 
 ### 리소스 가이드
 - **`public/logos/README.md`** - 회사 로고 이미지 가이드
@@ -428,10 +529,13 @@ npm run build
 - **실시간 공고 모니터링**: 경쟁사 채용공고를 실시간으로 수집 및 분석
 - **AI 기반 분석**: AI를 활용한 공고 품질 평가 및 직무 매칭
 - **인터랙티브 대시보드**: 다양한 차트와 통계로 시각화된 데이터 제공
+- **채용 일정 분석**: 경쟁사 채용 일정 시각화 및 시뮬레이션 기능
 - **정렬 및 필터링**: 다양한 기준으로 공고 검색 및 정렬
-- **PDF 리포트**: AI 분석 리포트를 PDF로 다운로드 가능
+- **AI 챗봇**: 실시간 채용 관련 질문 답변
 - **반응형 디자인**: 모바일 및 데스크톱 환경 모두 지원
 - **백엔드 API 연동**: FastAPI 백엔드와 완전한 통합
+- **Docker 지원**: Docker를 통한 컨테이너화 및 배포
+- **Kubernetes 배포**: K8s 매니페스트 파일 제공
 
 ## 📄 라이선스
 

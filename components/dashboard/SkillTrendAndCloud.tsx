@@ -154,13 +154,6 @@ export default function SkillTrendAndCloud({
       })
     })
 
-    // 최근 5년 범위 정의 (현재 연도 기준으로 5년 전부터 현재까지)
-    const currentYear = new Date().getFullYear()
-    const recent5Years: string[] = []
-    for (let i = 4; i >= 0; i--) {
-      recent5Years.push(String(currentYear - i))
-    }
-    
     // 실제 데이터가 있는 연도 추출
     const availableYears = Array.from(yearMap.keys()).sort()
     
@@ -183,8 +176,8 @@ export default function SkillTrendAndCloud({
       .slice(0, 10)
       .map(item => item.skill)
     
-    // 최근 5년 범위의 모든 연도를 포함하되, 데이터가 없는 연도는 0으로 표시
-    const result = recent5Years.map(year => {
+    // 실제 데이터가 있는 모든 연도를 포함하되, 데이터가 없는 연도는 0으로 표시
+    const result = availableYears.map(year => {
       const yearSkills = yearMap.get(year) || new Map()
       const data: any = { year }
       
@@ -485,7 +478,7 @@ export default function SkillTrendAndCloud({
       {/* 스택 바 차트 */}
       <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4 relative">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          {selectedCompany !== '전체' ? `${selectedCompany} 상위 스킬 연도별 트렌드 (최근 5년)` : '상위 스킬 연도별 트렌드 (최근 5년)'}
+          {selectedCompany !== '전체' ? `${selectedCompany} 상위 스킬 연도별 트렌드` : '상위 스킬 연도별 트렌드'}
         </h4>
         {isLoadingTrend ? (
           <div className="flex items-center justify-center h-[400px]">

@@ -2403,12 +2403,15 @@ export default function Dashboard() {
                       const data: any = { month: monthStr }
                       
                       // counts 객체의 모든 스킬을 데이터에 추가 (연도별 값을 4로 나눔)
-                      Object.keys(yearData.counts).forEach(skill => {
-                        const yearlyCount = Number(yearData.counts[skill] || 0)
-                        // 연도별 집계를 분기별로 분산 (4분기로 나눔)
-                        data[skill] = Math.round(yearlyCount / 4)
-                      })
-                      
+                      const countsKeys = Object.keys(yearData.counts)
+                      if (countsKeys.length > 0) {
+                        countsKeys.forEach(skill => {
+                          const yearlyCount = Number(yearData.counts[skill] || 0)
+                          // 연도별 집계를 분기별로 분산 (4분기로 나눔)
+                          data[skill] = Math.round(yearlyCount / 4)
+                        })
+                      }
+                      // counts가 비어있어도 데이터 포인트는 추가 (빈 데이터도 표시하기 위해)
                       allTrends.push(data)
                     })
                   }
@@ -2430,11 +2433,11 @@ export default function Dashboard() {
           firstApiError = err instanceof Error ? err : new Error('네트워크 오류가 발생했습니다.')
         }
 
-        // 연도별로 데이터 가져오기 (현재 연도를 기준으로 최근 5년)
+        // 연도별로 데이터 가져오기 (2020년부터 현재 연도까지 모든 연도)
         const currentYear = new Date().getFullYear()
         const years: string[] = []
-        for (let i = 4; i >= 0; i--) {
-          years.push(String(currentYear - i))
+        for (let y = 2020; y <= currentYear; y++) {
+          years.push(String(y))
         }
         for (const year of years) {
           try {
@@ -2497,11 +2500,14 @@ export default function Dashboard() {
                         // 데이터 객체 생성
                         const data: any = { month: monthStr }
                         
-                        // counts 객체의 모든 스킬을 데이터에 추가
-                        Object.keys(quarterData.counts).forEach(skill => {
-                          data[skill] = Number(quarterData.counts[skill] || 0)
-                        })
-                        
+                        // counts 객체의 모든 스킬을 데이터에 추가 (빈 객체여도 데이터 포인트는 추가)
+                        const countsKeys = Object.keys(quarterData.counts)
+                        if (countsKeys.length > 0) {
+                          countsKeys.forEach(skill => {
+                            data[skill] = Number(quarterData.counts[skill] || 0)
+                          })
+                        }
+                        // counts가 비어있어도 데이터 포인트는 추가 (빈 데이터도 표시하기 위해)
                         allTrends.push(data)
                       }
                     })
@@ -2527,12 +2533,15 @@ export default function Dashboard() {
                         const data: any = { month: monthStr }
                         
                         // counts 객체의 모든 스킬을 데이터에 추가 (연도별 값을 4로 나눔)
-                        Object.keys(yearData.counts).forEach(skill => {
-                          const yearlyCount = Number(yearData.counts[skill] || 0)
-                          // 연도별 집계를 분기별로 분산 (4분기로 나눔)
-                          data[skill] = Math.round(yearlyCount / 4)
-                        })
-                        
+                        const countsKeys = Object.keys(yearData.counts)
+                        if (countsKeys.length > 0) {
+                          countsKeys.forEach(skill => {
+                            const yearlyCount = Number(yearData.counts[skill] || 0)
+                            // 연도별 집계를 분기별로 분산 (4분기로 나눔)
+                            data[skill] = Math.round(yearlyCount / 4)
+                          })
+                        }
+                        // counts가 비어있어도 데이터 포인트는 추가 (빈 데이터도 표시하기 위해)
                         allTrends.push(data)
                       })
                     }

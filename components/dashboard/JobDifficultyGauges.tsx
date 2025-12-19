@@ -660,7 +660,7 @@ export default function JobDifficultyGauges({
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={overallDifficulty.difficulty}
-              label="전체 난이도 지수"
+              label="전체 경쟁 지수"
               onClick={() => handleGaugeClick('overall')}
               yoyScore={overallDifficulty.yoyScore}
               trend={overallDifficulty.trend}
@@ -723,7 +723,7 @@ export default function JobDifficultyGauges({
           <div className="flex-1 flex flex-col items-center justify-center">
             <GaugeChart
               value={selectedJobRoleDifficulty.difficulty}
-              label={selectedJobRoleFilter === '전체' ? '전체 직군 난이도 지수' : `${selectedJobRoleFilter} 난이도 지수`}
+              label={selectedJobRoleFilter === '전체' ? '전체 직군 경쟁 지수' : `${selectedJobRoleFilter} 경쟁 지수`}
               onClick={() => handleGaugeClick('job-role')}
               yoyScore={selectedJobRoleDifficulty.yoyScore}
               trend={selectedJobRoleDifficulty.trend}
@@ -779,8 +779,8 @@ export default function JobDifficultyGauges({
                 selectedJobRoleFilter === '전체' 
                   ? '직군을 선택하세요' 
                   : selectedSkillSetFilter === '전체' 
-                    ? `${selectedJobRoleFilter} 직무 난이도 지수` 
-                    : `${selectedSkillSetFilter} 난이도 지수`
+                    ? `${selectedJobRoleFilter} 직무 경쟁 지수` 
+                    : `${selectedSkillSetFilter} 경쟁 지수`
               }
               onClick={() => selectedJobRoleFilter !== '전체' && handleGaugeClick('skill-set')}
               yoyScore={selectedSkillSetDifficulty.yoyScore}

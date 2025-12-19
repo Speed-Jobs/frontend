@@ -72,18 +72,6 @@ export function InsightPanel({
                 </Badge>
               </div>
               <p className="text-sm text-slate-700">{insight.message}</p>
-              {insight.companies && insight.companies.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {insight.companies.map((company) => (
-                    <span
-                      key={company}
-                      className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600"
-                    >
-                      {company}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         ))}

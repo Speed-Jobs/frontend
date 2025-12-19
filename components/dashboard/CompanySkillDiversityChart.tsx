@@ -96,3 +96,4 @@ export default function CompanySkillDiversityChart({ data, isLoading, error }: C
 
 
 
+

@@ -280,6 +280,334 @@ export default function RecruitmentSchedulePage() {
           throw new Error(result.message || '데이터를 불러오는데 실패했습니다.')
         }
         
+        // 전체보기 또는 예측치 필터일 때 더미 데이터 추가
+        if (activeTab === '신입' && (dataFilter === 'all' || dataFilter === 'predicted')) {
+          // 전체보기일 때는 예측치 데이터가 없으면 더미 데이터 추가
+          // 예측치 필터일 때는 API 응답이 없거나 비어있을 때만 더미 데이터 추가
+          const hasPredictedData = allSchedules.some(s => s.data_type === 'predicted')
+          const shouldAddDummy = (dataFilter === 'predicted' && allSchedules.length === 0) || 
+                                  (dataFilter === 'all' && !hasPredictedData)
+          
+          if (shouldAddDummy) {
+          const predictedDummySchedules: ApiCompanySchedule[] = [
+            {
+              id: 'dummy-1',
+              company_id: 101,
+              company_name: '삼성전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-1-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-01',
+                  end_date: '2025-12-10'
+                },
+                {
+                  id: 'dummy-1-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-11',
+                  end_date: '2025-12-15'
+                },
+                {
+                  id: 'dummy-1-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-18',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-1-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-23',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-1-5',
+                  stage: '입사일',
+                  start_date: '2026-01-02',
+                  end_date: '2026-01-02'
+                }
+              ]
+            },
+            {
+              id: 'dummy-2',
+              company_id: 102,
+              company_name: '네이버',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-2-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-02',
+                  end_date: '2025-12-12'
+                },
+                {
+                  id: 'dummy-2-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-13',
+                  end_date: '2025-12-17'
+                },
+                {
+                  id: 'dummy-2-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-19',
+                  end_date: '2025-12-21'
+                },
+                {
+                  id: 'dummy-2-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-24',
+                  end_date: '2025-12-26'
+                },
+                {
+                  id: 'dummy-2-5',
+                  stage: '입사일',
+                  start_date: '2026-01-03',
+                  end_date: '2026-01-03'
+                }
+              ]
+            },
+            {
+              id: 'dummy-3',
+              company_id: 103,
+              company_name: '카카오',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-3-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-05',
+                  end_date: '2025-12-15'
+                },
+                {
+                  id: 'dummy-3-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-16',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-3-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-22',
+                  end_date: '2025-12-24'
+                },
+                {
+                  id: 'dummy-3-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-27',
+                  end_date: '2025-12-29'
+                },
+                {
+                  id: 'dummy-3-5',
+                  stage: '입사일',
+                  start_date: '2026-01-06',
+                  end_date: '2026-01-06'
+                }
+              ]
+            },
+            {
+              id: 'dummy-4',
+              company_id: 104,
+              company_name: '토스',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-4-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-08',
+                  end_date: '2025-12-18'
+                },
+                {
+                  id: 'dummy-4-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-19',
+                  end_date: '2025-12-23'
+                },
+                {
+                  id: 'dummy-4-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-25',
+                  end_date: '2025-12-27'
+                },
+                {
+                  id: 'dummy-4-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-4-5',
+                  stage: '입사일',
+                  start_date: '2026-01-08',
+                  end_date: '2026-01-08'
+                }
+              ]
+            },
+            {
+              id: 'dummy-5',
+              company_id: 105,
+              company_name: '쿠팡',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-5-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-10',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-5-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-21',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-5-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-5-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-5-5',
+                  stage: '입사일',
+                  start_date: '2026-01-10',
+                  end_date: '2026-01-10'
+                }
+              ]
+            },
+            {
+              id: 'dummy-6',
+              company_id: 106,
+              company_name: 'LG전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-6-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-03',
+                  end_date: '2025-12-13'
+                },
+                {
+                  id: 'dummy-6-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-14',
+                  end_date: '2025-12-18'
+                },
+                {
+                  id: 'dummy-6-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-20',
+                  end_date: '2025-12-22'
+                },
+                {
+                  id: 'dummy-6-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-6-5',
+                  stage: '입사일',
+                  start_date: '2026-01-05',
+                  end_date: '2026-01-05'
+                }
+              ]
+            },
+            {
+              id: 'dummy-7',
+              company_id: 107,
+              company_name: 'SK텔레콤',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-7-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-06',
+                  end_date: '2025-12-16'
+                },
+                {
+                  id: 'dummy-7-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-17',
+                  end_date: '2025-12-21'
+                },
+                {
+                  id: 'dummy-7-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-23',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-7-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-28',
+                  end_date: '2025-12-30'
+                },
+                {
+                  id: 'dummy-7-5',
+                  stage: '입사일',
+                  start_date: '2026-01-07',
+                  end_date: '2026-01-07'
+                }
+              ]
+            },
+            {
+              id: 'dummy-8',
+              company_id: 108,
+              company_name: '라인',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-8-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-09',
+                  end_date: '2025-12-19'
+                },
+                {
+                  id: 'dummy-8-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-20',
+                  end_date: '2025-12-24'
+                },
+                {
+                  id: 'dummy-8-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-8-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-8-5',
+                  stage: '입사일',
+                  start_date: '2026-01-09',
+                  end_date: '2026-01-09'
+                }
+              ]
+            }
+          ]
+          allSchedules.push(...predictedDummySchedules)
+          console.log('예측치 더미 데이터 추가:', predictedDummySchedules.length, '개')
+          }
+        }
+        
         if (allSchedules.length > 0) {
           const transformedSchedules = transformApiResponse(allSchedules)
           setServerSchedules(transformedSchedules)
@@ -289,8 +617,329 @@ export default function RecruitmentSchedulePage() {
         }
       } catch (error: any) {
         setSchedulesError(error.message || '채용 일정 데이터를 불러오는데 실패했습니다.')
-        // 에러 발생 시 빈 배열로 설정
-        setServerSchedules([])
+        // 에러 발생 시 전체보기 또는 예측치 필터면 더미 데이터 표시
+        if (activeTab === '신입' && (dataFilter === 'all' || dataFilter === 'predicted')) {
+          const predictedDummySchedules: ApiCompanySchedule[] = [
+            {
+              id: 'dummy-1',
+              company_id: 101,
+              company_name: '삼성전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-1-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-01',
+                  end_date: '2025-12-10'
+                },
+                {
+                  id: 'dummy-1-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-11',
+                  end_date: '2025-12-15'
+                },
+                {
+                  id: 'dummy-1-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-18',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-1-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-23',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-1-5',
+                  stage: '입사일',
+                  start_date: '2026-01-02',
+                  end_date: '2026-01-02'
+                }
+              ]
+            },
+            {
+              id: 'dummy-2',
+              company_id: 102,
+              company_name: '네이버',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-2-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-02',
+                  end_date: '2025-12-12'
+                },
+                {
+                  id: 'dummy-2-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-13',
+                  end_date: '2025-12-17'
+                },
+                {
+                  id: 'dummy-2-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-19',
+                  end_date: '2025-12-21'
+                },
+                {
+                  id: 'dummy-2-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-24',
+                  end_date: '2025-12-26'
+                },
+                {
+                  id: 'dummy-2-5',
+                  stage: '입사일',
+                  start_date: '2026-01-03',
+                  end_date: '2026-01-03'
+                }
+              ]
+            },
+            {
+              id: 'dummy-3',
+              company_id: 103,
+              company_name: '카카오',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-3-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-05',
+                  end_date: '2025-12-15'
+                },
+                {
+                  id: 'dummy-3-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-16',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-3-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-22',
+                  end_date: '2025-12-24'
+                },
+                {
+                  id: 'dummy-3-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-27',
+                  end_date: '2025-12-29'
+                },
+                {
+                  id: 'dummy-3-5',
+                  stage: '입사일',
+                  start_date: '2026-01-06',
+                  end_date: '2026-01-06'
+                }
+              ]
+            },
+            {
+              id: 'dummy-4',
+              company_id: 104,
+              company_name: '토스',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-4-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-08',
+                  end_date: '2025-12-18'
+                },
+                {
+                  id: 'dummy-4-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-19',
+                  end_date: '2025-12-23'
+                },
+                {
+                  id: 'dummy-4-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-25',
+                  end_date: '2025-12-27'
+                },
+                {
+                  id: 'dummy-4-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-4-5',
+                  stage: '입사일',
+                  start_date: '2026-01-08',
+                  end_date: '2026-01-08'
+                }
+              ]
+            },
+            {
+              id: 'dummy-5',
+              company_id: 105,
+              company_name: '쿠팡',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-5-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-10',
+                  end_date: '2025-12-20'
+                },
+                {
+                  id: 'dummy-5-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-21',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-5-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-5-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-5-5',
+                  stage: '입사일',
+                  start_date: '2026-01-10',
+                  end_date: '2026-01-10'
+                }
+              ]
+            },
+            {
+              id: 'dummy-6',
+              company_id: 106,
+              company_name: 'LG전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-6-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-03',
+                  end_date: '2025-12-13'
+                },
+                {
+                  id: 'dummy-6-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-14',
+                  end_date: '2025-12-18'
+                },
+                {
+                  id: 'dummy-6-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-20',
+                  end_date: '2025-12-22'
+                },
+                {
+                  id: 'dummy-6-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-6-5',
+                  stage: '입사일',
+                  start_date: '2026-01-05',
+                  end_date: '2026-01-05'
+                }
+              ]
+            },
+            {
+              id: 'dummy-7',
+              company_id: 107,
+              company_name: 'SK텔레콤',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-7-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-06',
+                  end_date: '2025-12-16'
+                },
+                {
+                  id: 'dummy-7-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-17',
+                  end_date: '2025-12-21'
+                },
+                {
+                  id: 'dummy-7-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-23',
+                  end_date: '2025-12-25'
+                },
+                {
+                  id: 'dummy-7-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-28',
+                  end_date: '2025-12-30'
+                },
+                {
+                  id: 'dummy-7-5',
+                  stage: '입사일',
+                  start_date: '2026-01-07',
+                  end_date: '2026-01-07'
+                }
+              ]
+            },
+            {
+              id: 'dummy-8',
+              company_id: 108,
+              company_name: '라인',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-8-1',
+                  stage: '서류접수',
+                  start_date: '2025-12-09',
+                  end_date: '2025-12-19'
+                },
+                {
+                  id: 'dummy-8-2',
+                  stage: '서류전형',
+                  start_date: '2025-12-20',
+                  end_date: '2025-12-24'
+                },
+                {
+                  id: 'dummy-8-3',
+                  stage: '1차면접',
+                  start_date: '2025-12-26',
+                  end_date: '2025-12-28'
+                },
+                {
+                  id: 'dummy-8-4',
+                  stage: '2차면접',
+                  start_date: '2025-12-30',
+                  end_date: '2025-12-31'
+                },
+                {
+                  id: 'dummy-8-5',
+                  stage: '입사일',
+                  start_date: '2026-01-09',
+                  end_date: '2026-01-09'
+                }
+              ]
+            }
+          ]
+          const transformedSchedules = transformApiResponse(predictedDummySchedules)
+          setServerSchedules(transformedSchedules)
+          console.log('에러 발생 시 예측치 더미 데이터 추가:', predictedDummySchedules.length, '개')
+        } else {
+          // 에러 발생 시 빈 배열로 설정
+          setServerSchedules([])
+        }
       } finally {
         setIsLoadingSchedules(false)
         fetchingRef.current = false

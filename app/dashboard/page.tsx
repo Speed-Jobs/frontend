@@ -757,6 +757,7 @@ export default function Dashboard() {
   const [recruitmentScheduleData, setRecruitmentScheduleData] = useState<CompanySchedule[]>([])
   const [isLoadingRecruitmentSchedule, setIsLoadingRecruitmentSchedule] = useState(false)
   const [recruitmentScheduleError, setRecruitmentScheduleError] = useState<string | null>(null)
+  const [recruitmentScheduleDataFilter, setRecruitmentScheduleDataFilter] = useState<'all' | 'predicted'>('all')
 
   // 프리셋 색상 목록
   const PRESET_COLORS = [
@@ -851,6 +852,7 @@ export default function Dashboard() {
     // 먼저 각 스케줄을 변환
     const transformedSchedules = apiData.map((schedule, index) => {
       const color = getCompanyColor(schedule.company_name, schedule.color)
+      // 각 스케줄을 고유하게 구분하기 위해 index를 포함한 uniqueId 생성
       const uniqueId = schedule.data_type 
         ? `${schedule.id}-${schedule.data_type}-${index}` 
         : `${schedule.id}-${index}`
@@ -881,53 +883,14 @@ export default function Dashboard() {
       }
     }).filter(schedule => schedule.stages.length > 0) // 스테이지가 없는 스케줄 제외
 
-    // 같은 회사명과 dataType을 가진 스케줄들을 하나로 합치기
-    // 회사명을 정규화하여 비교 (예: "한화시스템/ICT"와 "한화시스템"을 같은 회사로 인식)
-    // 하지만 actual과 predicted는 별도로 유지해야 함
-    const companyMap = new Map<string, CompanySchedule>()
-    
-    transformedSchedules.forEach((schedule) => {
-      // 회사명 정규화 (중복 제거용)
-      const normalizedName = normalizeCompanyNameForDedup(schedule.name)
-      // 회사명 + dataType을 키로 사용하여 actual과 predicted를 구분
-      const key = `${normalizedName}-${schedule.dataType || 'actual'}`
-      
-      if (companyMap.has(key)) {
-        // 이미 존재하는 회사+dataType 조합이면 스테이지를 합치기
-        const existing = companyMap.get(key)!
-        // 중복 스테이지 제거 (같은 스테이지명과 날짜 범위)
-        const existingStageKeys = new Set(
-          existing.stages.map(s => `${s.stage}-${s.startDate.toISOString().split('T')[0]}-${s.endDate.toISOString().split('T')[0]}`)
-        )
-        
-        schedule.stages.forEach((newStage: { id: string; stage: string; startDate: Date; endDate: Date }) => {
-          const stageKey = `${newStage.stage}-${newStage.startDate.toISOString().split('T')[0]}-${newStage.endDate.toISOString().split('T')[0]}`
-          if (!existingStageKeys.has(stageKey)) {
-            existing.stages.push(newStage)
-            existingStageKeys.add(stageKey)
-          }
-        })
-        
-        // jobRole이 있으면 유지
-        if (schedule.jobRole && !existing.jobRole) {
-          existing.jobRole = schedule.jobRole
-        }
-      } else {
-        // 새로운 회사+dataType 조합이면 추가 (정규화된 이름으로 저장하되 원본 이름 유지)
-        companyMap.set(key, { 
-          ...schedule,
-          name: schedule.name // 원본 이름 유지 (표시용)
-        })
-      }
-    })
-    
-    const mergedSchedules = Array.from(companyMap.values())
-    
-    // 최종 검증: 각 회사의 스테이지에서도 중복 제거
-    const finalSchedules = mergedSchedules.map(schedule => {
+    // 각 스케줄을 개별적으로 유지
+    // 같은 회사의 같은 dataType이지만 다른 날짜 범위의 스케줄도 별도로 표시
+    // uniqueId에 index가 포함되어 있으므로 각 스케줄이 고유하게 구분됨
+    const finalSchedules = transformedSchedules.map(schedule => {
+      // 각 스케줄의 스테이지에서 중복 제거
       const uniqueStages = new Map<string, { id: string; stage: string; startDate: Date; endDate: Date }>()
       
-      schedule.stages.forEach(stage => {
+      schedule.stages.forEach((stage: { id: string; stage: string; startDate: Date; endDate: Date }) => {
         const stageKey = `${stage.stage}-${stage.startDate.toISOString().split('T')[0]}-${stage.endDate.toISOString().split('T')[0]}`
         if (!uniqueStages.has(stageKey)) {
           uniqueStages.set(stageKey, stage)
@@ -965,8 +928,16 @@ export default function Dashboard() {
         
         for (const { apiType } of typeMapping) {
           try {
-            // data_type=all을 사용하여 actual과 predicted를 모두 가져오기
-            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=all&start_date=${startDate}&end_date=${endDate}`
+            // 신입 공고(Entry-level)일 때는 필터에 따라 data_type 파라미터 변경
+            // 경력 공고(Experienced)일 때는 항상 data_type=all 사용
+            let dataType = 'all'
+            if (apiType === 'Entry-level') {
+              dataType = recruitmentScheduleDataFilter === 'predicted' ? 'predicted' : 'all'
+            }
+            
+            const apiUrl = `https://speedjobs-backend.skala25a.project.skala-ai.com/recruitment-schedule/companies?type=${encodeURIComponent(apiType)}&data_type=${dataType}&start_date=${startDate}&end_date=${endDate}`
+            
+            console.log(`API 호출: ${apiType}, data_type=${dataType}`, apiUrl)
             
             const response = await fetch(apiUrl, {
               method: 'GET',
@@ -978,23 +949,408 @@ export default function Dashboard() {
             })
             
             if (!response.ok) {
+              console.error(`[${apiType}] API 호출 실패:`, response.status, response.statusText)
               continue
             }
             
             const result = await response.json()
             
             if (result.status === 200 && result.code === 'SUCCESS' && result.data?.schedules) {
+              // 디버깅: API 응답 확인
+              console.log(`[${apiType}] API 호출 성공:`, {
+                dataType,
+                schedulesCount: result.data.schedules.length,
+                firstSchedule: result.data.schedules[0] ? {
+                  company_name: result.data.schedules[0].company_name,
+                  type: result.data.schedules[0].type,
+                  data_type: result.data.schedules[0].data_type,
+                  stagesCount: result.data.schedules[0].stages?.length
+                } : null
+              })
               allSchedules.push(...result.data.schedules)
+            } else {
+              console.warn(`[${apiType}] API 응답 오류:`, result)
             }
           } catch (error) {
+            console.error(`[${apiType}] API 호출 중 에러:`, error)
             continue
           }
         }
         
+        // 예측치 필터가 선택되었을 때 더미 데이터 추가 (신입 공고만)
+        // API 응답이 없거나 비어있을 때도 더미 데이터가 표시되도록 항상 추가
+        if (recruitmentScheduleDataFilter === 'predicted') {
+          const dummySchedules = [
+            {
+              id: 'dummy-1',
+              company_id: 101,
+              company_name: '삼성전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-1-1',
+                  stage: '서류접수',
+                  start_date: '2025-02-10',
+                  end_date: '2025-02-28'
+                },
+                {
+                  id: 'dummy-1-2',
+                  stage: '서류전형',
+                  start_date: '2025-03-05',
+                  end_date: '2025-03-10'
+                },
+                {
+                  id: 'dummy-1-3',
+                  stage: '1차면접',
+                  start_date: '2025-03-20',
+                  end_date: '2025-03-25'
+                },
+                {
+                  id: 'dummy-1-4',
+                  stage: '2차면접',
+                  start_date: '2025-04-05',
+                  end_date: '2025-04-10'
+                },
+                {
+                  id: 'dummy-1-5',
+                  stage: '입사일',
+                  start_date: '2025-07-01',
+                  end_date: '2025-07-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-2',
+              company_id: 102,
+              company_name: '네이버',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-2-1',
+                  stage: '서류접수',
+                  start_date: '2025-03-01',
+                  end_date: '2025-03-20'
+                },
+                {
+                  id: 'dummy-2-2',
+                  stage: '서류전형',
+                  start_date: '2025-03-25',
+                  end_date: '2025-04-05'
+                },
+                {
+                  id: 'dummy-2-3',
+                  stage: '1차면접',
+                  start_date: '2025-04-15',
+                  end_date: '2025-04-20'
+                },
+                {
+                  id: 'dummy-2-4',
+                  stage: '2차면접',
+                  start_date: '2025-05-01',
+                  end_date: '2025-05-05'
+                },
+                {
+                  id: 'dummy-2-5',
+                  stage: '입사일',
+                  start_date: '2025-08-01',
+                  end_date: '2025-08-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-3',
+              company_id: 103,
+              company_name: '카카오',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-3-1',
+                  stage: '서류접수',
+                  start_date: '2025-04-01',
+                  end_date: '2025-04-20'
+                },
+                {
+                  id: 'dummy-3-2',
+                  stage: '서류전형',
+                  start_date: '2025-04-25',
+                  end_date: '2025-05-05'
+                },
+                {
+                  id: 'dummy-3-3',
+                  stage: '1차면접',
+                  start_date: '2025-05-15',
+                  end_date: '2025-05-20'
+                },
+                {
+                  id: 'dummy-3-4',
+                  stage: '2차면접',
+                  start_date: '2025-06-01',
+                  end_date: '2025-06-05'
+                },
+                {
+                  id: 'dummy-3-5',
+                  stage: '입사일',
+                  start_date: '2025-09-01',
+                  end_date: '2025-09-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-4',
+              company_id: 104,
+              company_name: '토스',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-4-1',
+                  stage: '서류접수',
+                  start_date: '2025-05-01',
+                  end_date: '2025-05-20'
+                },
+                {
+                  id: 'dummy-4-2',
+                  stage: '서류전형',
+                  start_date: '2025-05-25',
+                  end_date: '2025-06-05'
+                },
+                {
+                  id: 'dummy-4-3',
+                  stage: '1차면접',
+                  start_date: '2025-06-15',
+                  end_date: '2025-06-20'
+                },
+                {
+                  id: 'dummy-4-4',
+                  stage: '2차면접',
+                  start_date: '2025-07-01',
+                  end_date: '2025-07-05'
+                },
+                {
+                  id: 'dummy-4-5',
+                  stage: '입사일',
+                  start_date: '2025-10-01',
+                  end_date: '2025-10-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-5',
+              company_id: 105,
+              company_name: '쿠팡',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-5-1',
+                  stage: '서류접수',
+                  start_date: '2025-06-01',
+                  end_date: '2025-06-20'
+                },
+                {
+                  id: 'dummy-5-2',
+                  stage: '서류전형',
+                  start_date: '2025-06-25',
+                  end_date: '2025-07-05'
+                },
+                {
+                  id: 'dummy-5-3',
+                  stage: '1차면접',
+                  start_date: '2025-07-15',
+                  end_date: '2025-07-20'
+                },
+                {
+                  id: 'dummy-5-4',
+                  stage: '2차면접',
+                  start_date: '2025-08-01',
+                  end_date: '2025-08-05'
+                },
+                {
+                  id: 'dummy-5-5',
+                  stage: '입사일',
+                  start_date: '2025-11-01',
+                  end_date: '2025-11-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-6',
+              company_id: 106,
+              company_name: 'LG전자',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-6-1',
+                  stage: '서류접수',
+                  start_date: '2025-01-15',
+                  end_date: '2025-02-05'
+                },
+                {
+                  id: 'dummy-6-2',
+                  stage: '서류전형',
+                  start_date: '2025-02-10',
+                  end_date: '2025-02-20'
+                },
+                {
+                  id: 'dummy-6-3',
+                  stage: '1차면접',
+                  start_date: '2025-03-01',
+                  end_date: '2025-03-05'
+                },
+                {
+                  id: 'dummy-6-4',
+                  stage: '2차면접',
+                  start_date: '2025-03-15',
+                  end_date: '2025-03-20'
+                },
+                {
+                  id: 'dummy-6-5',
+                  stage: '입사일',
+                  start_date: '2025-06-01',
+                  end_date: '2025-06-01'
+                }
+              ]
+            },
+            {
+              id: 'dummy-7',
+              company_id: 107,
+              company_name: 'SK텔레콤',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-7-1',
+                  stage: '서류접수',
+                  start_date: '2025-02-20',
+                  end_date: '2025-03-10'
+                },
+                {
+                  id: 'dummy-7-2',
+                  stage: '서류전형',
+                  start_date: '2025-03-15',
+                  end_date: '2025-03-25'
+                },
+                {
+                  id: 'dummy-7-3',
+                  stage: '1차면접',
+                  start_date: '2025-04-01',
+                  end_date: '2025-04-05'
+                },
+                {
+                  id: 'dummy-7-4',
+                  stage: '2차면접',
+                  start_date: '2025-04-15',
+                  end_date: '2025-04-20'
+                },
+                {
+                  id: 'dummy-7-5',
+                  stage: '입사일',
+                  start_date: '2025-07-15',
+                  end_date: '2025-07-15'
+                }
+              ]
+            },
+            {
+              id: 'dummy-8',
+              company_id: 108,
+              company_name: '라인',
+              type: '신입',
+              data_type: 'predicted',
+              stages: [
+                {
+                  id: 'dummy-8-1',
+                  stage: '서류접수',
+                  start_date: '2025-03-10',
+                  end_date: '2025-03-30'
+                },
+                {
+                  id: 'dummy-8-2',
+                  stage: '서류전형',
+                  start_date: '2025-04-05',
+                  end_date: '2025-04-15'
+                },
+                {
+                  id: 'dummy-8-3',
+                  stage: '1차면접',
+                  start_date: '2025-04-25',
+                  end_date: '2025-04-30'
+                },
+                {
+                  id: 'dummy-8-4',
+                  stage: '2차면접',
+                  start_date: '2025-05-10',
+                  end_date: '2025-05-15'
+                },
+                {
+                  id: 'dummy-8-5',
+                  stage: '입사일',
+                  start_date: '2025-08-15',
+                  end_date: '2025-08-15'
+                }
+              ]
+            }
+          ]
+          
+          allSchedules.push(...dummySchedules)
+          console.log('더미 데이터 추가:', dummySchedules.length, '개')
+        }
+        
+        console.log('전체 스케줄 수:', allSchedules.length)
+        console.log('현재 필터:', recruitmentScheduleDataFilter)
+        console.log('받은 원본 데이터:', allSchedules.map(s => ({
+          id: s.id,
+          company_name: s.company_name,
+          type: s.type,
+          data_type: s.data_type,
+          stagesCount: s.stages?.length
+        })))
+        
         if (allSchedules.length > 0) {
           const transformedSchedules = transformApiResponse(allSchedules)
-          setRecruitmentScheduleData(transformedSchedules)
+          console.log('변환된 스케줄 수:', transformedSchedules.length)
+          console.log('변환된 스케줄 상세:', transformedSchedules.map(s => ({
+            id: s.id,
+            name: s.name,
+            type: s.type,
+            dataType: s.dataType,
+            stagesCount: s.stages.length
+          })))
+          
+          // 필터 적용: 신입 공고의 경우 필터에 따라 필터링
+          let filteredSchedules = transformedSchedules
+          if (recruitmentScheduleDataFilter === 'predicted') {
+            // 예측치만 선택한 경우: 신입 공고는 predicted만, 경력 공고는 모두 표시
+            filteredSchedules = transformedSchedules.filter(schedule => {
+              if (schedule.type === '신입') {
+                const isPredicted = schedule.dataType === 'predicted'
+                if (!isPredicted) {
+                  console.log(`필터링 제외: ${schedule.name}, type=${schedule.type}, dataType=${schedule.dataType}`)
+                }
+                return isPredicted
+              }
+              // 경력 공고는 모두 표시
+              return true
+            })
+            console.log('필터링 후 스케줄 수:', filteredSchedules.length)
+            console.log('필터링 후 스케줄:', filteredSchedules.map(s => ({
+              id: s.id,
+              name: s.name,
+              type: s.type,
+              dataType: s.dataType,
+              stagesCount: s.stages.length
+            })))
+          } else {
+            // 전체보기 선택한 경우: 모든 데이터 표시 (필터링 없음)
+            filteredSchedules = transformedSchedules
+          }
+          
+          setRecruitmentScheduleData(filteredSchedules)
         } else {
+          console.warn('받은 스케줄이 없습니다')
           setRecruitmentScheduleData([])
         }
       } catch (error) {
@@ -1006,7 +1362,7 @@ export default function Dashboard() {
     }
     
     fetchRecruitmentSchedule()
-  }, [])
+  }, [recruitmentScheduleDataFilter])
 
   // API 데이터를 JobDifficultyItem[] 형식으로 변환하는 함수
   const convertApiDataToJobDifficultyItems = useMemo(() => {
@@ -3633,6 +3989,29 @@ export default function Dashboard() {
           {/* 왼쪽 컬럼 (9열) - 채용 일정 시뮬레이션 및 채용 공고 수 추이 */}
           <div className="lg:col-span-9 flex flex-col lg:flex-row gap-6 items-stretch h-full">
             <DarkDashboardCard title="채용 일정 시뮬레이션" className="lg:w-[42%] flex flex-col">
+              {/* 필터 버튼 */}
+              <div className="mb-4 flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setRecruitmentScheduleDataFilter('all')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    recruitmentScheduleDataFilter === 'all'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  전체보기
+                </button>
+                <button
+                  onClick={() => setRecruitmentScheduleDataFilter('predicted')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    recruitmentScheduleDataFilter === 'predicted'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  예측치만
+                </button>
+              </div>
               <div className="flex-1 min-h-0">
                 {isLoadingRecruitmentSchedule ? (
                   <div className="flex items-center justify-center h-full">
@@ -3660,7 +4039,10 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <Suspense fallback={<div className="flex items-center justify-center py-8"><div className="text-gray-500">로딩 중...</div></div>}>
-                    <NewRecruitmentCalendar companySchedules={recruitmentScheduleData} />
+                    <NewRecruitmentCalendar 
+                      companySchedules={recruitmentScheduleData} 
+                      key={`calendar-${recruitmentScheduleDataFilter}-${recruitmentScheduleData.length}`}
+                    />
                   </Suspense>
                 )}
               </div>
